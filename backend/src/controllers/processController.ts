@@ -4,12 +4,17 @@ import { HttpError } from '../utils/httpError';
 import type { AuthedRequest } from '../middleware/authMiddleware';
 import { extractTextFromPdf } from '../services/pdfService';
 import { analyzeText } from '../services/aiService';
+import { MODEL_REGISTRY } from '../services/ai/registry';
+import type { ModelId } from '../services/ai/types';
 import { logUsage } from '../services/usageService';
 
 export async function processFile(req: AuthedRequest, res: Response, next: NextFunction) {
   try {
     if (!req.user) throw new HttpError(401, 'UNAUTHORIZED', 'Not authenticated');
     const { fileId } = req.params;
+    const requestedModel: ModelId | undefined = req.body?.model && MODEL_REGISTRY[req.body.model as ModelId]
+      ? (req.body.model as ModelId)
+      : undefined;
 
     const file = await prisma.uploadedFile.findUnique({ where: { id: fileId }, include: { result: true } });
     if (!file || file.userId !== req.user.id) {
@@ -20,7 +25,7 @@ export async function processFile(req: AuthedRequest, res: Response, next: NextF
     }
 
     const { text, pages } = await extractTextFromPdf(file.storagePath);
-    const { material, model, tokensUsed } = await analyzeText(text, req.user.plan);
+    const { material, model, tokensUsed, attempted } = await analyzeText(text, req.user.plan, requestedModel);
 
     const result = await prisma.processingResult.create({
       data: {
@@ -38,7 +43,7 @@ export async function processFile(req: AuthedRequest, res: Response, next: NextF
     await prisma.uploadedFile.update({ where: { id: file.id }, data: { pageCount: pages } });
     await logUsage(req.user.id, 'PROCESS');
 
-    res.status(201).json({ result, cached: false });
+    res.status(201).json({ result, cached: false, attempted });
   } catch (err) {
     next(err);
   }

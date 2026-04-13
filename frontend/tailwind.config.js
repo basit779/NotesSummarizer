@@ -3,7 +3,7 @@ export default {
   darkMode: ['class'],
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
-    container: { center: true, padding: '1rem', screens: { '2xl': '1280px' } },
+    container: { center: true, padding: '1.5rem', screens: { '2xl': '1280px' } },
     extend: {
       colors: {
         border: 'hsl(var(--border))',
@@ -17,15 +17,35 @@ export default {
         accent: { DEFAULT: 'hsl(var(--accent))', foreground: 'hsl(var(--accent-foreground))' },
         destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
+        mint: {
+          50: '#ecfdf5',
+          200: '#a7f3d0',
+          400: '#34d399',
+          500: '#10b981',
+          600: '#059669',
+          700: '#047857',
+        },
+        ink: {
+          950: '#09090b',
+          900: '#0c0c10',
+          800: '#121218',
+          700: '#1a1a22',
+          600: '#24242e',
+        },
+      },
+      fontFamily: {
+        sans: ['Geist', 'Satoshi', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        display: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+      },
+      letterSpacing: {
+        tightest: '-0.04em',
       },
       borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
-      backgroundImage: {
-        'gradient-hero': 'linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(199 89% 48%) 50%, hsl(172 66% 50%) 100%)',
+      boxShadow: {
+        'mint-glow': '0 0 0 1px rgba(16,185,129,0.25), 0 20px 60px -20px rgba(16,185,129,0.35)',
+        'glass': 'inset 0 1px 0 0 rgba(255,255,255,0.04), 0 30px 60px -30px rgba(0,0,0,0.6)',
       },
-      keyframes: {
-        'fade-in': { '0%': { opacity: 0, transform: 'translateY(8px)' }, '100%': { opacity: 1, transform: 'translateY(0)' } },
-      },
-      animation: { 'fade-in': 'fade-in 0.4s ease-out' },
     },
   },
   plugins: [require('tailwindcss-animate')],

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { MotionButton } from '@/components/ui/MotionButton';
 import { useAuth } from '@/lib/auth';
 
 export default function Login() {
@@ -19,7 +21,7 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      toast.success('Welcome back!');
+      toast.success('Welcome back');
       navigate('/dashboard');
     } catch (err: any) {
       toast.error(err?.response?.data?.error?.message ?? 'Login failed');
@@ -29,31 +31,40 @@ export default function Login() {
   }
 
   return (
-    <div className="container py-20 max-w-md">
-      <Card className="card-glow">
-        <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Log in to continue studying smarter.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
+    <div className="flex min-h-[calc(100vh-120px)] items-center justify-center px-6 py-12">
+      <motion.div
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-md"
+      >
+        <div className="mb-6 text-center">
+          <div className="mono text-xs text-mint-400">// sign in</div>
+          <h1 className="mt-2 mono text-3xl font-semibold tracking-tightest text-white">Welcome back</h1>
+          <p className="mt-2 text-sm text-white/50">Pick up where you left off.</p>
+        </div>
+        <GlassCard className="!p-8">
+          <form onSubmit={onSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="email" className="mono text-xs text-white/60">EMAIL</Label>
+              <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Label htmlFor="password" className="mono text-xs text-white/60">PASSWORD</Label>
+              <Input id="password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
-            <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign in'}
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              No account? <Link to="/signup" className="text-primary hover:underline">Sign up</Link>
-            </p>
+            <MotionButton type="submit" className="w-full" loading={loading}>
+              {loading ? 'Signing in…' : <>Sign in <ArrowRight className="h-4 w-4" /></>}
+            </MotionButton>
           </form>
-        </CardContent>
-      </Card>
+          <p className="mt-6 text-center text-sm text-white/50">
+            No account?{' '}
+            <Link to="/signup" className="text-mint-400 hover:text-mint-300 transition-colors cursor-pointer">
+              Create one
+            </Link>
+          </p>
+        </GlassCard>
+      </motion.div>
     </div>
   );
 }

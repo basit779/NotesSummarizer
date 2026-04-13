@@ -1,60 +1,77 @@
+@import '@fontsource/geist-sans/400.css';
+@import '@fontsource/geist-sans/500.css';
+@import '@fontsource/geist-sans/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/700.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 199 89% 48%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 262 83% 58%;
-    --radius: 0.75rem;
-  }
-  .dark {
-    --background: 240 10% 3.9%;
+    --background: 240 6% 4%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 5%;
+    --card: 240 7% 7%;
     --card-foreground: 0 0% 98%;
-    --primary: 262 83% 68%;
+    --primary: 160 84% 39%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 3.7% 15.9%;
+    --secondary: 240 5% 12%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 199 89% 58%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 50%;
+    --muted: 240 5% 12%;
+    --muted-foreground: 240 5% 64%;
+    --accent: 160 84% 45%;
+    --accent-foreground: 240 10% 4%;
+    --destructive: 0 72% 55%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 262 83% 68%;
+    --border: 240 5% 14%;
+    --input: 240 5% 14%;
+    --ring: 160 84% 45%;
+    --radius: 0.875rem;
   }
+
   * { @apply border-border; }
+  html, body, #root { @apply bg-ink-950; }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    @apply text-foreground antialiased;
+    font-family: 'Geist', 'Satoshi', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-feature-settings: 'ss01', 'cv01', 'cv11';
   }
+  ::selection { background: rgba(16,185,129,0.3); color: #fff; }
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, hsl(262 83% 68%), hsl(199 89% 58%), hsl(172 66% 60%));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+@layer components {
+  .glass {
+    @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.08];
+  }
+  .glass-strong {
+    @apply bg-white/[0.05] backdrop-blur-xl border border-white/[0.10];
+  }
+  .hairline {
+    @apply border border-white/[0.06];
+  }
+  .text-dim {
+    @apply text-white/60;
+  }
+  .text-dimmer {
+    @apply text-white/40;
+  }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
 }
-.card-glow {
-  box-shadow: 0 0 0 1px hsl(var(--border)), 0 20px 50px -20px hsl(262 83% 58% / 0.25);
+
+@layer utilities {
+  .bg-grain {
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-size: 200px 200px;
+  }
+  .mask-fade-b {
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+  .text-balance { text-wrap: balance; }
+}
+
+/* Respect reduced motion globally */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
 }

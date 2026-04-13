@@ -1,195 +1,158 @@
 # StudySnap AI
 
-**Turn 10 hours of studying into 1 hour of high-efficiency learning.**
-
-StudySnap AI is a full-stack SaaS that converts PDFs (lecture notes, textbook chapters, research papers) into exam-ready study material — summaries, key points, definitions, flashcards, and practice exam questions — powered by Anthropic Claude with structured tool-use output.
+**The AI study operating system.** Drop a PDF — get summaries, flashcards, definitions, and exam questions in seconds. Built for students who move fast.
 
 ## Stack
 
-- **Frontend:** Vite + React 18 + TypeScript + TailwindCSS + shadcn-style UI + Zustand + React Router
-- **Backend:** Node.js + Express + TypeScript (MVC) + Prisma
+- **Frontend:** Vite + React 18 + TypeScript + Tailwind + Framer Motion (dark, cinematic UI)
+- **Backend:** Node.js + Express + TypeScript + Prisma
 - **Database:** PostgreSQL
-- **AI:** Anthropic Claude (`claude-sonnet-4-5`) via `@anthropic-ai/sdk` tool-use for guaranteed JSON output
+- **AI:** Multi-provider — Gemini (2.5 Pro / 2.0 Flash), Groq (Llama 3.3 70B / 3.1 8B), OpenRouter (DeepSeek V3 free), Mistral Small. Automatic rate-limit fallback. Pick from the UI.
 - **Auth:** JWT + bcrypt
-- **Payments:** Stripe Checkout + Webhooks
-- **File handling:** Multer with S3-ready storage abstraction
+- **Billing:** Mock by default ($0 mode). Real Stripe pluggable when you're ready.
 
-## Features
+## Quick start
 
-- Landing page with pricing
-- Signup / Login with JWT
-- Drag-and-drop PDF upload (15 MB max)
-- AI-powered processing pipeline producing a 5-section study pack:
-  - Summary (150–250 words)
-  - Key Points
-  - Definitions
-  - Flashcards (flippable)
-  - Exam questions (easy / medium / hard)
-- Usage tracking (3 free uploads/day, unlimited for Pro)
-- Stripe Checkout subscription ($9/mo Pro) with webhook-driven plan sync
-- History view, per-result page with CSV flashcard export (Pro)
-- Dark mode, responsive, modern SaaS UI
+```bash
+# 1. Postgres
+docker compose up -d
 
-## Folder Structure
+# 2. Backend
+cd backend
+cp .env.example .env          # add at least one AI provider key
+npm install
+npx prisma migrate dev --name init
+npm run dev                   # → http://localhost:4000
+
+# 3. Frontend (new terminal)
+cd frontend
+npm install
+npm run dev                   # → http://localhost:5173
+```
+
+That's it. Open http://localhost:5173, sign up, drop a PDF.
+
+## Get a free AI key (need at least ONE)
+
+| Provider | Free tier | Get key |
+|---|---|---|
+| **Google AI Studio** (Gemini 2.5 Pro + 2.0 Flash) — recommended | Generous, daily reset | https://aistudio.google.com/app/apikey |
+| **Groq** (Llama 3.3 70B + 3.1 8B Instant) | Fast, generous | https://console.groq.com/keys |
+| **OpenRouter** (DeepSeek V3 free + many) | Free tier on `:free` models | https://openrouter.ai/keys |
+| **Mistral** (Mistral Small) | Free tier | https://console.mistral.ai/api-keys/ |
+
+Set any combination in `backend/.env`. The app automatically falls back if one is rate-limited.
+
+## Folder structure
 
 ```
 .
-├── frontend/      # React + Vite + Tailwind
-├── backend/       # Express + Prisma + TypeScript
+├── frontend/                    # Vite + React + Tailwind + Framer Motion
+│   └── src/
+│       ├── components/
+│       │   ├── fx/              # GridBackground, PageTransition, Reveal
+│       │   ├── ui/              # GlassCard, MotionButton, primitives
+│       │   ├── ModelPicker.tsx  # AI model dropdown
+│       │   └── ...
+│       └── pages/               # Landing, Login, Signup, Dashboard, Upload, Results, History, Billing
+├── backend/
 │   ├── src/
-│   │   ├── config/
-│   │   ├── controllers/
-│   │   ├── middleware/
-│   │   ├── routes/
 │   │   ├── services/
-│   │   ├── utils/
-│   │   ├── app.ts
-│   │   └── server.ts
+│   │   │   ├── ai/              # multi-provider registry + fallback runner
+│   │   │   │   ├── providers/   # gemini, openaiCompat (Groq/OR/Mistral)
+│   │   │   │   ├── registry.ts
+│   │   │   │   ├── runWithFallback.ts
+│   │   │   │   └── schema.ts
+│   │   │   ├── billing/         # mock/live billing facade
+│   │   │   ├── aiService.ts     # public AI facade (unchanged API)
+│   │   │   └── ...
+│   │   └── ...
 │   └── prisma/schema.prisma
-├── docker-compose.yml    # local Postgres
+├── docker-compose.yml
 └── README.md
 ```
 
-## Prerequisites
+## Environment
 
-- Node.js 20+
-- PostgreSQL 15+ (or use the bundled `docker-compose up -d`)
-- An Anthropic API key (https://console.anthropic.com/)
-- A Stripe test account + Stripe CLI (https://stripe.com/docs/stripe-cli)
-
-## Setup
-
-### 1. Clone and install
-
-```bash
-git clone https://github.com/basit779/NotesSummarizer.git
-cd NotesSummarizer
-
-# Backend
-cd backend
-cp .env.example .env    # fill in values (see below)
-npm install
-
-# Frontend
-cd ../frontend
-cp .env.example .env
-npm install
-```
-
-### 2. Start Postgres (if not already running)
-
-```bash
-cd ..
-docker compose up -d
-```
-
-### 3. Run Prisma migrations
-
-```bash
-cd backend
-npx prisma migrate dev --name init
-npx prisma generate
-```
-
-### 4. Run the app
-
-In two terminals:
-
-```bash
-# Terminal 1 — backend (http://localhost:4000)
-cd backend && npm run dev
-
-# Terminal 2 — frontend (http://localhost:5173)
-cd frontend && npm run dev
-```
-
-Open http://localhost:5173.
-
-## Environment variables
-
-### `backend/.env`
+`backend/.env` (see `backend/.env.example` for full template):
 
 ```env
-PORT=4000
-NODE_ENV=development
-CORS_ORIGIN=http://localhost:5173
-
+# Required
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/studysnap?schema=public
+JWT_SECRET=change-me
 
-JWT_SECRET=change-me-to-a-long-random-string
-JWT_EXPIRES_IN=7d
+# At least one AI key
+GOOGLE_API_KEY=
+GROQ_API_KEY=
+OPENROUTER_API_KEY=
+MISTRAL_API_KEY=
 
-ANTHROPIC_API_KEY=sk-ant-xxx
-ANTHROPIC_MODEL=claude-sonnet-4-5
+# Billing mode
+BILLING_MODE=mock              # mock = $0 dev mode. live = real Stripe.
 
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-STRIPE_PRICE_ID_PRO=price_xxx
-STRIPE_SUCCESS_URL=http://localhost:5173/billing?success=1
-STRIPE_CANCEL_URL=http://localhost:5173/billing?canceled=1
-
+# Limits
 FREE_DAILY_UPLOAD_LIMIT=3
 MAX_UPLOAD_MB=15
 ```
 
-### `frontend/.env`
+## How the AI pipeline works
 
-```env
-VITE_API_URL=http://localhost:4000
-```
+1. PDF uploaded → `uploadController` saves file + logs usage.
+2. `processController` calls `extractTextFromPdf` → `analyzeText(text, plan, requestedModel?)`.
+3. `analyzeText` → `runWithFallback` tries the requested model first, then walks the configured fallback chain on rate-limit / 5xx / bad-JSON errors.
+4. Each provider returns a validated `StudyMaterial` JSON (summary, keyPoints, definitions, examQuestions, flashcards).
+5. Result persisted to `ProcessingResult` table; response includes the `model` actually used and the `attempted` chain for debugging.
 
-## Stripe setup
-
-1. Create a recurring **Product** in Stripe Dashboard (test mode) → copy the `price_...` id into `STRIPE_PRICE_ID_PRO`.
-2. Forward webhooks to your local backend:
-   ```bash
-   stripe listen --forward-to localhost:4000/api/stripe/webhook
-   ```
-   Copy the `whsec_...` it prints into `STRIPE_WEBHOOK_SECRET`.
-3. Upgrade flow uses test card `4242 4242 4242 4242` (any future date, any CVC).
-
-## API reference
+## API
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | POST | `/api/auth/signup` | – | Create account |
-| POST | `/api/auth/login` | – | Login |
-| GET  | `/api/auth/me` | ✅ | Current user |
-| POST | `/api/upload` | ✅ | Upload a PDF (multipart `file`) |
-| POST | `/api/process/:fileId` | ✅ | Run AI pipeline |
-| GET  | `/api/history` | ✅ | Paginated past results |
-| GET  | `/api/results/:id` | ✅ | Single result |
-| GET  | `/api/dashboard` | ✅ | Usage + totals |
-| POST | `/api/stripe/checkout` | ✅ | Start Stripe Checkout |
-| POST | `/api/stripe/webhook` | – (raw) | Stripe event handler |
-| GET  | `/api/stripe/subscription-status` | ✅ | Current plan info |
+| POST | `/api/auth/login` | – | Log in |
+| GET  | `/api/auth/me` | ✓ | Current user |
+| POST | `/api/upload` | ✓ | Upload PDF (multipart `file`) |
+| POST | `/api/process/:fileId` | ✓ | Generate study pack — body: `{ model?: ModelId }` |
+| GET  | `/api/history` | ✓ | Paginated past results |
+| GET  | `/api/results/:id` | ✓ | Single result |
+| GET  | `/api/dashboard` | ✓ | Usage + totals + recent |
+| POST | `/api/stripe/checkout` | ✓ | Mock or real checkout |
+| GET  | `/api/stripe/subscription-status` | ✓ | Current plan |
+| POST | `/api/stripe/webhook` | – | Stripe events (live mode only) |
+| GET  | `/api/health` | – | Health check |
 
-## AI pipeline
+## Switching to real Stripe (later)
 
-1. `pdfService.extractText` reads the PDF with `pdf-parse`.
-2. Text is truncated to 60k chars.
-3. `aiService.analyzeText` calls Anthropic Messages API with a tool named `emit_study_material` and `tool_choice` forcing its use — this guarantees valid structured JSON matching the expected schema.
-4. Result is persisted in `ProcessingResult`.
+1. Create a Stripe account + recurring product → copy the `price_…` id.
+2. Fill `STRIPE_*` env vars in `backend/.env`.
+3. Set `BILLING_MODE=live`.
+4. Forward webhooks: `stripe listen --forward-to localhost:4000/api/stripe/webhook` → copy `whsec_…` into `STRIPE_WEBHOOK_SECRET`.
+5. Done — no code changes needed.
 
-Pro users get higher `max_tokens` and more items per section.
+## Verification checklist
 
-## Deployment
+```bash
+# 1. Postgres healthy
+docker compose ps                 # studysnap-postgres-1   running   0.0.0.0:5432
 
-- **Backend:** Render / Railway / Fly.io. Set all env vars, `npm run build`, `npm start`. Run `npm run prisma:deploy` at release time.
-- **Frontend:** Vercel / Netlify. Set `VITE_API_URL` to your backend URL.
-- **DB:** Neon / Supabase / RDS.
-- **Storage:** The `backend/uploads/` directory is local disk by default. To swap to S3, replace the `diskStorage` in `backend/src/middleware/multerUpload.ts` with `multer-s3` — the rest of the app only references `file.storagePath`.
-- **Stripe webhook:** Point your live endpoint at `https://<your-api>/api/stripe/webhook` and update `STRIPE_WEBHOOK_SECRET`.
+# 2. Migrations applied
+cd backend && npx prisma migrate status
 
-## Monetization
+# 3. Backend boots
+npm run dev                       # logs "API on :4000"
+curl http://localhost:4000/api/health
+# → {"ok":true,"service":"studysnap-api"}
 
-| | Free | Pro ($9/mo) |
-|---|---|---|
-| Uploads | 3 / day | Unlimited |
-| Exam questions | 5–6 | 10–12 |
-| Flashcards | 8–10 | 15–20 |
-| CSV export | — | ✅ |
-| Faster processing | — | ✅ |
+# 4. Frontend boots
+cd ../frontend && npm run dev     # opens http://localhost:5173
+```
+
+End-to-end: sign up → drop a PDF → pick a model → see study pack → flip flashcards → click upgrade → mock-Pro flips your plan.
+
+## Deploy
+
+- **Backend:** Railway / Render / Fly.io. `npm run build && npm start`. Run `npx prisma migrate deploy` on release.
+- **Frontend:** Vercel. Set `VITE_API_URL` to your backend URL (or proxy via `vercel.json`).
+- **DB:** Neon / Supabase free tier.
 
 ## License
 

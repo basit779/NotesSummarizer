@@ -11,15 +11,21 @@ export const env = {
   port: Number(process.env.PORT ?? 4000),
   nodeEnv: process.env.NODE_ENV ?? 'development',
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+  appUrl: process.env.APP_URL ?? 'http://localhost:5173',
 
   databaseUrl: required('DATABASE_URL'),
 
   jwtSecret: required('JWT_SECRET', 'dev-secret-change-me'),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
 
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
-  anthropicModel: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5',
+  // AI providers (any one makes the app functional; add more for fallback)
+  googleApiKey: process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY ?? '',
+  groqApiKey: process.env.GROQ_API_KEY ?? '',
+  openrouterApiKey: process.env.OPENROUTER_API_KEY ?? '',
+  mistralApiKey: process.env.MISTRAL_API_KEY ?? '',
 
+  // Billing
+  billingMode: (process.env.BILLING_MODE ?? 'mock') as 'mock' | 'live',
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? '',
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
   stripePriceIdPro: process.env.STRIPE_PRICE_ID_PRO ?? '',

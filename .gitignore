@@ -11,3 +11,6 @@ frontend/dist/
 coverage/
 .vscode/
 .idea/
+.claude/
+.next/
+.vercel/

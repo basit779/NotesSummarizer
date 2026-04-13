@@ -1,11 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { Check, Sparkles, ArrowRight } from 'lucide-react';
 import { api } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
-import { Check, Sparkles } from 'lucide-react';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { MotionButton } from '@/components/ui/MotionButton';
+
+const FREE_FEATURES = ['3 PDF uploads / day', 'Summaries & key points', 'Flashcards & definitions', 'Exam questions'];
+const PRO_FEATURES = [
+  'Unlimited uploads',
+  'Priority AI processing',
+  'Advanced exam questions',
+  'Flashcard CSV export',
+  'Priority model access',
+  'Email support',
+];
 
 export default function Billing() {
   const { user, refresh } = useAuth();
@@ -14,15 +25,15 @@ export default function Billing() {
   const [sub, setSub] = useState<any>(null);
 
   useEffect(() => {
-    api.get('/stripe/subscription-status').then((r) => setSub(r.data.subscription));
+    api.get('/stripe/subscription-status').then((r) => setSub(r.data.subscription)).catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (params.get('success')) {
-      toast.success('Welcome to Pro! 🎉');
-      setTimeout(() => refresh(), 1500);
+    if (params.get('success') || params.get('mock')) {
+      toast.success(params.get('mock') ? 'Upgraded (mock mode)' : 'Welcome to Pro');
+      setTimeout(() => refresh(), 1200);
     } else if (params.get('canceled')) {
-      toast.info('Checkout canceled.');
+      toast.info('Checkout canceled');
     }
   }, [params, refresh]);
 
@@ -40,42 +51,108 @@ export default function Billing() {
   const isPro = user?.plan === 'PRO';
 
   return (
-    <div className="container py-10 max-w-3xl space-y-6">
-      <h1 className="text-3xl font-bold">Billing</h1>
+    <div className="mx-auto max-w-4xl px-6 py-12">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="mono text-xs text-mint-400">// billing</div>
+        <h1 className="mt-2 mono text-4xl font-semibold tracking-tightest text-white">
+          {isPro ? 'You\'re on Pro.' : 'Upgrade when it clicks.'}
+        </h1>
+        <p className="mt-2 text-white/55">
+          {isPro ? 'Unlimited uploads, priority processing, export tools.' : 'Start free. Upgrade any time. Cancel whenever.'}
+        </p>
+      </motion.div>
 
-      <Card className="card-glow">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Current plan:
-            <span className={isPro ? 'gradient-text' : ''}>
-              {isPro ? <><Sparkles className="h-4 w-4 inline" /> Pro</> : 'Free'}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isPro ? (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">You have full access to unlimited uploads and advanced features.</p>
-              {sub?.currentPeriodEnd && (
-                <p className="text-sm">Renews on {new Date(sub.currentPeriodEnd).toLocaleDateString()}.</p>
-              )}
+      {isPro && (
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="mt-8"
+        >
+          <GlassCard className="relative overflow-hidden border-mint-500/25 !bg-gradient-to-br from-mint-500/[0.06] to-transparent">
+            <div className="absolute -top-20 -right-20 h-60 w-60 rounded-full bg-mint-500/[0.12] blur-3xl" />
+            <div className="relative flex items-center gap-3">
+              <Sparkles className="h-5 w-5 text-mint-400" />
+              <div className="mono text-sm text-mint-300">PRO · ACTIVE</div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">Upgrade to unlock unlimited uploads, faster processing, advanced exam questions, and flashcard export.</p>
-              <ul className="space-y-2 text-sm">
-                <li className="flex gap-2"><Check className="h-4 w-4 text-primary" /> Unlimited uploads</li>
-                <li className="flex gap-2"><Check className="h-4 w-4 text-primary" /> Faster AI processing</li>
-                <li className="flex gap-2"><Check className="h-4 w-4 text-primary" /> 10-12 exam questions per doc</li>
-                <li className="flex gap-2"><Check className="h-4 w-4 text-primary" /> CSV flashcard export</li>
-              </ul>
-              <Button variant="gradient" size="lg" onClick={upgrade} disabled={loading}>
-                {loading ? 'Starting checkout…' : 'Upgrade to Pro — $9/mo'}
-              </Button>
+            {sub?.currentPeriodEnd && (
+              <div className="relative mt-4 text-sm text-white/60">
+                Renews on <span className="text-white">{new Date(sub.currentPeriodEnd).toLocaleDateString()}</span>
+              </div>
+            )}
+          </GlassCard>
+        </motion.div>
+      )}
+
+      <div className="mt-8 grid gap-4 md:grid-cols-2">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.12 }}
+        >
+          <GlassCard className="h-full">
+            <div className="mono text-xs text-white/50">FREE</div>
+            <div className="mt-3 flex items-baseline gap-1">
+              <span className="mono text-5xl font-semibold text-white">$0</span>
+              <span className="text-white/40 text-sm">/mo</span>
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <ul className="mt-8 space-y-3">
+              {FREE_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm text-white/70">
+                  <Check className="mt-0.5 h-4 w-4 text-mint-400 shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 mono text-xs text-white/40">
+              {!isPro ? 'Your current plan' : ''}
+            </div>
+          </GlassCard>
+        </motion.div>
+
+        <motion.div
+          whileHover={{ y: -3 }}
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
+          <GlassCard className="relative h-full overflow-hidden border-mint-500/25 !bg-gradient-to-b from-mint-500/[0.06] to-white/[0.02]">
+            <div className="absolute top-4 right-4 rounded-full border border-mint-500/30 bg-mint-500/[0.12] px-2 py-0.5 mono text-[10px] text-mint-300">
+              RECOMMENDED
+            </div>
+            <div className="mono text-xs text-mint-400">PRO</div>
+            <div className="mt-3 flex items-baseline gap-1">
+              <span className="mono text-5xl font-semibold text-white">$9</span>
+              <span className="text-white/40 text-sm">/mo</span>
+            </div>
+            <ul className="mt-8 space-y-3">
+              {PRO_FEATURES.map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-sm text-white/80">
+                  <Check className="mt-0.5 h-4 w-4 text-mint-400 shrink-0" />
+                  {f}
+                </li>
+              ))}
+            </ul>
+            {!isPro && (
+              <MotionButton
+                className="mt-8 w-full"
+                onClick={upgrade}
+                loading={loading}
+              >
+                {loading ? 'Starting checkout…' : <>Upgrade to Pro <ArrowRight className="h-4 w-4" /></>}
+              </MotionButton>
+            )}
+          </GlassCard>
+        </motion.div>
+      </div>
+
+      <p className="mt-6 mono text-[11px] text-white/30 text-center">
+        no real payments in mock mode · stripe activates when account is connected
+      </p>
     </div>
   );
 }

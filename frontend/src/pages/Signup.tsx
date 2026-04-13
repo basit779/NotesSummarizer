@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { MotionButton } from '@/components/ui/MotionButton';
 import { useAuth } from '@/lib/auth';
 
 export default function Signup() {
@@ -20,7 +22,7 @@ export default function Signup() {
     setLoading(true);
     try {
       await signup(name, email, password);
-      toast.success('Account created — welcome to StudySnap!');
+      toast.success('Account created — welcome');
       navigate('/dashboard');
     } catch (err: any) {
       toast.error(err?.response?.data?.error?.message ?? 'Signup failed');
@@ -30,36 +32,45 @@ export default function Signup() {
   }
 
   return (
-    <div className="container py-20 max-w-md">
-      <Card className="card-glow">
-        <CardHeader>
-          <CardTitle>Create your account</CardTitle>
-          <CardDescription>Start with 3 free uploads every day.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
+    <div className="flex min-h-[calc(100vh-120px)] items-center justify-center px-6 py-12">
+      <motion.div
+        initial={{ opacity: 0, y: 12, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-md"
+      >
+        <div className="mb-6 text-center">
+          <div className="mono text-xs text-mint-400">// create account</div>
+          <h1 className="mt-2 mono text-3xl font-semibold tracking-tightest text-white">Start studying smarter</h1>
+          <p className="mt-2 text-sm text-white/50">3 free AI-powered packs every day. No card required.</p>
+        </div>
+        <GlassCard className="!p-8">
+          <form onSubmit={onSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
+              <Label htmlFor="name" className="mono text-xs text-white/60">NAME</Label>
+              <Input id="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="email" className="mono text-xs text-white/60">EMAIL</Label>
+              <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
-              <p className="text-xs text-muted-foreground">At least 8 characters.</p>
+              <Label htmlFor="password" className="mono text-xs text-white/60">PASSWORD</Label>
+              <Input id="password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} />
+              <p className="mono text-[11px] text-white/40">At least 8 characters.</p>
             </div>
-            <Button type="submit" variant="gradient" className="w-full" disabled={loading}>
-              {loading ? 'Creating account…' : 'Create account'}
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Already have one? <Link to="/login" className="text-primary hover:underline">Log in</Link>
-            </p>
+            <MotionButton type="submit" className="w-full" loading={loading}>
+              {loading ? 'Creating…' : <>Create account <ArrowRight className="h-4 w-4" /></>}
+            </MotionButton>
           </form>
-        </CardContent>
-      </Card>
+          <p className="mt-6 text-center text-sm text-white/50">
+            Have an account?{' '}
+            <Link to="/login" className="text-mint-400 hover:text-mint-300 transition-colors cursor-pointer">
+              Sign in
+            </Link>
+          </p>
+        </GlassCard>
+      </motion.div>
     </div>
   );
 }
