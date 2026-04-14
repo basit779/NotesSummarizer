@@ -35,8 +35,10 @@ export const useAuth = create<AuthState>((set, get) => ({
         const data = await api.get('/auth/me');
         set({ user: data.user });
         localStorage.setItem('ss_user', JSON.stringify(data.user));
-      } catch {
-        get().logout();
+      } catch (err: any) {
+        // Only logout on a real 401 (invalid/expired token). Keep cached user on
+        // network errors, cold-start 5xx, or DB sleeping.
+        if (err?.status === 401) get().logout();
       }
     }
     set({ loading: false });

@@ -58,6 +58,11 @@ export default function LoginPage() {
             <MotionButton type="submit" className="w-full" loading={loading}>
               {loading ? 'Signing in…' : <>Sign in <ArrowRight className="h-4 w-4" /></>}
             </MotionButton>
+            <div className="text-center">
+              <Link href="/forgot-password" className="mono text-[11px] text-white/40 hover:text-mint-400 transition-colors cursor-pointer">
+                forgot password?
+              </Link>
+            </div>
           </form>
           <p className="mt-6 text-center text-sm text-white/50">
             No account?{' '}
