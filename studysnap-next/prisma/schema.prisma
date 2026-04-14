@@ -31,6 +31,7 @@ model User {
   files            UploadedFile[]
   results          ProcessingResult[]
   usage            UsageLog[]
+  chatMessages     ChatMessage[]
 }
 
 model Subscription {
@@ -76,7 +77,22 @@ model ProcessingResult {
   tokensUsed     Int?
   createdAt      DateTime     @default(now())
 
+  chatMessages   ChatMessage[]
+
   @@index([userId, createdAt])
+}
+
+model ChatMessage {
+  id         String           @id @default(cuid())
+  resultId   String
+  result     ProcessingResult @relation(fields: [resultId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       String           // 'user' | 'assistant'
+  content    String           @db.Text
+  createdAt  DateTime         @default(now())
+
+  @@index([resultId, createdAt])
 }
 
 model UsageLog {

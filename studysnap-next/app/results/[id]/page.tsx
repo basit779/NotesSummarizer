@@ -12,6 +12,7 @@ import { Protected } from '@/components/Protected';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { MotionButton } from '@/components/ui/MotionButton';
 import { Flashcard } from '@/components/Flashcard';
+import { Chat } from '@/components/Chat';
 import { cn } from '@/lib/utils';
 
 interface ResultData {
@@ -25,13 +26,14 @@ interface ResultData {
   createdAt: string;
 }
 
-type TabId = 'summary' | 'key' | 'defs' | 'flash' | 'exam';
+type TabId = 'summary' | 'key' | 'defs' | 'flash' | 'exam' | 'chat';
 const TABS: { id: TabId; label: string }[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'key', label: 'Key points' },
   { id: 'defs', label: 'Definitions' },
   { id: 'flash', label: 'Flashcards' },
   { id: 'exam', label: 'Exam questions' },
+  { id: 'chat', label: 'Ask AI' },
 ];
 
 function Loading() {
@@ -189,6 +191,10 @@ function ResultsInner() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {tab === 'chat' && (
+              <Chat resultId={result.id} />
             )}
 
             {tab === 'exam' && (
