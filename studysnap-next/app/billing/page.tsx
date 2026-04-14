@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { Check, Sparkles, ArrowRight } from 'lucide-react';
+import { Check, Sparkles, ArrowRight, RotateCcw } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { useAuth } from '@/lib/client/auth';
 import { Protected } from '@/components/Protected';
@@ -124,6 +124,23 @@ function BillingInner() {
       <p className="mt-6 mono text-[11px] text-white/30 text-center">
         no real payments in mock mode · stripe activates when account is connected
       </p>
+
+      <div className="mt-10 flex justify-center">
+        <button
+          onClick={async () => {
+            try {
+              const data = await api.post('/dev/reset-usage');
+              toast.success(`Usage reset (${data.deleted} records cleared)`);
+              setTimeout(() => window.location.reload(), 800);
+            } catch (err: any) {
+              toast.error(err?.message ?? 'Reset failed');
+            }
+          }}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.14] px-3 py-1.5 mono text-[11px] text-white/50 hover:text-white/80 transition-colors cursor-pointer"
+        >
+          <RotateCcw className="h-3 w-3" /> reset today's usage (dev)
+        </button>
+      </div>
     </div>
   );
 }
