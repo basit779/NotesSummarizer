@@ -11,6 +11,9 @@ import { logUsage } from '@/lib/usage';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
+/** If a /process started within this many ms and hasn't finished, reject duplicate calls. */
+const PROCESSING_LOCK_MS = 90_000; // 90s — max expected processing time
+
 export const POST = withErrorHandling(async (req: Request, ctx: { params: Promise<{ fileId: string }> }) => {
   const user = await requireAuth(req);
   const { fileId } = await ctx.params;
@@ -24,38 +27,66 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
     throw new HttpError(404, 'FILE_NOT_FOUND', 'File not found');
   }
   if (file.result) {
+    console.log(`[PROCESS] ${fileId} cache hit — 0 API calls`);
     return NextResponse.json({ result: file.result, cached: true });
   }
 
-  if (!file.storagePath.startsWith('mem:base64:')) {
-    throw new HttpError(500, 'BAD_STORAGE', 'File storage format not recognized');
+  // Idempotency lock — prevent duplicate processing if user double-clicks or a retry comes in
+  if (file.processingAt) {
+    const ageMs = Date.now() - new Date(file.processingAt).getTime();
+    if (ageMs < PROCESSING_LOCK_MS) {
+      console.log(`[PROCESS] ${fileId} already processing (${ageMs}ms ago) — rejecting duplicate`);
+      throw new HttpError(409, 'ALREADY_PROCESSING', 'This file is already being processed. Wait a moment and refresh.');
+    }
+    // lock expired (stuck process) — allow retry
+    console.log(`[PROCESS] ${fileId} stale lock (${ageMs}ms) — allowing retry`);
   }
-  const buffer = Buffer.from(file.storagePath.slice('mem:base64:'.length), 'base64');
 
-  const { text, pages } = await extractTextFromPdfBuffer(buffer);
-  const { material, model, tokensUsed, attempted } = await analyzeText(text, user.plan, requestedModel);
-
-  const result = await prisma.processingResult.create({
-    data: {
-      fileId: file.id,
-      userId: user.id,
-      summary: material.summary,
-      keyPoints: material.keyPoints as any,
-      definitions: material.definitions as any,
-      examQuestions: material.examQuestions as any,
-      flashcards: material.flashcards as any,
-      model,
-      tokensUsed,
-    },
-  });
+  // Acquire lock
   await prisma.uploadedFile.update({
-    where: { id: file.id },
-    // free up storage now that we've processed it — keep metadata only
-    data: { pageCount: pages, storagePath: 'consumed' },
+    where: { id: fileId },
+    data: { processingAt: new Date() },
   });
-  // Count a successful generation as the billable action (was: upload counted).
-  await logUsage(user.id, 'UPLOAD');
-  await logUsage(user.id, 'PROCESS');
 
-  return NextResponse.json({ result, cached: false, attempted }, { status: 201 });
+  try {
+    if (!file.storagePath.startsWith('mem:base64:')) {
+      throw new HttpError(500, 'BAD_STORAGE', 'File storage format not recognized');
+    }
+    const buffer = Buffer.from(file.storagePath.slice('mem:base64:'.length), 'base64');
+    const { text, pages } = await extractTextFromPdfBuffer(buffer);
+
+    console.log(`[PROCESS] ${fileId} — ${pages} pages, ${text.length} chars, model=${requestedModel ?? 'auto'}`);
+
+    const { material, model, tokensUsed, attempted } = await analyzeText(text, user.plan, requestedModel);
+
+    const result = await prisma.processingResult.create({
+      data: {
+        fileId: file.id,
+        userId: user.id,
+        summary: material.summary,
+        keyPoints: material.keyPoints as any,
+        definitions: material.definitions as any,
+        examQuestions: material.examQuestions as any,
+        flashcards: material.flashcards as any,
+        model,
+        tokensUsed,
+      },
+    });
+    await prisma.uploadedFile.update({
+      where: { id: file.id },
+      data: { pageCount: pages, storagePath: 'consumed', processingAt: null },
+    });
+    await logUsage(user.id, 'UPLOAD');
+    await logUsage(user.id, 'PROCESS');
+
+    console.log(`[PROCESS] ${fileId} ✓ done — model=${model}, tokens=${tokensUsed}, attempts=${attempted.length}`);
+    return NextResponse.json({ result, cached: false, attempted }, { status: 201 });
+  } catch (err) {
+    // Release lock on failure so user can retry
+    await prisma.uploadedFile.update({
+      where: { id: fileId },
+      data: { processingAt: null },
+    }).catch(() => {});
+    throw err;
+  }
 });

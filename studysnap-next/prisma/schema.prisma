@@ -47,17 +47,18 @@ model Subscription {
 }
 
 model UploadedFile {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  filename    String
-  storagePath String   // in Next/Vercel version: stays empty or "memory://" — kept for schema parity
-  sizeBytes   Int
-  mimeType    String
-  pageCount   Int?
-  createdAt   DateTime @default(now())
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename       String
+  storagePath    String   // in Next/Vercel version: stays empty or "memory://" — kept for schema parity
+  sizeBytes      Int
+  mimeType       String
+  pageCount      Int?
+  processingAt   DateTime? // set when /process starts; cleared on success/fail. Idempotency lock.
+  createdAt      DateTime @default(now())
 
-  result      ProcessingResult?
+  result         ProcessingResult?
 
   @@index([userId, createdAt])
 }

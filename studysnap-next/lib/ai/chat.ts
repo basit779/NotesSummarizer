@@ -5,31 +5,41 @@ import { HttpError } from '../httpError';
 
 export interface ChatMsg { role: 'user' | 'assistant' | 'system'; content: string; }
 
+const MAX_CHAT_ATTEMPTS = 3;
+
 /**
  * Non-streaming chat completion with automatic provider fallback.
- * Uses the same providers as the study-pack pipeline but hits the plain
- * /chat/completions endpoints (no JSON schema enforcement).
+ * Capped at MAX_CHAT_ATTEMPTS to avoid burning quota on bad days.
  */
 export async function chatComplete(
   messages: ChatMsg[],
   preferred?: ModelId,
 ): Promise<{ content: string; model: string; tokensUsed: number }> {
+  const reqId = Math.random().toString(36).slice(2, 8);
   const chain: ModelId[] = [];
   if (preferred && MODEL_REGISTRY[preferred]) chain.push(preferred);
   for (const id of DEFAULT_FALLBACK_ORDER) if (!chain.includes(id)) chain.push(id);
-  const configured = chain.filter((id) => MODEL_REGISTRY[id].isConfigured());
+  const configured = chain.filter((id) => MODEL_REGISTRY[id].isConfigured()).slice(0, MAX_CHAT_ATTEMPTS);
   if (configured.length === 0) {
     throw new HttpError(503, 'NO_AI_PROVIDER', 'No AI provider configured.');
   }
 
+  console.log(`[CHAT][${reqId}] start — will try up to ${configured.length} providers: ${configured.join(', ')}`);
   let lastErr: Error | undefined;
-  for (const id of configured) {
+  for (let i = 0; i < configured.length; i++) {
+    const id = configured[i];
+    const t0 = Date.now();
     try {
-      return await runChat(id, messages);
+      console.log(`[CHAT][${reqId}] attempt ${i + 1}/${configured.length} — ${id}`);
+      const result = await runChat(id, messages);
+      console.log(`[CHAT][${reqId}] ✓ ${id} in ${Date.now() - t0}ms (${result.tokensUsed} tokens) — TOTAL: ${i + 1}`);
+      return result;
     } catch (err: any) {
+      console.log(`[CHAT][${reqId}] ✗ ${id} failed in ${Date.now() - t0}ms: ${err?.message ?? err}`);
       lastErr = err;
     }
   }
+  console.log(`[CHAT][${reqId}] ALL ${configured.length} FAILED`);
   throw new HttpError(502, 'ALL_PROVIDERS_FAILED', `Chat failed: ${lastErr?.message ?? 'unknown'}`);
 }
 

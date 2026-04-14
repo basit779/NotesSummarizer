@@ -32,7 +32,7 @@ function UploadInner() {
   });
 
   async function handleStart() {
-    if (!file) return;
+    if (!file || stage !== 'idle') return; // double-click guard
     try {
       setStage('uploading');
       const form = new FormData();
@@ -47,6 +47,8 @@ function UploadInner() {
     } catch (err: any) {
       if (err?.code === 'FREE_LIMIT_REACHED') {
         toast.error(err.message, { action: { label: 'Upgrade', onClick: () => router.push('/billing') } });
+      } else if (err?.code === 'ALREADY_PROCESSING') {
+        toast.info('Already processing this file — hold on…');
       } else {
         toast.error(err?.message ?? 'Something went wrong');
       }
