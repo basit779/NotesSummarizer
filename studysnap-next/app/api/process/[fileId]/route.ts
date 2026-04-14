@@ -53,6 +53,8 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
     // free up storage now that we've processed it — keep metadata only
     data: { pageCount: pages, storagePath: 'consumed' },
   });
+  // Count a successful generation as the billable action (was: upload counted).
+  await logUsage(user.id, 'UPLOAD');
   await logUsage(user.id, 'PROCESS');
 
   return NextResponse.json({ result, cached: false, attempted }, { status: 201 });

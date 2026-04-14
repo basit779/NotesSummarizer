@@ -56,7 +56,6 @@ export const POST = withErrorHandling(async (req: Request) => {
     },
     select: { id: true, filename: true, sizeBytes: true, mimeType: true, createdAt: true },
   });
-  await logUsage(user.id, 'UPLOAD');
-
+  // Usage is logged on successful generation, not on upload — so failed AI attempts don't burn quota.
   return NextResponse.json({ file: record }, { status: 201 });
 });
