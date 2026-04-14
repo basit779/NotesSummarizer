@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 export type ModelId =
+  | 'auto'
   | 'gemini-2.5-pro'
   | 'gemini-2.0-flash'
   | 'groq-llama-3.3-70b'
@@ -24,7 +25,8 @@ interface ModelOption {
 }
 
 export const MODELS: ModelOption[] = [
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', blurb: 'Best reasoning. Default.', tier: 'flagship' },
+  { id: 'auto', name: 'Auto', provider: 'smart routing', blurb: 'Picks the best available. Recommended.', tier: 'flagship' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', blurb: 'Best reasoning.', tier: 'flagship' },
   { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', blurb: 'Fast, reliable JSON.', tier: 'fast' },
   { id: 'groq-llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Groq', blurb: 'Fastest inference.', tier: 'balanced' },
   { id: 'groq-llama-3.1-8b', name: 'Llama 3.1 8B', provider: 'Groq', blurb: 'Lightweight, quick.', tier: 'fast' },

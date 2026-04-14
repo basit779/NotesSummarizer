@@ -18,7 +18,7 @@ function UploadInner() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>('idle');
-  const [model, setModel] = useState<ModelId>('gemini-2.5-pro');
+  const [model, setModel] = useState<ModelId>('auto');
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
@@ -41,7 +41,7 @@ function UploadInner() {
 
       setStage('processing');
       toast.info('Running AI analysis — ~15-30s');
-      const processed = await api.post(`/process/${uploaded.file.id}`, { model });
+      const processed = await api.post(`/process/${uploaded.file.id}`, model === 'auto' ? {} : { model });
       toast.success('Study pack ready');
       router.push(`/results/${processed.result.id}`);
     } catch (err: any) {
