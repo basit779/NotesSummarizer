@@ -11,7 +11,9 @@ export type ModelId =
   | 'groq-llama-3.3-70b'
   | 'groq-llama-3.1-8b'
   | 'openrouter-deepseek'
-  | 'mistral-small';
+  | 'mistral-small'
+  | 'github-gpt-4o-mini'
+  | 'github-llama-3.3-70b';
 
 interface ModelOption {
   id: ModelId;
@@ -28,6 +30,8 @@ export const MODELS: ModelOption[] = [
   { id: 'groq-llama-3.1-8b', name: 'Llama 3.1 8B', provider: 'Groq', blurb: 'Lightweight, quick.', tier: 'fast' },
   { id: 'openrouter-deepseek', name: 'DeepSeek V3', provider: 'OpenRouter', blurb: 'Strong free-tier reasoning.', tier: 'flagship' },
   { id: 'mistral-small', name: 'Mistral Small', provider: 'Mistral', blurb: 'Compact, precise.', tier: 'balanced' },
+  { id: 'github-gpt-4o-mini', name: 'GPT-4o mini', provider: 'GitHub', blurb: 'Student-pack friendly.', tier: 'fast' },
+  { id: 'github-llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'GitHub', blurb: 'Heavyweight via Student Pack.', tier: 'flagship' },
 ];
 
 const tierIcon = { flagship: Sparkles, fast: Zap, balanced: Feather };

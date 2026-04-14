@@ -12,7 +12,9 @@ export type ModelId =
   | 'groq-llama-3.3-70b'
   | 'groq-llama-3.1-8b'
   | 'openrouter-deepseek'
-  | 'mistral-small';
+  | 'mistral-small'
+  | 'github-gpt-4o-mini'
+  | 'github-llama-3.3-70b';
 
 export interface ProviderResult {
   material: StudyMaterial;
@@ -47,4 +49,6 @@ export const MODEL_IDS: ModelId[] = [
   'groq-llama-3.1-8b',
   'openrouter-deepseek',
   'mistral-small',
+  'github-gpt-4o-mini',
+  'github-llama-3.3-70b',
 ];

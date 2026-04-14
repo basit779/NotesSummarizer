@@ -67,12 +67,36 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     }),
     isConfigured: () => Boolean(env.mistralApiKey),
   },
+  'github-gpt-4o-mini': {
+    id: 'github-gpt-4o-mini', label: 'GPT-4o mini (GitHub)', provider: 'github',
+    run: (text, plan) => openaiCompat({
+      baseUrl: 'https://models.inference.ai.azure.com',
+      apiKey: env.githubToken,
+      modelName: 'gpt-4o-mini',
+      displayName: 'GitHub GPT-4o mini',
+      text, plan,
+    }),
+    isConfigured: () => Boolean(env.githubToken),
+  },
+  'github-llama-3.3-70b': {
+    id: 'github-llama-3.3-70b', label: 'Llama 3.3 70B (GitHub)', provider: 'github',
+    run: (text, plan) => openaiCompat({
+      baseUrl: 'https://models.inference.ai.azure.com',
+      apiKey: env.githubToken,
+      modelName: 'Llama-3.3-70B-Instruct',
+      displayName: 'GitHub Llama 3.3 70B',
+      text, plan,
+    }),
+    isConfigured: () => Boolean(env.githubToken),
+  },
 };
 
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.5-pro',
   'gemini-2.0-flash',
   'groq-llama-3.3-70b',
+  'github-gpt-4o-mini',
+  'github-llama-3.3-70b',
   'openrouter-deepseek',
   'mistral-small',
   'groq-llama-3.1-8b',

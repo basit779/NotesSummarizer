@@ -16,6 +16,7 @@ export const env = {
   groqApiKey: process.env.GROQ_API_KEY ?? '',
   openrouterApiKey: process.env.OPENROUTER_API_KEY ?? '',
   mistralApiKey: process.env.MISTRAL_API_KEY ?? '',
+  githubToken: process.env.GITHUB_MODELS_TOKEN ?? process.env.GITHUB_TOKEN ?? '',
 
   billingMode: (process.env.BILLING_MODE ?? 'mock') as 'mock' | 'live',
   stripeSecretKey: process.env.STRIPE_SECRET_KEY ?? '',
