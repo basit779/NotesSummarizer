@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Copy, Download, Lock, Clock, FileText, ArrowLeft } from 'lucide-react';
+import { Copy, Download, Lock, Clock, FileText, ArrowLeft, Play, Zap } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { useAuth } from '@/lib/client/auth';
 import { Protected } from '@/components/Protected';
@@ -273,7 +273,12 @@ function ResultsInner() {
 
             {tab === 'flash' && (
               <div>
-                <div className="flex justify-end mb-4">
+                <div className="flex justify-between items-center mb-4 gap-2 flex-wrap">
+                  <Link href={`/study/${result.id}`}>
+                    <MotionButton size="sm">
+                      <Play className="h-3.5 w-3.5" /> Start study mode
+                    </MotionButton>
+                  </Link>
                   <MotionButton variant={user?.plan === 'PRO' ? 'primary' : 'outline'} size="sm" onClick={exportFlashcards}>
                     {user?.plan === 'PRO' ? <Download className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                     Export CSV {user?.plan !== 'PRO' && '· Pro'}
@@ -297,10 +302,21 @@ function ResultsInner() {
             )}
 
             {tab === 'exam' && (
-              <div className="space-y-3">
-                {result.examQuestions.map((q, i) => (
-                  <QuizQuestion key={i} q={q} index={i} />
-                ))}
+              <div>
+                {result.examQuestions.some((q) => q.options && q.options.length >= 2) && (
+                  <div className="flex justify-end mb-4">
+                    <Link href={`/quiz/${result.id}`}>
+                      <MotionButton size="sm">
+                        <Zap className="h-3.5 w-3.5" /> Start quiz mode
+                      </MotionButton>
+                    </Link>
+                  </div>
+                )}
+                <div className="space-y-3">
+                  {result.examQuestions.map((q, i) => (
+                    <QuizQuestion key={i} q={q} index={i} />
+                  ))}
+                </div>
               </div>
             )}
 
