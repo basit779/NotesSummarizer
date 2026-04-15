@@ -2,6 +2,7 @@ import { env } from '../env';
 import { geminiProvider } from './providers/gemini';
 import { openaiCompat } from './providers/openaiCompat';
 import { ModelId, ProviderFn } from './types';
+import { truncateForModel } from './truncate';
 
 export interface ModelSpec {
   id: ModelId;
@@ -14,12 +15,12 @@ export interface ModelSpec {
 export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   'gemini-2.5-pro': {
     id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'google',
-    run: (text, plan) => geminiProvider('gemini-2.5-pro', text, plan),
+    run: (text, plan) => geminiProvider('gemini-2.5-pro', truncateForModel(text, 'gemini-2.5-pro'), plan),
     isConfigured: () => Boolean(env.googleApiKey),
   },
   'gemini-2.0-flash': {
     id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'google',
-    run: (text, plan) => geminiProvider('gemini-2.0-flash', text, plan),
+    run: (text, plan) => geminiProvider('gemini-2.0-flash', truncateForModel(text, 'gemini-2.0-flash'), plan),
     isConfigured: () => Boolean(env.googleApiKey),
   },
   'groq-llama-3.3-70b': {
@@ -29,7 +30,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.groqApiKey,
       modelName: 'llama-3.3-70b-versatile',
       displayName: 'Groq Llama 3.3 70B',
-      text, plan,
+      text: truncateForModel(text, 'groq-llama-3.3-70b'), plan,
     }),
     isConfigured: () => Boolean(env.groqApiKey),
   },
@@ -40,7 +41,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.groqApiKey,
       modelName: 'llama-3.1-8b-instant',
       displayName: 'Groq Llama 3.1 8B',
-      text, plan,
+      text: truncateForModel(text, 'groq-llama-3.1-8b'), plan,
     }),
     isConfigured: () => Boolean(env.groqApiKey),
   },
@@ -51,7 +52,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.openrouterApiKey,
       modelName: 'deepseek/deepseek-chat-v3.1:free',
       displayName: 'OpenRouter DeepSeek',
-      text, plan,
+      text: truncateForModel(text, 'openrouter-deepseek'), plan,
       extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' },
     }),
     isConfigured: () => Boolean(env.openrouterApiKey),
@@ -63,7 +64,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.mistralApiKey,
       modelName: 'mistral-small-latest',
       displayName: 'Mistral Small',
-      text, plan,
+      text: truncateForModel(text, 'mistral-small'), plan,
     }),
     isConfigured: () => Boolean(env.mistralApiKey),
   },
@@ -74,7 +75,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.githubToken,
       modelName: 'gpt-4o-mini',
       displayName: 'GitHub GPT-4o mini',
-      text, plan,
+      text: truncateForModel(text, 'github-gpt-4o-mini'), plan,
     }),
     isConfigured: () => Boolean(env.githubToken),
   },
@@ -85,7 +86,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.githubToken,
       modelName: 'Llama-3.3-70B-Instruct',
       displayName: 'GitHub Llama 3.3 70B',
-      text, plan,
+      text: truncateForModel(text, 'github-llama-3.3-70b'), plan,
     }),
     isConfigured: () => Boolean(env.githubToken),
   },
