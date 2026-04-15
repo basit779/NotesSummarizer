@@ -15,26 +15,120 @@ import { Flashcard } from '@/components/Flashcard';
 import { Chat } from '@/components/Chat';
 import { cn } from '@/lib/utils';
 
+interface ExamQ {
+  question: string;
+  answer: string;
+  difficulty: string;
+  options?: string[];
+  correct?: string;
+  explanation?: string;
+}
+
 interface ResultData {
   id: string;
+  title?: string;
   summary: string;
   keyPoints: string[];
   definitions: { term: string; definition: string }[];
-  examQuestions: { question: string; answer: string; difficulty: string }[];
+  examQuestions: ExamQ[];
   flashcards: { front: string; back: string }[];
+  topicConnections?: string[];
+  studyTips?: string[];
   file: { filename: string; pageCount: number | null };
   createdAt: string;
 }
 
-type TabId = 'summary' | 'key' | 'defs' | 'flash' | 'exam' | 'chat';
+type TabId = 'summary' | 'key' | 'defs' | 'flash' | 'exam' | 'tips' | 'chat';
 const TABS: { id: TabId; label: string }[] = [
   { id: 'summary', label: 'Summary' },
   { id: 'key', label: 'Key points' },
   { id: 'defs', label: 'Definitions' },
   { id: 'flash', label: 'Flashcards' },
-  { id: 'exam', label: 'Exam questions' },
+  { id: 'exam', label: 'Quiz' },
+  { id: 'tips', label: 'Tips' },
   { id: 'chat', label: 'Ask AI' },
 ];
+
+function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  const options = q.options ?? [];
+  const correctLetter = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '').charAt(0);
+  const diff = q.difficulty.toLowerCase();
+  const tone =
+    diff === 'easy' ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300' :
+    diff === 'medium' ? 'border-amber-500/20 bg-amber-500/[0.06] text-amber-300' :
+    'border-rose-500/20 bg-rose-500/[0.06] text-rose-300';
+
+  function getLetter(opt: string, i: number) {
+    const m = opt.match(/^([A-D])[).]\s*(.*)$/i);
+    if (m) return { letter: m[1].toUpperCase(), text: m[2] };
+    return { letter: String.fromCharCode(65 + i), text: opt };
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
+      <GlassCard>
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex gap-3 flex-1 min-w-0">
+            <span className="mono text-[11px] text-white/40 shrink-0">Q{String(index + 1).padStart(2, '0')}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-white font-medium leading-relaxed">{q.question}</div>
+            </div>
+          </div>
+          <span className={cn('mono shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase', tone)}>{q.difficulty}</span>
+        </div>
+
+        {options.length > 0 ? (
+          <div className="ml-9 space-y-2">
+            {options.map((opt, i) => {
+              const { letter, text } = getLetter(opt, i);
+              const isSelected = selected === letter;
+              const isCorrect = letter === correctLetter;
+              const showState = revealed && (isSelected || isCorrect);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => { setSelected(letter); setRevealed(true); }}
+                  disabled={revealed}
+                  className={cn(
+                    'w-full text-left rounded-lg border px-3 py-2.5 text-sm transition-colors cursor-pointer',
+                    !revealed && 'border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.14] text-white/80',
+                    revealed && !showState && 'border-white/[0.06] bg-white/[0.02] text-white/40',
+                    showState && isCorrect && 'border-emerald-500/40 bg-emerald-500/[0.08] text-emerald-200',
+                    showState && !isCorrect && 'border-rose-500/40 bg-rose-500/[0.08] text-rose-200',
+                  )}
+                >
+                  <span className="mono text-[11px] text-white/40 mr-2">{letter}</span>
+                  {text}
+                </button>
+              );
+            })}
+            <AnimatePresence>
+              {revealed && q.explanation && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  className="rounded-lg border border-mint-500/20 bg-mint-500/[0.05] p-3 mt-3">
+                  <div className="mono text-[11px] text-mint-300 mb-1.5">EXPLANATION</div>
+                  <div className="text-sm text-white/80 leading-relaxed">{q.explanation}</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ) : (
+          <details className="group ml-9">
+            <summary className="mono cursor-pointer list-none inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[11px] text-white/60 hover:text-mint-400 hover:border-mint-500/30 transition-colors">
+              show answer
+            </summary>
+            <p className="mt-3 text-sm text-white/70 leading-relaxed">{q.answer}</p>
+            {q.explanation && <p className="mt-2 text-sm text-white/60 leading-relaxed"><span className="mono text-[11px] text-mint-300">why: </span>{q.explanation}</p>}
+          </details>
+        )}
+      </GlassCard>
+    </motion.div>
+  );
+}
 
 function Loading() {
   return (
@@ -88,7 +182,12 @@ function ResultsInner() {
             <FileText className="h-5 w-5 text-mint-400" />
           </div>
           <div className="min-w-0">
-            <h1 className="mono text-2xl md:text-3xl font-semibold tracking-tightest text-white truncate">{result.file.filename}</h1>
+            <h1 className="mono text-2xl md:text-3xl font-semibold tracking-tightest text-white truncate">
+              {result.title || result.file.filename}
+            </h1>
+            {result.title && (
+              <div className="mt-1 text-xs text-white/40 truncate">{result.file.filename}</div>
+            )}
             <div className="mt-1.5 flex items-center gap-3 mono text-[11px] text-white/40">
               <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(result.createdAt).toLocaleString()}</span>
               <span className="text-white/20">·</span>
@@ -199,36 +298,57 @@ function ResultsInner() {
 
             {tab === 'exam' && (
               <div className="space-y-3">
-                {result.examQuestions.map((q, i) => {
-                  const diff = q.difficulty.toLowerCase();
-                  const tone =
-                    diff === 'easy' ? 'border-emerald-500/20 bg-emerald-500/[0.06] text-emerald-300' :
-                    diff === 'medium' ? 'border-amber-500/20 bg-amber-500/[0.06] text-amber-300' :
-                    'border-rose-500/20 bg-rose-500/[0.06] text-rose-300';
-                  return (
-                    <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}>
-                      <GlassCard>
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex gap-3 flex-1 min-w-0">
-                            <span className="mono text-[11px] text-white/40 shrink-0">Q{String(i + 1).padStart(2, '0')}</span>
-                            <div className="min-w-0">
-                              <div className="text-white font-medium leading-relaxed">{q.question}</div>
-                              <details className="group mt-3">
-                                <summary className="mono cursor-pointer list-none inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-[11px] text-white/60 hover:text-mint-400 hover:border-mint-500/30 transition-colors">
-                                  show answer
-                                </summary>
-                                <p className="mt-3 text-sm text-white/70 leading-relaxed">{q.answer}</p>
-                              </details>
-                            </div>
-                          </div>
-                          <span className={cn('mono shrink-0 rounded-full border px-2 py-0.5 text-[10px] uppercase', tone)}>
-                            {q.difficulty}
-                          </span>
-                        </div>
-                      </GlassCard>
-                    </motion.div>
-                  );
-                })}
+                {result.examQuestions.map((q, i) => (
+                  <QuizQuestion key={i} q={q} index={i} />
+                ))}
+              </div>
+            )}
+
+            {tab === 'tips' && (
+              <div className="space-y-6">
+                {result.studyTips && result.studyTips.length > 0 && (
+                  <GlassCard>
+                    <div className="mono text-xs text-mint-400 mb-4">// study tips</div>
+                    <ul className="space-y-3">
+                      {result.studyTips.map((t, i) => (
+                        <motion.li
+                          key={i}
+                          initial={{ opacity: 0, x: -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.04 }}
+                          className="flex gap-3 text-sm text-white/80 leading-relaxed"
+                        >
+                          <span className="mono text-mint-400 shrink-0">▸</span>
+                          <span>{t}</span>
+                        </motion.li>
+                      ))}
+                    </ul>
+                  </GlassCard>
+                )}
+                {result.topicConnections && result.topicConnections.length > 0 && (
+                  <GlassCard>
+                    <div className="mono text-xs text-mint-400 mb-4">// connections</div>
+                    <ul className="space-y-3">
+                      {result.topicConnections.map((t, i) => (
+                        <motion.li
+                          key={i}
+                          initial={{ opacity: 0, x: -4 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.04 }}
+                          className="flex gap-3 text-sm text-white/80 leading-relaxed"
+                        >
+                          <span className="mono text-mint-400 shrink-0">◇</span>
+                          <span>{t}</span>
+                        </motion.li>
+                      ))}
+                    </ul>
+                  </GlassCard>
+                )}
+                {!result.studyTips?.length && !result.topicConnections?.length && (
+                  <GlassCard className="text-center !py-14">
+                    <div className="mono text-xs text-white/40">no study tips for this pack</div>
+                  </GlassCard>
+                )}
               </div>
             )}
           </motion.div>
