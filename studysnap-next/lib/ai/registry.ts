@@ -92,15 +92,16 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 };
 
 /**
- * Curated 3-provider chain. Ordered by: quota generosity → JSON reliability → reasoning quality.
- * Groq first (most generous free tier), Gemini Flash second (strict JSON schema),
- * GPT-4o-mini third (best reasoning backup).
+ * Fixed 3-provider fallback chain. Invisible to the user. No picker UI.
+ * Order: Gemini 2.0 Flash → Groq Llama 3.3 70B → GitHub GPT-4o-mini.
+ * Rationale: Gemini Flash has native JSON schema enforcement (best output quality),
+ * Groq is fastest + generous quota, GPT-4o-mini is last-resort reasoning.
  *
- * Max 3 API calls per upload in the worst case. Cap enforced in runWithFallback.ts.
+ * MAX_ATTEMPTS=3 enforced in runWithFallback.ts — one upload = at most 3 API calls.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'groq-llama-3.3-70b',
   'gemini-2.0-flash',
+  'groq-llama-3.3-70b',
   'github-gpt-4o-mini',
 ];
 
