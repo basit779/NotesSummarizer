@@ -23,6 +23,6 @@ export const env = {
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
   stripePriceIdPro: process.env.STRIPE_PRICE_ID_PRO ?? '',
 
-  freeDailyUploadLimit: Number(process.env.FREE_DAILY_UPLOAD_LIMIT ?? 3),
+  freeDailyUploadLimit: Number(process.env.FREE_DAILY_UPLOAD_LIMIT ?? 10),
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB ?? 15),
 };
