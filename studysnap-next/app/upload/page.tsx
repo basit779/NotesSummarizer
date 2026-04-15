@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,7 +10,6 @@ import { api } from '@/lib/client/api';
 import { Protected } from '@/components/Protected';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { MotionButton } from '@/components/ui/MotionButton';
-import { ModelPicker, ModelId } from '@/components/ModelPicker';
 
 type Stage = 'idle' | 'uploading' | 'processing';
 
@@ -18,7 +17,8 @@ function UploadInner() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>('idle');
-  const [model, setModel] = useState<ModelId>('auto');
+  // Synchronous lock — React state is async, this isn't. Prevents double-submit cascades.
+  const lockRef = useRef(false);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
@@ -32,7 +32,12 @@ function UploadInner() {
   });
 
   async function handleStart() {
-    if (!file || stage !== 'idle') return; // double-click guard
+    if (!file || stage !== 'idle' || lockRef.current) {
+      console.log('[UPLOAD] blocked duplicate submit', { stage, locked: lockRef.current });
+      return;
+    }
+    lockRef.current = true;
+
     try {
       setStage('uploading');
       const form = new FormData();
@@ -41,18 +46,22 @@ function UploadInner() {
 
       setStage('processing');
       toast.info('Running AI analysis — ~15-30s');
-      const processed = await api.post(`/process/${uploaded.file.id}`, model === 'auto' ? {} : { model });
+      const processed = await api.post(`/process/${uploaded.file.id}`, {});
       toast.success('Study pack ready');
       router.push(`/results/${processed.result.id}`);
     } catch (err: any) {
       if (err?.code === 'FREE_LIMIT_REACHED') {
         toast.error(err.message, { action: { label: 'Upgrade', onClick: () => router.push('/billing') } });
       } else if (err?.code === 'ALREADY_PROCESSING') {
-        toast.info('Already processing this file — hold on…');
+        toast.info('Already processing — hold on…');
+      } else if (err?.code === 'UPLOAD_COOLDOWN') {
+        toast.info(err.message ?? 'Please wait a moment before uploading again.');
       } else {
         toast.error(err?.message ?? 'Something went wrong');
       }
       setStage('idle');
+    } finally {
+      lockRef.current = false;
     }
   }
 
@@ -61,7 +70,7 @@ function UploadInner() {
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="mono text-xs text-mint-400">// upload</div>
         <h1 className="mt-2 mono text-4xl font-semibold tracking-tightest text-white">New study pack</h1>
-        <p className="mt-2 text-white/55">Drop a PDF. Pick a model. Get a study pack in seconds.</p>
+        <p className="mt-2 text-white/55">Drop a PDF. Get a comprehensive study pack in seconds.</p>
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="mt-8 space-y-4">
@@ -120,8 +129,6 @@ function UploadInner() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        <ModelPicker value={model} onChange={setModel} disabled={stage !== 'idle'} />
 
         <MotionButton size="lg" className="w-full" disabled={!file || stage !== 'idle'} onClick={handleStart}>
           {stage === 'idle' && <>Generate study pack <ArrowRight className="h-4 w-4" /></>}
