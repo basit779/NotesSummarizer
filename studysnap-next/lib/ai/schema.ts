@@ -1,4 +1,4 @@
-import { StudyMaterial } from './types';
+import type { StudyMaterial } from './types';
 
 export const STUDY_MATERIAL_SCHEMA = {
   type: 'object',
@@ -46,14 +46,36 @@ export function validateStudyMaterial(obj: unknown): StudyMaterial {
   if (!Array.isArray(o.examQuestions)) throw new Error('examQuestions missing');
   if (!Array.isArray(o.flashcards)) throw new Error('flashcards missing');
   return {
+    title: typeof o.title === 'string' ? o.title : undefined,
     summary: o.summary,
     keyPoints: (o.keyPoints as string[]).filter((x) => typeof x === 'string'),
     definitions: (o.definitions as any[]).filter((d) => d?.term && d?.definition),
-    examQuestions: (o.examQuestions as any[]).filter((q) => q?.question && q?.answer && q?.difficulty).map((q) => ({
-      question: q.question,
-      answer: q.answer,
-      difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
-    })),
+    examQuestions: (o.examQuestions as any[])
+      .filter((q) => q?.question && (q?.answer || q?.correct))
+      .map((q) => {
+        const options = Array.isArray(q.options) ? q.options.filter((x: any) => typeof x === 'string') : undefined;
+        const correct = typeof q.correct === 'string' ? q.correct : undefined;
+        // Derive the plain answer text from options + correct letter if needed
+        let answer = typeof q.answer === 'string' ? q.answer : '';
+        if (!answer && options && correct) {
+          const idx = ['A', 'B', 'C', 'D'].indexOf(correct.toUpperCase().trim().replace(/[).]/g, ''));
+          if (idx >= 0 && options[idx]) answer = options[idx].replace(/^[A-D][).]\s*/i, '');
+        }
+        return {
+          question: q.question,
+          options,
+          correct,
+          explanation: typeof q.explanation === 'string' ? q.explanation : undefined,
+          answer,
+          difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
+        };
+      }),
     flashcards: (o.flashcards as any[]).filter((f) => f?.front && f?.back),
+    topicConnections: Array.isArray(o.topicConnections)
+      ? (o.topicConnections as any[]).filter((x) => typeof x === 'string')
+      : undefined,
+    studyTips: Array.isArray(o.studyTips)
+      ? (o.studyTips as any[]).filter((x) => typeof x === 'string')
+      : undefined,
   };
 }

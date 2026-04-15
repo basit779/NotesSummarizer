@@ -91,15 +91,17 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   },
 };
 
+/**
+ * Curated 3-provider chain. Ordered by: quota generosity → JSON reliability → reasoning quality.
+ * Groq first (most generous free tier), Gemini Flash second (strict JSON schema),
+ * GPT-4o-mini third (best reasoning backup).
+ *
+ * Max 3 API calls per upload in the worst case. Cap enforced in runWithFallback.ts.
+ */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'gemini-2.5-pro',
-  'gemini-2.0-flash',
   'groq-llama-3.3-70b',
+  'gemini-2.0-flash',
   'github-gpt-4o-mini',
-  'github-llama-3.3-70b',
-  'openrouter-deepseek',
-  'mistral-small',
-  'groq-llama-3.1-8b',
 ];
 
 export function listConfiguredModels(): ModelSpec[] {

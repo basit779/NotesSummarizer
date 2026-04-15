@@ -7,14 +7,9 @@ import { cn } from '@/lib/utils';
 
 export type ModelId =
   | 'auto'
-  | 'gemini-2.5-pro'
   | 'gemini-2.0-flash'
   | 'groq-llama-3.3-70b'
-  | 'groq-llama-3.1-8b'
-  | 'openrouter-deepseek'
-  | 'mistral-small'
-  | 'github-gpt-4o-mini'
-  | 'github-llama-3.3-70b';
+  | 'github-gpt-4o-mini';
 
 interface ModelOption {
   id: ModelId;
@@ -26,14 +21,9 @@ interface ModelOption {
 
 export const MODELS: ModelOption[] = [
   { id: 'auto', name: 'Auto', provider: 'smart routing', blurb: 'Picks the best available. Recommended.', tier: 'flagship' },
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', blurb: 'Best reasoning.', tier: 'flagship' },
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', blurb: 'Fast, reliable JSON.', tier: 'fast' },
-  { id: 'groq-llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Groq', blurb: 'Fastest inference.', tier: 'balanced' },
-  { id: 'groq-llama-3.1-8b', name: 'Llama 3.1 8B', provider: 'Groq', blurb: 'Lightweight, quick.', tier: 'fast' },
-  { id: 'openrouter-deepseek', name: 'DeepSeek V3', provider: 'OpenRouter', blurb: 'Strong free-tier reasoning.', tier: 'flagship' },
-  { id: 'mistral-small', name: 'Mistral Small', provider: 'Mistral', blurb: 'Compact, precise.', tier: 'balanced' },
-  { id: 'github-gpt-4o-mini', name: 'GPT-4o mini', provider: 'GitHub', blurb: 'Student-pack friendly.', tier: 'fast' },
-  { id: 'github-llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'GitHub', blurb: 'Heavyweight via Student Pack.', tier: 'flagship' },
+  { id: 'groq-llama-3.3-70b', name: 'Llama 3.3 70B', provider: 'Groq', blurb: 'Fastest + most generous quota.', tier: 'fast' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', blurb: 'Strict JSON · 1M context.', tier: 'balanced' },
+  { id: 'github-gpt-4o-mini', name: 'GPT-4o mini', provider: 'GitHub', blurb: 'Strong reasoning backup.', tier: 'flagship' },
 ];
 
 const tierIcon = { flagship: Sparkles, fast: Zap, balanced: Feather };
@@ -118,7 +108,7 @@ export function ModelPicker({ value, onChange, disabled }: { value: ModelId; onC
             <div className="border-t border-white/[0.05] px-3 py-2">
               <div className="flex items-center gap-1.5 text-[11px] text-white/40">
                 <Cpu className="h-3 w-3" />
-                <span className="mono">auto-fallback if rate-limited</span>
+                <span className="mono">auto-fallback on rate limit · max 3 calls</span>
               </div>
             </div>
           </motion.div>

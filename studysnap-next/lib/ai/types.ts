@@ -1,9 +1,21 @@
+export interface ExamQuestion {
+  question: string;
+  answer: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  options?: string[];
+  correct?: string;
+  explanation?: string;
+}
+
 export interface StudyMaterial {
+  title?: string;
   summary: string;
   keyPoints: string[];
   definitions: { term: string; definition: string }[];
-  examQuestions: { question: string; answer: string; difficulty: 'easy' | 'medium' | 'hard' }[];
+  examQuestions: ExamQuestion[];
   flashcards: { front: string; back: string }[];
+  topicConnections?: string[];
+  studyTips?: string[];
 }
 
 export type ModelId =
