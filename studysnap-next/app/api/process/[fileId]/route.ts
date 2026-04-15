@@ -5,6 +5,7 @@ import { HttpError } from '@/lib/httpError';
 import { extractTextFromPdfBuffer } from '@/lib/pdf';
 import { analyzeText } from '@/lib/ai';
 import { MODEL_REGISTRY } from '@/lib/ai/registry';
+import { willTruncate } from '@/lib/ai/truncate';
 import type { ModelId } from '@/lib/ai/types';
 import { logUsage } from '@/lib/usage';
 
@@ -57,6 +58,7 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
 
     console.log(`[PROCESS] ${fileId} — ${pages} pages, ${text.length} chars, model=${requestedModel ?? 'auto'}`);
 
+    const truncated = willTruncate(text);
     const { material, model, tokensUsed, attempted } = await analyzeText(text, user.plan, requestedModel);
 
     const result = await prisma.processingResult.create({
@@ -80,7 +82,7 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
     await logUsage(user.id, 'PROCESS');
 
     console.log(`[PROCESS] ${fileId} ✓ done — model=${model}, tokens=${tokensUsed}, attempts=${attempted.length}`);
-    return NextResponse.json({ result, cached: false, attempted }, { status: 201 });
+    return NextResponse.json({ result, cached: false, attempted, truncated }, { status: 201 });
   } catch (err) {
     // Release lock on failure so user can retry
     await prisma.uploadedFile.update({

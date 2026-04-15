@@ -47,6 +47,9 @@ function UploadInner() {
       setStage('processing');
       toast.info('Running AI analysis — ~15-30s');
       const processed = await api.post(`/process/${uploaded.file.id}`, {});
+      if (processed.truncated) {
+        toast.info('Large PDF detected — we analyzed the key sections for best results.');
+      }
       toast.success('Study pack ready');
       router.push(`/results/${processed.result.id}`);
     } catch (err: any) {
