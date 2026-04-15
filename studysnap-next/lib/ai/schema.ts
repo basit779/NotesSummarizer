@@ -3,6 +3,7 @@ import type { StudyMaterial } from './types';
 export const STUDY_MATERIAL_SCHEMA = {
   type: 'object',
   properties: {
+    title: { type: 'string' },
     summary: { type: 'string' },
     keyPoints: { type: 'array', items: { type: 'string' } },
     definitions: {
@@ -19,6 +20,9 @@ export const STUDY_MATERIAL_SCHEMA = {
         type: 'object',
         properties: {
           question: { type: 'string' },
+          options: { type: 'array', items: { type: 'string' } },
+          correct: { type: 'string' },
+          explanation: { type: 'string' },
           answer: { type: 'string' },
           difficulty: { type: 'string', enum: ['easy', 'medium', 'hard'] },
         },
@@ -33,6 +37,8 @@ export const STUDY_MATERIAL_SCHEMA = {
         required: ['front', 'back'],
       },
     },
+    topicConnections: { type: 'array', items: { type: 'string' } },
+    studyTips: { type: 'array', items: { type: 'string' } },
   },
   required: ['summary', 'keyPoints', 'definitions', 'examQuestions', 'flashcards'],
 } as const;
