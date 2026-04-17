@@ -50,16 +50,27 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
   });
 
   try {
-    if (!file.storagePath.startsWith('mem:base64:')) {
+    let text: string;
+    let pages: number;
+
+    if (file.storagePath.startsWith('mem:base64:')) {
+      // Single-PDF path — extract text from raw bytes now.
+      const buffer = Buffer.from(file.storagePath.slice('mem:base64:'.length), 'base64');
+      const extracted = await extractTextFromPdfBuffer(buffer);
+      text = extracted.text;
+      pages = extracted.pages;
+    } else if (file.storagePath.startsWith('mem:text:')) {
+      // Multi-file path — text was already extracted at upload time.
+      text = Buffer.from(file.storagePath.slice('mem:text:'.length), 'base64').toString('utf8');
+      pages = file.pageCount ?? 0;
+    } else {
       throw new HttpError(500, 'BAD_STORAGE', 'File storage format not recognized');
     }
-    const buffer = Buffer.from(file.storagePath.slice('mem:base64:'.length), 'base64');
-    const { text, pages } = await extractTextFromPdfBuffer(buffer);
 
     console.log(`[PROCESS] ${fileId} — ${pages} pages, ${text.length} chars, model=${requestedModel ?? 'auto'}`);
 
     const truncated = willTruncate(text);
-    const { material, model, tokensUsed, attempted } = await analyzeText(text, user.plan, requestedModel);
+    const { material, model, tokensUsed, attempted, chunks, sourceChars } = await analyzeText(text, user.plan, requestedModel);
 
     const result = await prisma.processingResult.create({
       data: {
@@ -81,8 +92,8 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
     await logUsage(user.id, 'UPLOAD');
     await logUsage(user.id, 'PROCESS');
 
-    console.log(`[PROCESS] ${fileId} ✓ done — model=${model}, tokens=${tokensUsed}, attempts=${attempted.length}`);
-    return NextResponse.json({ result, cached: false, attempted, truncated }, { status: 201 });
+    console.log(`[PROCESS] ${fileId} ✓ done — model=${model}, tokens=${tokensUsed}, attempts=${attempted.length}, chunks=${chunks}, sourceChars=${sourceChars}`);
+    return NextResponse.json({ result, cached: false, attempted, truncated, chunks, sourceChars }, { status: 201 });
   } catch (err) {
     // Release lock on failure so user can retry
     await prisma.uploadedFile.update({
