@@ -67,6 +67,8 @@ function UploadInner() {
         toast.info('Already processing — hold on…');
       } else if (err?.code === 'UPLOAD_COOLDOWN') {
         toast.info(err.message ?? 'Please wait a moment before uploading again.');
+      } else if (err?.code === 'ALL_RATE_LIMITED') {
+        toast.error('AI providers are busy. Wait ~1 minute, then try again.', { duration: 8000 });
       } else {
         toast.error(err?.message ?? 'Something went wrong');
       }

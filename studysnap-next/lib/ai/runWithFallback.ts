@@ -5,8 +5,13 @@ import { HttpError } from '../httpError';
 /** Hard cap on how many providers we try per request. Protects quotas. */
 const MAX_ATTEMPTS = 3;
 
-/** Error codes that are caused by the prompt producing too much output — retryable on the same provider with a smaller prompt, no need to burn the next provider's quota. */
+/** Error codes caused by prompt producing too much output — retry same provider with smaller prompt. */
 const BAD_OUTPUT_CODES = new Set(['BAD_JSON', 'BAD_RESPONSE']);
+
+/** How long to wait before retrying after a rate-limit error. Free-tier RPM/TPM buckets clear within ~60s. */
+const RATE_LIMIT_WAIT_MS = 7_000;
+
+function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
 export async function runWithFallback(
   text: string,
@@ -34,6 +39,7 @@ export async function runWithFallback(
 
   const attempted: { id: ModelId; error?: string }[] = [];
   let lastError: Error | undefined;
+  let rateLimitedCount = 0;
 
   for (let i = 0; i < configured.length; i++) {
     const id = configured[i];
@@ -56,16 +62,42 @@ export async function runWithFallback(
       const msg = err instanceof TransientAIError ? `${err.code}: ${err.message}` : String(err?.message ?? err);
       console.log(`[AI][${reqId}] ✗ ${id} failed in ${elapsed}ms: ${msg}`);
 
-      // Same-provider retry with minimal prompt on output-shape failures.
-      // This saves the next provider's quota when the real problem was just
-      // that Gemini's 4096 output cap truncated the JSON.
+      // RATE_LIMIT: wait for the per-minute bucket to clear, then retry same provider ONCE.
+      // Only do this wait once per request (otherwise we'd exceed the 60s route timeout).
+      if (code === 'RATE_LIMIT' && rateLimitedCount === 0) {
+        rateLimitedCount++;
+        console.log(`[AI][${reqId}] ⏱ ${id} rate-limited — waiting ${RATE_LIMIT_WAIT_MS}ms then retrying same provider`);
+        await sleep(RATE_LIMIT_WAIT_MS);
+        const t1 = Date.now();
+        try {
+          console.log(`[AI][${reqId}] ↻ ${id} wait-retry`);
+          const result = await spec.run(text, plan);
+          const elapsed2 = Date.now() - t1;
+          console.log(`[AI][${reqId}] ✓ ${id} wait-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
+          attempted.push({ id, error: `${msg} → recovered after ${RATE_LIMIT_WAIT_MS}ms wait` });
+          return { ...result, attempted };
+        } catch (err2: any) {
+          const elapsed2 = Date.now() - t1;
+          const code2 = err2 instanceof TransientAIError ? err2.code : 'ERROR';
+          const msg2 = err2 instanceof TransientAIError ? `${err2.code}: ${err2.message}` : String(err2?.message ?? err2);
+          console.log(`[AI][${reqId}] ✗ ${id} wait-retry failed in ${elapsed2}ms: ${msg2}`);
+          attempted.push({ id, error: `${msg} | wait-retry: ${msg2}` });
+          lastError = err2;
+          // Fall through to next provider — if same provider still rate-limited,
+          // the next one in the chain may use a different org (diversified below).
+          continue;
+        }
+      }
+
+      // BAD_JSON / BAD_RESPONSE: prompt was too big for model's output cap.
+      // Retry same provider with minimal prompt before burning next provider's quota.
       if (BAD_OUTPUT_CODES.has(code)) {
         const t1 = Date.now();
         try {
           console.log(`[AI][${reqId}] ↻ ${id} retrying with minimal prompt`);
           const result = await spec.run(text, plan, { minimal: true });
           const elapsed2 = Date.now() - t1;
-          console.log(`[AI][${reqId}] ✓ ${id} minimal-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens) — TOTAL API CALLS: ${i + 2}`);
+          console.log(`[AI][${reqId}] ✓ ${id} minimal-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered via minimal retry` });
           return { ...result, attempted };
         } catch (err2: any) {
@@ -84,6 +116,21 @@ export async function runWithFallback(
   }
 
   console.log(`[AI][${reqId}] ALL ${configured.length} PROVIDERS FAILED`);
+
+  // If the reason we failed is rate-limits across the board, give the user a
+  // useful message instead of dumping raw provider errors in the UI.
+  const allRateLimited = attempted.every((a) => {
+    if (!a.error) return false;
+    return a.error.includes('RATE_LIMIT') || a.error.includes('rate-limit') || a.error.includes('429');
+  });
+  if (allRateLimited) {
+    throw new HttpError(
+      429,
+      'ALL_RATE_LIMITED',
+      'All free-tier AI providers are temporarily rate-limited. Wait ~60 seconds and try again — the per-minute quotas will refill.',
+    );
+  }
+
   throw new HttpError(
     502,
     'ALL_PROVIDERS_FAILED',

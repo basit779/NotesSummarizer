@@ -126,21 +126,27 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 };
 
 /**
- * Fixed 3-provider fallback chain. Invisible to the user. No picker UI.
+ * Cross-provider fallback chain. Invisible to the user. No picker UI.
+ * Ordered so consecutive attempts hit DIFFERENT organizations — Groq's
+ * free-tier TPM is a single org-wide bucket shared across all its models,
+ * so putting two Groq models back-to-back doubles-up the rate-limit risk.
  *
- * Chosen for free-tier stability:
- *   1. gemini-2.0-flash       — best quality, native JSON schema, 1M ctx, 8k output, 1500 req/day free
- *   2. groq-llama-3.3-70b     — fast, 128k ctx, 8k output, generous TPM
- *   3. groq-llama-3.1-8b      — very fast, 128k ctx, 8k output, very high TPM — safety net
+ * runWithFallback filters by isConfigured() and caps at MAX_ATTEMPTS=3,
+ * so users with only GOOGLE_API_KEY + GROQ_API_KEY still get a sane chain.
  *
- * github-gpt-4o-mini is explicitly EXCLUDED because its 8k total-context cap
- * makes it 413 on anything but tiny inputs — it's still available on-demand.
+ *   1. gemini-2.0-flash      — Google. 1M ctx, 8k output. 15 RPM / 1M TPM / 1500 RPD free.
+ *   2. groq-llama-3.3-70b    — Groq. 128k ctx, 8k output. 30 RPM / 12k TPM.
+ *   3. openrouter-deepseek   — OpenRouter. Different org from Groq; separate TPM bucket.
+ *   4. mistral-small         — Mistral. Yet another org. Final safety net.
+ *   5. groq-llama-3.1-8b     — Only tried if nothing else is configured (same-org risk).
  *
- * MAX_ATTEMPTS=3 enforced in runWithFallback.ts — one upload = at most 3 API calls.
+ * github-gpt-4o-mini is excluded: its 8k TOTAL context cap 413s on realistic inputs.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.0-flash',
   'groq-llama-3.3-70b',
+  'openrouter-deepseek',
+  'mistral-small',
   'groq-llama-3.1-8b',
 ];
 
