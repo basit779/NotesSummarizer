@@ -38,7 +38,13 @@ async function request<T = any>(
 
   const res = await fetch(`/api${path}`, { ...init, headers, body });
   const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
+  // Tolerant parse: non-JSON responses (Vercel HTML error pages, 502s from
+  // gateway, etc.) shouldn't throw an uncaught SyntaxError — surface a clean
+  // ApiError with the status instead.
+  let data: any = null;
+  if (text) {
+    try { data = JSON.parse(text); } catch { data = null; }
+  }
 
   if (!res.ok) {
     // Only clear local auth on 401s from auth endpoints. Unrelated 401s (stale
@@ -46,9 +52,12 @@ async function request<T = any>(
     if (res.status === 401 && path.startsWith('/auth/')) {
       clearLocalAuth();
     }
-    const err: ApiError = Object.assign(new Error(data?.error?.message ?? 'Request failed'), {
+    const fallbackMsg = res.status === 504 ? 'Request timed out — try again.'
+      : res.status >= 500 ? 'Server error — please retry in a moment.'
+      : 'Request failed';
+    const err: ApiError = Object.assign(new Error(data?.error?.message ?? fallbackMsg), {
       status: res.status,
-      code: data?.error?.code ?? 'ERROR',
+      code: data?.error?.code ?? `HTTP_${res.status}`,
       details: data?.error?.details,
     });
     throw err;

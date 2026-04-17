@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { env } from '@/lib/env';
+import { env, assertJwtSecretReady } from '@/lib/env';
 import { withErrorHandling } from '@/lib/apiHelpers';
 import { sendPasswordResetEmail } from '@/lib/mailer';
 
@@ -11,6 +11,7 @@ export const runtime = 'nodejs';
 const schema = z.object({ email: z.string().email() });
 
 export const POST = withErrorHandling(async (req: Request) => {
+  assertJwtSecretReady();
   const body = await req.json();
   const { email } = schema.parse(body);
   const user = await prisma.user.findUnique({ where: { email } });

@@ -85,6 +85,8 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
         tokensUsed,
       },
     });
+    // Free DB space — the base64 PDF blob is no longer needed once ProcessingResult
+    // exists. Replace with a tiny sentinel so schema's NOT NULL constraint is happy.
     await prisma.uploadedFile.update({
       where: { id: file.id },
       data: { pageCount: pages, storagePath: 'consumed', processingAt: null },

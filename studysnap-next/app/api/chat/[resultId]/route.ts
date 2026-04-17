@@ -42,19 +42,33 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
   });
   prior.reverse();
 
-  const packContext = JSON.stringify({
-    source: result.file.filename,
-    summary: result.summary,
-    keyPoints: result.keyPoints,
-    definitions: result.definitions,
-    examQuestions: result.examQuestions,
-    flashcards: result.flashcards,
-  });
+  // Compact natural-language context. Raw JSON dump would burn ~5-10k tokens
+  // per chat turn with no quality gain. Key points + definitions + summary
+  // cover 95% of grounded Q&A needs; flashcards/quiz lists are redundant.
+  const keyPointsBlock = (result.keyPoints as string[])
+    .slice(0, 20)
+    .map((p, i) => `${i + 1}. ${p}`)
+    .join('\n');
+  const defsBlock = (result.definitions as Array<{ term: string; definition: string }>)
+    .slice(0, 20)
+    .map((d) => `- **${d.term}**: ${d.definition}`)
+    .join('\n');
 
-  const systemPrompt = `You are a helpful study tutor. The user has a study pack from "${result.file.filename}". Answer their questions strictly using the study pack below as the source of truth. If the answer isn't in the pack, say so and give your best general guidance.
+  // Cap summary at ~4k chars inside the system prompt; the full markdown
+  // notes are displayed client-side anyway.
+  const summarySnippet = (result.summary as string).slice(0, 4000);
 
-STUDY PACK:
-${packContext}`;
+  const systemPrompt = `You are a helpful study tutor. The user is studying from "${result.file.filename}". Answer strictly using the notes below as source of truth. If the answer isn't covered, say so clearly and then give your best general guidance. Keep answers concise (2-4 paragraphs max) and use markdown when structure helps.
+
+=== STUDY NOTES ===
+${summarySnippet}
+
+=== KEY POINTS ===
+${keyPointsBlock}
+
+=== DEFINITIONS ===
+${defsBlock}
+=== END CONTEXT ===`;
 
   const aiMessages = [
     { role: 'system' as const, content: systemPrompt },

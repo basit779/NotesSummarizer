@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { env } from '@/lib/env';
+import { env, assertJwtSecretReady } from '@/lib/env';
 import { signToken, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
 
@@ -15,6 +15,7 @@ const schema = z.object({
 });
 
 export const POST = withErrorHandling(async (req: Request) => {
+  assertJwtSecretReady();
   const body = await req.json();
   const { token, newPassword } = schema.parse(body);
 
