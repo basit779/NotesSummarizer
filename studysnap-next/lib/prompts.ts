@@ -11,7 +11,7 @@ Hard rules:
 interface PromptOptions {
   /**
    * Retry mode: cut counts ~40% when the first attempt returned truncated/invalid JSON.
-   * Prevents the output from overflowing the model's max_tokens cap (4096 on FREE).
+   * Also used for providers with tiny total context windows.
    */
   minimal?: boolean;
 }
@@ -19,21 +19,23 @@ interface PromptOptions {
 export function buildUserPrompt(text: string, plan: 'FREE' | 'PRO', opts: PromptOptions = {}) {
   const { minimal = false } = opts;
 
-  // FREE counts are sized so the output JSON fits in ~4096 completion tokens.
-  // PRO counts get the full generous volume (8192-token ceiling).
+  // Generous volumes for BOTH plans. Gemini 2.0 Flash supports 8192 output
+  // tokens on the free tier, so FREE users get real study packs — not a
+  // truncated summary. PRO gets a bit more because it routes to larger models.
   let counts = plan === 'PRO'
-    ? { key: '15-20', defs: '12-18', exam: '12-15', cards: '30-40', tips: '6-8', connections: '5-7' }
-    : { key: '8-10',  defs: '6-8',   exam: '6-8',   cards: '15-20', tips: '3-4', connections: '3-4' };
+    ? { key: '15-20', defs: '14-20', exam: '12-15', cards: '30-40', tips: '6-8', connections: '5-7' }
+    : { key: '12-15', defs: '10-14', exam: '10-12', cards: '22-30', tips: '5-6', connections: '4-5' };
 
   if (minimal) {
+    // Retry / tiny-context-provider mode: ~40% smaller to fit tight output caps.
     counts = plan === 'PRO'
-      ? { key: '10-12', defs: '8-10', exam: '8-10', cards: '20-25', tips: '4-5', connections: '3-5' }
-      : { key: '6-8',   defs: '4-6',  exam: '4-6',  cards: '10-12', tips: '3',   connections: '2-3' };
+      ? { key: '10-12', defs: '8-10',  exam: '8-10',  cards: '20-25', tips: '4-5', connections: '3-5' }
+      : { key: '8-10',  defs: '6-8',   exam: '6-8',   cards: '15-20', tips: '3-4', connections: '3-4' };
   }
 
   const summarySpec = plan === 'PRO'
-    ? 'Comprehensive 500-1000 word summary'
-    : 'Comprehensive 250-400 word summary';
+    ? 'Comprehensive 700-1200 word summary'
+    : 'Comprehensive 500-900 word summary';
 
   return `Analyze the following academic material and produce comprehensive study content.
 

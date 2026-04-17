@@ -9,21 +9,22 @@ function required(key: string, fallback?: string): string {
 const rawJwtSecret = process.env.JWT_SECRET ?? '';
 const isProd = process.env.NODE_ENV === 'production';
 
+// Soft warning at module-load. Actual enforcement happens at request time
+// (see assertJwtSecretReady below) so `next build` never fails the whole
+// deploy when the env var is forgotten — the auth endpoints will throw a
+// clear runtime error instead.
 if (isProd) {
   if (!rawJwtSecret) {
-    throw new Error(
-      'JWT_SECRET is required in production. Set a fixed 32+ byte random string on Vercel — otherwise every deploy invalidates all existing user sessions.',
+    // eslint-disable-next-line no-console
+    console.error(
+      '[env] JWT_SECRET is NOT set in production. Auth endpoints will fail at runtime. Set a fixed 32+ byte random string on Vercel.',
     );
-  }
-  if (rawJwtSecret === DEV_JWT_FALLBACK) {
-    throw new Error(
-      'JWT_SECRET equals the dev fallback in production. Replace with a real 32+ byte random string on Vercel.',
-    );
-  }
-  if (rawJwtSecret.length < 32) {
-    throw new Error(
-      `JWT_SECRET is too short (${rawJwtSecret.length} chars). Use 32+ bytes of entropy.`,
-    );
+  } else if (rawJwtSecret === DEV_JWT_FALLBACK) {
+    // eslint-disable-next-line no-console
+    console.error('[env] JWT_SECRET equals the dev fallback in production. Replace with a real random string on Vercel.');
+  } else if (rawJwtSecret.length < 32) {
+    // eslint-disable-next-line no-console
+    console.warn(`[env] JWT_SECRET is only ${rawJwtSecret.length} chars — consider using 32+ bytes of entropy.`);
   }
 }
 
@@ -33,6 +34,26 @@ if (isProd && !resendKey) {
   console.warn(
     '[env] RESEND_API_KEY is not set — password-reset emails will NOT be sent. Reset links will only be logged server-side.',
   );
+}
+
+/**
+ * Call this from auth endpoints before signing/verifying tokens. Throws a
+ * 500-level error the client can surface when JWT_SECRET is missing or a
+ * known insecure default in production. Keeps `next build` healthy while
+ * still failing loudly when real requests hit bad config.
+ */
+export function assertJwtSecretReady(): void {
+  if (!isProd) return;
+  if (!rawJwtSecret) {
+    throw new Error(
+      'Server misconfiguration: JWT_SECRET is not set in production. Set it on Vercel and redeploy.',
+    );
+  }
+  if (rawJwtSecret === DEV_JWT_FALLBACK) {
+    throw new Error(
+      'Server misconfiguration: JWT_SECRET is the dev fallback in production. Set a real random string on Vercel.',
+    );
+  }
 }
 
 export const env = {

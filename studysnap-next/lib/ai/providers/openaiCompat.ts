@@ -12,9 +12,17 @@ export async function openaiCompat(args: {
   extraHeaders?: Record<string, string>;
   supportsJsonSchema?: boolean;
   minimal?: boolean;
+  /**
+   * Cap on completion tokens. Honors each provider's actual ceiling.
+   * Gemini supports 8192 for FREE+PRO. Groq supports 8192. GitHub Models
+   * gpt-4o-mini has only 8k TOTAL context so the cap must leave headroom
+   * for input — pass ~3500 there.
+   */
+  maxOutputTokens?: number;
 }): Promise<ProviderResult> {
   const {
     baseUrl, apiKey, modelName, displayName, text, plan, extraHeaders = {}, supportsJsonSchema = true, minimal = false,
+    maxOutputTokens,
   } = args;
 
   if (!apiKey) throw new TransientAIError('NO_KEY', `API key missing for ${displayName}`);
@@ -31,7 +39,7 @@ ${JSON.stringify(STUDY_MATERIAL_SCHEMA)}`;
       { role: 'user', content: userPrompt },
     ],
     temperature: 0.4,
-    max_tokens: plan === 'PRO' ? 8192 : 4096,
+    max_tokens: maxOutputTokens ?? 8192,
   };
   if (supportsJsonSchema) body.response_format = { type: 'json_object' };
 

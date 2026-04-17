@@ -26,13 +26,16 @@ export async function geminiProvider(
   if (!key) throw new TransientAIError('NO_KEY', `GOOGLE_API_KEY not configured for ${modelName}`);
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
+  // Gemini 2.0 Flash / 2.5 Pro support 8192 output tokens on BOTH the free
+  // and paid tier. Use the full ceiling for FREE too so students get the
+  // full, detailed study pack — not a truncated "shit ass summary".
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents: [{ role: 'user', parts: [{ text: buildUserPrompt(text, plan, { minimal: opts.minimal }) }] }],
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: toGeminiSchema(STUDY_MATERIAL_SCHEMA),
-      maxOutputTokens: plan === 'PRO' ? 8192 : 4096,
+      maxOutputTokens: 8192,
       temperature: 0.4,
     },
   };

@@ -1,19 +1,26 @@
 /**
- * Per-model input token budgets for PDF text (leaves headroom for system + user prompt + output).
- * Heuristic: 1 token ≈ 4 characters.
+ * Per-model INPUT token budgets (text payload only — system prompt, schema
+ * and output reserved separately). Heuristic: 1 token ≈ 4 characters.
+ *
+ * These sit well inside each provider's context window so output has full
+ * room to breathe:
+ *   - Gemini Flash / Pro: 1M ctx → we send 40k tok (plenty; bigger docs
+ *     still get covered via smart-truncate head/middle/tail sampling)
+ *   - Groq Llama 3.x: 128k ctx → 12k in, 8k out comfortably
+ *   - GitHub gpt-4o-mini: 8k TOTAL → only 3k in (we also force minimal prompt)
  */
 const TOKEN_BUDGETS: Record<string, number> = {
-  'gemini-2.5-pro': 25_000,
-  'gemini-2.0-flash': 25_000,
-  'groq-llama-3.3-70b': 5_500,
-  'groq-llama-3.1-8b': 5_500,
+  'gemini-2.5-pro': 40_000,
+  'gemini-2.0-flash': 40_000,
+  'groq-llama-3.3-70b': 12_000,
+  'groq-llama-3.1-8b': 12_000,
   'openrouter-deepseek': 10_000,
   'mistral-small': 8_000,
-  'github-gpt-4o-mini': 7_000,
+  'github-gpt-4o-mini': 3_000,
   'github-llama-3.3-70b': 7_000,
 };
 
-const DEFAULT_TOKENS = 5_500;
+const DEFAULT_TOKENS = 8_000;
 const CHARS_PER_TOKEN = 4;
 
 const TRUNCATION_NOTE =
@@ -69,5 +76,5 @@ export function truncateForModel(text: string, modelId: string): string {
 
 /** Document-level check: was this PDF big enough that we'll truncate for all models? */
 export function willTruncate(text: string): boolean {
-  return text.length > 25_000 * CHARS_PER_TOKEN; // 100k chars
+  return text.length > 40_000 * CHARS_PER_TOKEN; // 160k chars
 }

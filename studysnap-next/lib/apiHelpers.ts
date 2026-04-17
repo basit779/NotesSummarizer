@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import jwt from 'jsonwebtoken';
-import { env } from './env';
+import { env, assertJwtSecretReady } from './env';
 import { prisma } from './prisma';
 import { HttpError } from './httpError';
 
@@ -17,6 +17,7 @@ export interface AuthedUser {
  * Call at the top of any protected route handler.
  */
 export async function requireAuth(req: Request): Promise<AuthedUser> {
+  assertJwtSecretReady();
   const header = req.headers.get('authorization');
   if (!header?.startsWith('Bearer ')) {
     throw new HttpError(401, 'UNAUTHORIZED', 'Missing bearer token');
@@ -68,5 +69,6 @@ export function withErrorHandling<T extends any[]>(
 }
 
 export function signToken(userId: string) {
+  assertJwtSecretReady();
   return jwt.sign({ sub: userId }, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);
 }
