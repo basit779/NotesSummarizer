@@ -37,6 +37,9 @@ export interface ProviderResult {
 export interface ProviderRunOptions {
   /** Retry mode: use a trimmed prompt so output fits in the model's max_tokens cap. */
   minimal?: boolean;
+  /** Number of PDF pages (if known). Used by the prompt builder for tier
+   *  selection — slide-heavy PDFs need page signal, not just char count. */
+  pages?: number;
 }
 
 export type ProviderFn = (text: string, plan: 'FREE' | 'PRO', opts?: ProviderRunOptions) => Promise<ProviderResult>;

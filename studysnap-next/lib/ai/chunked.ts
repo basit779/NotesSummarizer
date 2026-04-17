@@ -30,20 +30,27 @@ export async function analyzeChunked(
   rawText: string,
   plan: 'FREE' | 'PRO',
   preferredModel?: ModelId,
+  pages?: number,
 ): Promise<ChunkedResult> {
   if (rawText.length <= CHUNK_THRESHOLD) {
-    const r = await runWithFallback(rawText, plan, preferredModel);
+    const r = await runWithFallback(rawText, plan, preferredModel, pages);
     return { ...r, chunks: 1, sourceChars: rawText.length };
   }
 
   const chunks = splitIntoChunks(rawText, CHUNK_CHAR_BUDGET, MAX_CHUNKS);
   console.log(`[AI][chunked] ${rawText.length} chars → ${chunks.length} chunks of [${chunks.map((c) => c.length).join(', ')}]`);
 
+  // Per-chunk page count = proportional share of total. Each chunk sizes its
+  // own tier (e.g. 50-page doc × 2 chunks = 25 pages/chunk = LONG each).
+  const totalChars = rawText.length;
+  const chunkPages = (chunkChars: number) =>
+    pages ? Math.max(1, Math.round(pages * (chunkChars / totalChars))) : undefined;
+
   // Process all chunks in parallel. Each uses the normal fallback chain.
   // With Gemini Flash's 15 RPM free tier, 3 parallel requests is fine.
   const settled = await Promise.allSettled(
     chunks.map((ch, i) =>
-      runWithFallback(annotateChunk(ch, i + 1, chunks.length), plan, preferredModel),
+      runWithFallback(annotateChunk(ch, i + 1, chunks.length), plan, preferredModel, chunkPages(ch.length)),
     ),
   );
 

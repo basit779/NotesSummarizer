@@ -12,6 +12,8 @@ export async function openaiCompat(args: {
   extraHeaders?: Record<string, string>;
   supportsJsonSchema?: boolean;
   minimal?: boolean;
+  /** PDF page count for tier selection — forwarded to buildUserPrompt. */
+  pages?: number;
   /**
    * Cap on completion tokens. Honors each provider's actual ceiling.
    * Gemini supports 8192 for FREE+PRO. Groq supports 8192. GitHub Models
@@ -22,7 +24,7 @@ export async function openaiCompat(args: {
 }): Promise<ProviderResult> {
   const {
     baseUrl, apiKey, modelName, displayName, text, plan, extraHeaders = {}, supportsJsonSchema = true, minimal = false,
-    maxOutputTokens,
+    pages, maxOutputTokens,
   } = args;
 
   if (!apiKey) throw new TransientAIError('NO_KEY', `API key missing for ${displayName}`);
@@ -30,7 +32,7 @@ export async function openaiCompat(args: {
   const schemaInstruction = `Respond with ONLY a JSON object matching this schema (no prose, no code fences):
 ${JSON.stringify(STUDY_MATERIAL_SCHEMA)}`;
 
-  const userPrompt = buildUserPrompt(text, plan, { minimal }) + '\n\n' + schemaInstruction;
+  const userPrompt = buildUserPrompt(text, plan, { minimal, pages }) + '\n\n' + schemaInstruction;
 
   const body: Record<string, unknown> = {
     model: modelName,

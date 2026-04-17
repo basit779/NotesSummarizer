@@ -20,7 +20,7 @@ export async function geminiProvider(
   modelName: string,
   text: string,
   plan: 'FREE' | 'PRO',
-  opts: { minimal?: boolean } = {},
+  opts: { minimal?: boolean; pages?: number } = {},
 ): Promise<ProviderResult> {
   const key = env.googleApiKey;
   if (!key) throw new TransientAIError('NO_KEY', `GOOGLE_API_KEY not configured for ${modelName}`);
@@ -31,7 +31,7 @@ export async function geminiProvider(
   // full, detailed study pack — not a truncated "shit ass summary".
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: [{ role: 'user', parts: [{ text: buildUserPrompt(text, plan, { minimal: opts.minimal }) }] }],
+    contents: [{ role: 'user', parts: [{ text: buildUserPrompt(text, plan, { minimal: opts.minimal, pages: opts.pages }) }] }],
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: toGeminiSchema(STUDY_MATERIAL_SCHEMA),

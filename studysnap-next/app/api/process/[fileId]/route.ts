@@ -78,7 +78,7 @@ async function processOne(user: { id: string; plan: 'FREE' | 'PRO' }, fileId: st
     console.log(`[PROCESS] ${fileId} — ${pages} pages, ${text.length} chars, model=${requestedModel ?? 'auto'}`);
 
     const truncated = willTruncate(text);
-    const { material, model, tokensUsed, attempted, chunks, sourceChars } = await analyzeText(text, user.plan, requestedModel);
+    const { material, model, tokensUsed, attempted, chunks, sourceChars } = await analyzeText(text, user.plan, requestedModel, pages);
 
     const result = await prisma.processingResult.create({
       data: {

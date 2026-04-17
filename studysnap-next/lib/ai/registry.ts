@@ -52,13 +52,14 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     id: 'groq-llama-3.3-70b', label: 'Llama 3.3 70B', provider: 'groq',
     // Groq free tier is 12,000 TPM — force minimal prompt so output fits
     // alongside input inside a single-minute window.
-    run: (text, plan) => openaiCompat({
+    run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.groqApiKey,
       modelName: 'llama-3.3-70b-versatile',
       displayName: 'Groq Llama 3.3 70B',
       text: truncateForModel(text, 'groq-llama-3.3-70b'), plan,
       minimal: true,
+      pages: opts?.pages,
       maxOutputTokens: OUTPUT_CAPS['groq-llama-3.3-70b'],
     }),
     isConfigured: () => Boolean(env.groqApiKey),
@@ -66,13 +67,14 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   'groq-llama-3.1-8b': {
     id: 'groq-llama-3.1-8b', label: 'Llama 3.1 8B Instant', provider: 'groq',
     // Groq 8B free tier is 6,000 TPM — tightest budget. Always minimal.
-    run: (text, plan) => openaiCompat({
+    run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.groqApiKey,
       modelName: 'llama-3.1-8b-instant',
       displayName: 'Groq Llama 3.1 8B',
       text: truncateForModel(text, 'groq-llama-3.1-8b'), plan,
       minimal: true,
+      pages: opts?.pages,
       maxOutputTokens: OUTPUT_CAPS['groq-llama-3.1-8b'],
     }),
     isConfigured: () => Boolean(env.groqApiKey),
@@ -87,6 +89,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       text: truncateForModel(text, 'openrouter-deepseek'), plan,
       extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' },
       minimal: opts?.minimal,
+      pages: opts?.pages,
       maxOutputTokens: OUTPUT_CAPS['openrouter-deepseek'],
     }),
     isConfigured: () => Boolean(env.openrouterApiKey),
@@ -100,6 +103,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       displayName: 'Mistral Small',
       text: truncateForModel(text, 'mistral-small'), plan,
       minimal: opts?.minimal,
+      pages: opts?.pages,
       maxOutputTokens: OUTPUT_CAPS['mistral-small'],
     }),
     isConfigured: () => Boolean(env.mistralApiKey),
@@ -115,6 +119,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       displayName: 'GitHub GPT-4o mini',
       text: truncateForModel(text, 'github-gpt-4o-mini'), plan,
       minimal: true,
+      pages: opts?.pages,
       maxOutputTokens: OUTPUT_CAPS['github-gpt-4o-mini'],
     }),
     isConfigured: () => Boolean(env.githubToken),
@@ -128,6 +133,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       displayName: 'GitHub Llama 3.3 70B',
       text: truncateForModel(text, 'github-llama-3.3-70b'), plan,
       minimal: opts?.minimal,
+      pages: opts?.pages,
       maxOutputTokens: OUTPUT_CAPS['github-llama-3.3-70b'],
     }),
     isConfigured: () => Boolean(env.githubToken),

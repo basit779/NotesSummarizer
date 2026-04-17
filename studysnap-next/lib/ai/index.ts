@@ -17,10 +17,11 @@ export async function analyzeText(
   rawText: string,
   plan: 'FREE' | 'PRO',
   preferredModel?: ModelId,
+  pages?: number,
 ): Promise<ChunkedResult> {
   const trimmed = rawText.length > ABSOLUTE_MAX_CHARS ? rawText.slice(0, ABSOLUTE_MAX_CHARS) : rawText;
   if (trimmed.trim().length < 50) {
     throw new HttpError(400, 'EMPTY_SOURCE', 'The document did not contain enough extractable text.');
   }
-  return analyzeChunked(trimmed, plan, preferredModel);
+  return analyzeChunked(trimmed, plan, preferredModel, pages);
 }
