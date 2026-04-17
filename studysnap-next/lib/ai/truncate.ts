@@ -9,11 +9,19 @@
  *   - Groq Llama 3.x: 128k ctx → 12k in, 8k out comfortably
  *   - GitHub gpt-4o-mini: 8k TOTAL → only 3k in (we also force minimal prompt)
  */
+/**
+ * Free-tier TPM caps each call's TOTAL tokens (input + output + overhead)
+ * per rolling minute:
+ *   - Groq 70B: 12,000 TPM  → input 3.5k + out 4k + overhead ≈ 8k, leaves slack
+ *   - Groq 8B:   6,000 TPM  → input 1.8k + out 2.5k + overhead ≈ 5k, leaves slack
+ *   - Gemini Flash: 1M TPM  → can send much more
+ *   - GitHub 4o-mini: 8k TOTAL ctx → keep input tiny
+ */
 const TOKEN_BUDGETS: Record<string, number> = {
   'gemini-2.5-pro': 40_000,
   'gemini-2.0-flash': 40_000,
-  'groq-llama-3.3-70b': 12_000,
-  'groq-llama-3.1-8b': 12_000,
+  'groq-llama-3.3-70b': 3_500,
+  'groq-llama-3.1-8b': 1_800,
   'openrouter-deepseek': 10_000,
   'mistral-small': 8_000,
   'github-gpt-4o-mini': 3_000,

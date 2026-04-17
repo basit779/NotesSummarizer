@@ -22,9 +22,15 @@ export interface ModelSpec {
  * also have to truncate input aggressively. It's excluded from the
  * default fallback for that reason.
  */
+/**
+ * Completion-token caps sized to fit each free-tier TPM / context limit with
+ * slack for the rolling-minute window. Groq is especially tight — 12k TPM for
+ * 70B and 6k for 8B means each call's total (input + output) must stay well
+ * under that, or a single request 429s.
+ */
 const OUTPUT_CAPS: Record<string, number> = {
-  'groq-llama-3.3-70b': 8192,
-  'groq-llama-3.1-8b': 8192,
+  'groq-llama-3.3-70b': 4096,
+  'groq-llama-3.1-8b': 2500,
   'openrouter-deepseek': 4096,
   'mistral-small': 4096,
   'github-gpt-4o-mini': 3500,
@@ -44,26 +50,29 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   },
   'groq-llama-3.3-70b': {
     id: 'groq-llama-3.3-70b', label: 'Llama 3.3 70B', provider: 'groq',
-    run: (text, plan, opts) => openaiCompat({
+    // Groq free tier is 12,000 TPM — force minimal prompt so output fits
+    // alongside input inside a single-minute window.
+    run: (text, plan) => openaiCompat({
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.groqApiKey,
       modelName: 'llama-3.3-70b-versatile',
       displayName: 'Groq Llama 3.3 70B',
       text: truncateForModel(text, 'groq-llama-3.3-70b'), plan,
-      minimal: opts?.minimal,
+      minimal: true,
       maxOutputTokens: OUTPUT_CAPS['groq-llama-3.3-70b'],
     }),
     isConfigured: () => Boolean(env.groqApiKey),
   },
   'groq-llama-3.1-8b': {
     id: 'groq-llama-3.1-8b', label: 'Llama 3.1 8B Instant', provider: 'groq',
-    run: (text, plan, opts) => openaiCompat({
+    // Groq 8B free tier is 6,000 TPM — tightest budget. Always minimal.
+    run: (text, plan) => openaiCompat({
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.groqApiKey,
       modelName: 'llama-3.1-8b-instant',
       displayName: 'Groq Llama 3.1 8B',
       text: truncateForModel(text, 'groq-llama-3.1-8b'), plan,
-      minimal: opts?.minimal,
+      minimal: true,
       maxOutputTokens: OUTPUT_CAPS['groq-llama-3.1-8b'],
     }),
     isConfigured: () => Boolean(env.groqApiKey),
