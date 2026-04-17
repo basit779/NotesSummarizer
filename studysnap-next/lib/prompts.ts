@@ -6,7 +6,8 @@ Hard rules:
 - Output MUST be valid JSON matching the requested schema exactly. No prose outside JSON, no code fences.
 - Ground every fact in the source material. Never invent information.
 - Write in clean, neutral, exam-appropriate English.
-- Prefer precise technical language from the source over generic paraphrase.`;
+- Prefer precise technical language from the source over generic paraphrase.
+- The "summary" field is a MARKDOWN document — use real markdown syntax (##, ###, **bold**, *italic*, bullet lists, numbered lists, > quotes, \`inline code\`, tables when useful).`;
 
 interface PromptOptions {
   /**
@@ -20,8 +21,7 @@ export function buildUserPrompt(text: string, plan: 'FREE' | 'PRO', opts: Prompt
   const { minimal = false } = opts;
 
   // Generous volumes for BOTH plans. Gemini 2.0 Flash supports 8192 output
-  // tokens on the free tier, so FREE users get real study packs — not a
-  // truncated summary. PRO gets a bit more because it routes to larger models.
+  // tokens on the free tier, so FREE users get real study packs.
   let counts = plan === 'PRO'
     ? { key: '15-20', defs: '14-20', exam: '12-15', cards: '30-40', tips: '6-8', connections: '5-7' }
     : { key: '12-15', defs: '10-14', exam: '10-12', cards: '22-30', tips: '5-6', connections: '4-5' };
@@ -33,16 +33,14 @@ export function buildUserPrompt(text: string, plan: 'FREE' | 'PRO', opts: Prompt
       : { key: '8-10',  defs: '6-8',   exam: '6-8',   cards: '15-20', tips: '3-4', connections: '3-4' };
   }
 
-  const summarySpec = plan === 'PRO'
-    ? 'Comprehensive 700-1200 word summary'
-    : 'Comprehensive 500-900 word summary';
+  const wordTarget = plan === 'PRO' ? '900-1400' : '600-1000';
 
   return `Analyze the following academic material and produce comprehensive study content.
 
 OUTPUT SCHEMA (return valid JSON only, no code fences):
 {
   "title": "A specific, auto-detected topic title (5-10 words). Not just the filename.",
-  "summary": "${summarySpec}. Structured with clear paragraphs (no markdown headings, just paragraph breaks). Cover ALL major concepts, explain them with context, include examples, show how ideas connect. A student should be able to study ONLY from this and understand the topic.",
+  "summary": "FULL MARKDOWN STUDY NOTES, ${wordTarget} words. See detailed structure below.",
   "keyPoints": [
     "Each item is 1-2 sentences. Explain WHY it matters, not just list a fact. ${counts.key} items."
   ],
@@ -70,6 +68,34 @@ OUTPUT SCHEMA (return valid JSON only, no code fences):
   ]
 }
 
+===== "summary" field FORMAT — this is the most important field =====
+The summary MUST be structured MARKDOWN study notes (${wordTarget} words), NOT a prose paragraph.
+Use actual markdown syntax that will render with headings, bullet lists, blockquotes, and bold terms.
+
+Required structure:
+
+## Overview
+A 2-4 sentence plain-language opener explaining what this material covers and why it matters.
+
+## Core concepts
+For each major concept (aim for 4-8 concepts total, depending on document size):
+
+### [Concept name]
+Explain the concept in 3-5 sentences of flowing prose. Use **bold** for critical terms and \`code style\` for formulas or technical identifiers. Then support with:
+- A bullet list of 3-5 sub-points, facts, or properties
+- A concrete example (introduced with "*Example:*")
+- Where useful, a markdown table comparing variants/types
+
+## Key relationships
+A section of 2-4 short bullets explaining how the concepts connect to each other. Use arrows (→) or words like "leads to", "depends on" to make causality clear.
+
+## What to remember for the exam
+A final 3-5 bullet list of the single most testable takeaways. Bold the numbers, dates, formulas, or names that students need to memorize verbatim.
+
+> End with one blockquote line: a single "big idea" sentence that captures the essence of the whole topic.
+
+===== END summary field format =====
+
 QUANTITY REQUIREMENTS:
 - definitions: ${counts.defs} items — cover EVERY technical term, formula, or piece of jargon in the source.
 - flashcards: ${counts.cards} items — mix question types: definitions, cause/effect, compare/contrast, application, scenario-based. Every major concept must have at least one card.
@@ -79,8 +105,8 @@ QUANTITY REQUIREMENTS:
 QUALITY REQUIREMENTS:
 - Flashcard answers must be 2-3 sentences, never one word.
 - Exam question explanations must say why the right answer is right AND why the wrong options are wrong.
-- Summary target length: see schema spec above. Explanatory, not a listicle.
 - Study tips must be specific to THIS content, not generic ("use flashcards" is banned — instead say "when memorizing the Krebs cycle, group intermediates by their molecular structure").
+- Summary is MARKDOWN. Use headings (##, ###), real bullet lists (- or *), **bold**, *italic*, and blockquote (>) syntax. Do NOT write one giant paragraph.
 
 SOURCE MATERIAL:
 """

@@ -8,13 +8,14 @@ import { toast } from 'sonner';
 import {
   Copy, Download, Lock, Clock, FileText, ArrowLeft, Play, Zap,
   BookOpen, ListOrdered, Library, Layers, HelpCircle, Lightbulb, MessageSquare,
-  CheckCircle2, Hash,
+  CheckCircle2, Hash, PanelRightClose, PanelRightOpen,
 } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { useAuth } from '@/lib/client/auth';
 import { Protected } from '@/components/Protected';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { MotionButton } from '@/components/ui/MotionButton';
+import { MarkdownView } from '@/components/ui/MarkdownView';
 import { Flashcard } from '@/components/Flashcard';
 import { Chat } from '@/components/Chat';
 import { cn } from '@/lib/utils';
@@ -42,7 +43,7 @@ interface ResultData {
   createdAt: string;
 }
 
-type TabId = 'summary' | 'key' | 'defs' | 'flash' | 'exam' | 'tips' | 'chat';
+type TabId = 'notes' | 'key' | 'defs' | 'flash' | 'exam' | 'tips';
 
 interface TabDef {
   id: TabId;
@@ -52,13 +53,12 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { id: 'summary', label: 'Summary',       icon: BookOpen },
-  { id: 'key',     label: 'Key points',    icon: ListOrdered, count: (r) => r.keyPoints.length },
-  { id: 'defs',    label: 'Definitions',   icon: Library,     count: (r) => r.definitions.length },
-  { id: 'flash',   label: 'Flashcards',    icon: Layers,      count: (r) => r.flashcards.length },
-  { id: 'exam',    label: 'Quiz',          icon: HelpCircle,  count: (r) => r.examQuestions.length },
-  { id: 'tips',    label: 'Study tips',    icon: Lightbulb,   count: (r) => (r.studyTips?.length ?? 0) + (r.topicConnections?.length ?? 0) },
-  { id: 'chat',    label: 'Ask AI',        icon: MessageSquare },
+  { id: 'notes', label: 'Notes',         icon: BookOpen },
+  { id: 'key',   label: 'Key points',    icon: ListOrdered, count: (r) => r.keyPoints.length },
+  { id: 'defs',  label: 'Definitions',   icon: Library,     count: (r) => r.definitions.length },
+  { id: 'flash', label: 'Flashcards',    icon: Layers,      count: (r) => r.flashcards.length },
+  { id: 'exam',  label: 'Quiz',          icon: HelpCircle,  count: (r) => r.examQuestions.length },
+  { id: 'tips',  label: 'Study tips',    icon: Lightbulb,   count: (r) => (r.studyTips?.length ?? 0) + (r.topicConnections?.length ?? 0) },
 ];
 
 function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
@@ -85,19 +85,19 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.035, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-transparent p-6 hover:border-white/[0.09] transition-colors">
-        <div className="flex items-start justify-between gap-4 mb-5">
+      <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-transparent p-5 md:p-6 hover:border-white/[0.09] transition-colors">
+        <div className="flex items-start justify-between gap-3 mb-5">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <span className="mono text-[11px] text-white/40 shrink-0 pt-1">Q{String(index + 1).padStart(2, '0')}</span>
             <div className="min-w-0 flex-1">
-              <div className="text-white font-medium leading-relaxed text-[15px]">{q.question}</div>
+              <div className="text-white font-medium leading-relaxed text-[14.5px] md:text-[15px]">{q.question}</div>
             </div>
           </div>
           <span className={cn('mono shrink-0 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wider', tone)}>{q.difficulty}</span>
         </div>
 
         {options.length > 0 ? (
-          <div className="ml-0 sm:ml-9 space-y-2">
+          <div className="space-y-2">
             {options.map((opt, i) => {
               const { letter, text } = getLetter(opt, i);
               const isSelected = selected === letter;
@@ -139,14 +139,14 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
                 >
                   <div className="rounded-xl border border-mint-500/20 bg-gradient-to-br from-mint-500/[0.07] to-mint-500/[0.02] p-4 mt-3">
                     <div className="mono text-[11px] text-mint-300 mb-1.5 tracking-wider">EXPLANATION</div>
-                    <div className="text-[14px] text-white/85 leading-relaxed">{q.explanation}</div>
+                    <div className="text-[13.5px] text-white/85 leading-relaxed">{q.explanation}</div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
         ) : (
-          <details className="group ml-0 sm:ml-9">
+          <details className="group">
             <summary className="mono cursor-pointer list-none inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] text-white/60 hover:text-mint-300 hover:border-mint-500/30 transition-colors">
               reveal answer
             </summary>
@@ -161,13 +161,14 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
 
 function Loading() {
   return (
-    <div className="mx-auto max-w-7xl px-6 py-12">
+    <div className="mx-auto max-w-[1600px] px-4 md:px-6 py-8">
       <div className="space-y-6 animate-pulse">
         <div className="h-4 w-32 rounded bg-white/[0.05]" />
-        <div className="h-12 w-96 rounded bg-white/[0.05]" />
-        <div className="grid md:grid-cols-[260px_1fr] gap-6 mt-8">
+        <div className="h-16 rounded-3xl bg-white/[0.03]" />
+        <div className="grid md:grid-cols-[220px_1fr_380px] gap-5 mt-8">
           <div className="h-64 rounded-2xl bg-white/[0.03]" />
-          <div className="h-[500px] rounded-2xl bg-white/[0.03]" />
+          <div className="h-[600px] rounded-3xl bg-white/[0.03]" />
+          <div className="h-[600px] rounded-3xl bg-white/[0.03]" />
         </div>
       </div>
     </div>
@@ -179,17 +180,17 @@ function ResultsInner() {
   const id = params.id;
   const { user } = useAuth();
   const [result, setResult] = useState<ResultData | null>(null);
-  const [tab, setTab] = useState<TabId>('summary');
+  const [tab, setTab] = useState<TabId>('notes');
+  const [chatOpen, setChatOpen] = useState(true);
 
   useEffect(() => {
     api.get(`/results/${id}`).then((d) => setResult(d.result)).catch(() => toast.error('Failed to load result'));
   }, [id]);
 
-  // When switching tabs, scroll main content to top on mobile for clean transitions
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.innerWidth < 1024) window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [tab]);
+    // On narrow viewports, close chat by default so the notes have full width.
+    if (typeof window !== 'undefined' && window.innerWidth < 1280) setChatOpen(false);
+  }, []);
 
   const stats = useMemo(() => {
     if (!result) return null;
@@ -219,7 +220,7 @@ function ResultsInner() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 md:px-6 py-8 md:py-10">
+    <div className="mx-auto max-w-[1600px] px-4 md:px-6 py-6 md:py-8">
       {/* Breadcrumb */}
       <Link
         href="/history"
@@ -233,22 +234,23 @@ function ResultsInner() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-4 relative overflow-hidden rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.035] via-white/[0.015] to-transparent p-6 md:p-8"
+        className="mt-3 relative overflow-hidden rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.015] to-transparent p-5 md:p-7"
       >
-        <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-mint-500/[0.08] blur-3xl" aria-hidden />
+        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-mint-500/[0.10] blur-3xl" aria-hidden />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-mint-400/30 to-transparent" aria-hidden />
         <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-5">
-          <div className="flex items-start gap-4 min-w-0">
-            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-mint-500/25 bg-gradient-to-b from-mint-500/[0.14] to-mint-500/[0.04]">
+          <div className="flex items-start gap-4 min-w-0 flex-1">
+            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-mint-500/25 bg-gradient-to-b from-mint-500/[0.16] to-mint-500/[0.04] shadow-[0_0_30px_-8px_rgba(16,185,129,0.5)]">
               <FileText className="h-6 w-6 text-mint-400" />
-              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-mint-400 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-mint-400 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
             </div>
-            <div className="min-w-0">
-              <div className="mono text-[11px] text-mint-300 tracking-wider">STUDY PACK</div>
-              <h1 className="mt-1 mono text-[26px] md:text-[32px] leading-[1.1] font-semibold tracking-tightest text-white">
+            <div className="min-w-0 flex-1">
+              <div className="mono text-[11px] text-mint-300 tracking-widest">STUDY PACK</div>
+              <h1 className="mt-1 mono text-[24px] md:text-[30px] leading-[1.1] font-semibold tracking-tightest text-white break-words">
                 {result.title || result.file.filename}
               </h1>
               {result.title && (
-                <div className="mt-1 text-[13px] text-white/45 truncate flex items-center gap-1.5">
+                <div className="mt-1 text-[12.5px] text-white/40 truncate flex items-center gap-1.5">
                   <Hash className="h-3 w-3" /> {result.file.filename}
                 </div>
               )}
@@ -265,28 +267,43 @@ function ResultsInner() {
               </div>
             </div>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex flex-wrap gap-2 shrink-0">
             <button
               onClick={() => copy(result.summary)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[13px] text-white/70 hover:text-white hover:border-white/[0.14] hover:bg-white/[0.06] transition-all cursor-pointer"
             >
-              <Copy className="h-3.5 w-3.5" /> Copy summary
+              <Copy className="h-3.5 w-3.5" /> Copy notes
             </button>
             <Link href={`/study/${result.id}`}>
               <MotionButton size="sm">
                 <Play className="h-3.5 w-3.5" /> Study
               </MotionButton>
             </Link>
+            <button
+              onClick={() => setChatOpen((o) => !o)}
+              className="hidden xl:inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[13px] text-white/70 hover:text-white hover:border-white/[0.14] hover:bg-white/[0.06] transition-all cursor-pointer"
+              aria-label={chatOpen ? 'Hide chat' : 'Show chat'}
+            >
+              {chatOpen ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
+              {chatOpen ? 'Hide chat' : 'Show chat'}
+            </button>
           </div>
         </div>
       </motion.div>
 
-      {/* Two-column workspace */}
-      <div className="mt-6 grid lg:grid-cols-[240px_1fr] gap-6">
-        {/* Sidebar nav */}
-        <aside className="lg:sticky lg:top-24 lg:self-start">
+      {/* 3-column workspace: sidebar | notes | chat */}
+      <div
+        className={cn(
+          'mt-5 grid gap-5',
+          chatOpen
+            ? 'lg:grid-cols-[220px_1fr] xl:grid-cols-[220px_minmax(0,1fr)_400px]'
+            : 'lg:grid-cols-[220px_1fr]',
+        )}
+      >
+        {/* Sidebar */}
+        <aside className="lg:sticky lg:top-24 lg:self-start order-2 lg:order-1">
           <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2">
-            <div className="px-3 py-2 mono text-[10px] text-white/40 tracking-wider">CONTENTS</div>
+            <div className="px-3 py-2 mono text-[10px] text-white/40 tracking-widest">CONTENTS</div>
             <nav className="space-y-0.5">
               {TABS.map((t) => {
                 const active = t.id === tab;
@@ -320,19 +337,26 @@ function ResultsInner() {
                   </button>
                 );
               })}
+              <button
+                onClick={() => setChatOpen(true)}
+                className="group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] transition-all cursor-pointer text-white/55 hover:text-white hover:bg-white/[0.03] xl:hidden"
+              >
+                <MessageSquare className="h-4 w-4 shrink-0 text-white/40 group-hover:text-white/70 transition-colors" />
+                <span className="flex-1 text-left">Ask AI</span>
+              </button>
             </nav>
           </div>
 
           <div className="mt-3 rounded-2xl border border-white/[0.04] bg-gradient-to-b from-white/[0.015] to-transparent p-4">
-            <div className="mono text-[10px] text-mint-400 tracking-wider">PRO TIP</div>
+            <div className="mono text-[10px] text-mint-400 tracking-widest">PRO TIP</div>
             <div className="mt-1.5 text-[12.5px] text-white/70 leading-relaxed">
-              Try <span className="text-white">Quiz</span> and <span className="text-white">Flashcards</span> modes for active recall — the most effective study technique.
+              Use <span className="text-white">Flashcards</span> + <span className="text-white">Quiz</span> for active recall — 2× more effective than re-reading.
             </div>
           </div>
         </aside>
 
         {/* Main content */}
-        <main className="min-w-0">
+        <main className="min-w-0 order-1 lg:order-2">
           <AnimatePresence mode="wait">
             <motion.div
               key={tab}
@@ -341,37 +365,25 @@ function ResultsInner() {
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             >
-              {tab === 'summary' && (
+              {tab === 'notes' && (
                 <article className="rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-10">
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-5">
                     <div>
-                      <div className="mono text-[11px] text-mint-400 tracking-wider">SUMMARY</div>
-                      <h2 className="mt-1 mono text-xl font-semibold text-white">The key idea, compressed.</h2>
+                      <div className="mono text-[11px] text-mint-400 tracking-widest">// study notes</div>
+                      <h2 className="mt-1 mono text-xl font-semibold text-white">Your structured notes.</h2>
                     </div>
                   </div>
-                  <div className="prose prose-invert max-w-none">
-                    {result.summary.split(/\n\n+/).map((para, i) => (
-                      <motion.p
-                        key={i}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.04 * i, duration: 0.5 }}
-                        className="text-[15.5px] leading-[1.75] text-white/80 mb-5 last:mb-0"
-                      >
-                        {para}
-                      </motion.p>
-                    ))}
-                  </div>
+                  <MarkdownView content={result.summary} />
                 </article>
               )}
 
               {tab === 'key' && (
                 <div className="rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-10">
                   <div className="mb-6">
-                    <div className="mono text-[11px] text-mint-400 tracking-wider">KEY POINTS</div>
+                    <div className="mono text-[11px] text-mint-400 tracking-widest">// key points</div>
                     <h2 className="mt-1 mono text-xl font-semibold text-white">What matters most.</h2>
                   </div>
-                  <ul className="space-y-4">
+                  <ul className="space-y-3">
                     {result.keyPoints.map((p, i) => (
                       <motion.li
                         key={i}
@@ -393,7 +405,7 @@ function ResultsInner() {
               {tab === 'defs' && (
                 <div>
                   <div className="mb-6 px-1">
-                    <div className="mono text-[11px] text-mint-400 tracking-wider">DEFINITIONS</div>
+                    <div className="mono text-[11px] text-mint-400 tracking-widest">// definitions</div>
                     <h2 className="mt-1 mono text-xl font-semibold text-white">Every term, explained.</h2>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
@@ -405,7 +417,7 @@ function ResultsInner() {
                         transition={{ delay: i * 0.035, duration: 0.45 }}
                         className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent p-5 hover:border-mint-500/20 hover:from-mint-500/[0.04] transition-all"
                       >
-                        <div className="mono text-[10px] text-mint-400/80 tracking-wider">DEF · {String(i + 1).padStart(2, '0')}</div>
+                        <div className="mono text-[10px] text-mint-400/80 tracking-widest">DEF · {String(i + 1).padStart(2, '0')}</div>
                         <div className="mt-2 font-semibold text-white text-[15px] leading-tight">{d.term}</div>
                         <div className="mt-2 text-[13.5px] text-white/60 leading-relaxed">{d.definition}</div>
                       </motion.div>
@@ -418,7 +430,7 @@ function ResultsInner() {
                 <div>
                   <div className="mb-6 flex items-end justify-between flex-wrap gap-3 px-1">
                     <div>
-                      <div className="mono text-[11px] text-mint-400 tracking-wider">FLASHCARDS</div>
+                      <div className="mono text-[11px] text-mint-400 tracking-widest">// flashcards</div>
                       <h2 className="mt-1 mono text-xl font-semibold text-white">Active recall in seconds.</h2>
                     </div>
                     <div className="flex gap-2">
@@ -452,7 +464,7 @@ function ResultsInner() {
                 <div>
                   <div className="mb-6 flex items-end justify-between flex-wrap gap-3 px-1">
                     <div>
-                      <div className="mono text-[11px] text-mint-400 tracking-wider">QUIZ</div>
+                      <div className="mono text-[11px] text-mint-400 tracking-widest">// quiz</div>
                       <h2 className="mt-1 mono text-xl font-semibold text-white">Test what you know.</h2>
                     </div>
                     {result.examQuestions.some((q) => q.options && q.options.length >= 2) && (
@@ -472,14 +484,14 @@ function ResultsInner() {
               )}
 
               {tab === 'tips' && (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   <div className="px-1">
-                    <div className="mono text-[11px] text-mint-400 tracking-wider">STUDY TIPS</div>
+                    <div className="mono text-[11px] text-mint-400 tracking-widest">// study tips</div>
                     <h2 className="mt-1 mono text-xl font-semibold text-white">Learn smarter, not harder.</h2>
                   </div>
                   {result.studyTips && result.studyTips.length > 0 && (
                     <div className="rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-8">
-                      <div className="mono text-[11px] text-mint-400 mb-4 tracking-wider">// tactics for THIS content</div>
+                      <div className="mono text-[11px] text-mint-400 mb-4 tracking-widest">// tactics for THIS content</div>
                       <ul className="space-y-3">
                         {result.studyTips.map((t, i) => (
                           <motion.li
@@ -498,7 +510,7 @@ function ResultsInner() {
                   )}
                   {result.topicConnections && result.topicConnections.length > 0 && (
                     <div className="rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-8">
-                      <div className="mono text-[11px] text-mint-400 mb-4 tracking-wider">// how this connects</div>
+                      <div className="mono text-[11px] text-mint-400 mb-4 tracking-widest">// how this connects</div>
                       <ul className="space-y-3">
                         {result.topicConnections.map((t, i) => (
                           <motion.li
@@ -522,13 +534,61 @@ function ResultsInner() {
                   )}
                 </div>
               )}
-
-              {tab === 'chat' && (
-                <Chat resultId={result.id} title={result.title || result.file.filename} />
-              )}
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {/* Chat — sticky side panel on xl+, full-width slide-in below xl */}
+        {chatOpen && (
+          <>
+            <aside className="hidden xl:block xl:sticky xl:top-24 xl:self-start order-3">
+              <Chat resultId={result.id} title={result.title || result.file.filename} />
+            </aside>
+
+            {/* mobile/tablet drawer */}
+            <AnimatePresence>
+              <motion.div
+                key="chat-mobile-overlay"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="xl:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                onClick={() => setChatOpen(false)}
+              />
+              <motion.div
+                key="chat-mobile-panel"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 32 }}
+                className="xl:hidden fixed inset-y-0 right-0 z-50 w-full sm:max-w-md p-3"
+              >
+                <div className="h-full relative">
+                  <button
+                    onClick={() => setChatOpen(false)}
+                    className="absolute -top-2 -left-2 z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-ink-950 text-white/60 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
+                    aria-label="Close chat"
+                  >
+                    <PanelRightClose className="h-4 w-4" />
+                  </button>
+                  <Chat resultId={result.id} title={result.title || result.file.filename} />
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </>
+        )}
+
+        {/* Floating "Ask AI" button when chat closed on mobile/tablet */}
+        {!chatOpen && (
+          <button
+            onClick={() => setChatOpen(true)}
+            className="xl:hidden fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-mint-500 hover:bg-mint-400 text-ink-950 px-4 py-3 shadow-[0_8px_30px_rgba(16,185,129,0.45)] cursor-pointer transition-colors"
+            aria-label="Open AI chat"
+          >
+            <MessageSquare className="h-4 w-4" />
+            <span className="text-sm font-medium">Ask AI</span>
+          </button>
+        )}
       </div>
     </div>
   );
