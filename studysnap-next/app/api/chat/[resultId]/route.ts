@@ -3,9 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
 import { chatComplete } from '@/lib/ai/chat';
+import { enforceChatCooldown } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+
+const CHAT_COOLDOWN_SECONDS = 3;
 
 export const GET = withErrorHandling(async (req: Request, ctx: { params: Promise<{ resultId: string }> }) => {
   const user = await requireAuth(req);
@@ -26,6 +29,9 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
   const body = await req.json();
   const userMessage = String(body?.message ?? '').slice(0, 2000).trim();
   if (!userMessage) throw new HttpError(400, 'EMPTY', 'Message is empty');
+
+  // Per-user chat cooldown — prevents spam-click double-sends.
+  await enforceChatCooldown({ userId: user.id, cooldownSeconds: CHAT_COOLDOWN_SECONDS });
 
   const result = await prisma.processingResult.findUnique({
     where: { id: resultId },

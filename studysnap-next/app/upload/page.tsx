@@ -5,10 +5,11 @@ import { useDropzone } from 'react-dropzone';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { UploadCloud, FileText, X, ArrowRight, Loader2, Sparkles, Zap, Brain, Plus } from 'lucide-react';
+import { UploadCloud, FileText, X, ArrowRight, Loader2, Sparkles, Zap, Brain, Plus, Clock } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { Protected } from '@/components/Protected';
 import { MotionButton } from '@/components/ui/MotionButton';
+import { useCooldown } from '@/lib/client/useCooldown';
 
 type Stage = 'idle' | 'uploading' | 'processing';
 
@@ -25,6 +26,7 @@ function UploadInner() {
   const [files, setFiles] = useState<File[]>([]);
   const [stage, setStage] = useState<Stage>('idle');
   const lockRef = useRef(false);
+  const cooldown = useCooldown();
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { 'application/pdf': ['.pdf'] },
@@ -55,8 +57,8 @@ function UploadInner() {
   const removeFile = (idx: number) => setFiles((prev) => prev.filter((_, i) => i !== idx));
 
   async function handleStart() {
-    if (files.length === 0 || stage !== 'idle' || lockRef.current) {
-      console.log('[UPLOAD] blocked duplicate submit', { stage, locked: lockRef.current });
+    if (files.length === 0 || stage !== 'idle' || lockRef.current || cooldown.active) {
+      console.log('[UPLOAD] blocked duplicate submit', { stage, locked: lockRef.current, cooldown: cooldown.active });
       return;
     }
     lockRef.current = true;
@@ -82,14 +84,19 @@ function UploadInner() {
       toast.success('Study pack ready');
       router.push(`/results/${processed.result.id}`);
     } catch (err: any) {
+      const retryAfter = err?.details?.retryAfterSeconds as number | undefined;
       if (err?.code === 'FREE_LIMIT_REACHED') {
         toast.error(err.message, { action: { label: 'Upgrade', onClick: () => router.push('/billing') } });
+      } else if (err?.code === 'COOLDOWN_ACTIVE') {
+        if (retryAfter) cooldown.start(retryAfter);
+        toast.info(err.message ?? 'Please wait.', { duration: Math.min(6000, (retryAfter ?? 5) * 1000) });
       } else if (err?.code === 'ALREADY_PROCESSING') {
         toast.info('Already processing — hold on…');
       } else if (err?.code === 'UPLOAD_COOLDOWN') {
         toast.info(err.message ?? 'Please wait a moment before uploading again.');
       } else if (err?.code === 'ALL_RATE_LIMITED') {
         toast.error('AI providers are busy. Wait ~1 minute, then try again.', { duration: 8000 });
+        cooldown.start(60);
       } else {
         toast.error(err?.message ?? 'Something went wrong');
       }
@@ -215,17 +222,21 @@ function UploadInner() {
         </AnimatePresence>
 
         <div className="mt-4">
-          <MotionButton size="lg" className="w-full" disabled={files.length === 0 || stage !== 'idle'} onClick={handleStart}>
-            {stage === 'idle' && (
-              <>
-                {files.length === 0
+          <MotionButton
+            size="lg"
+            className="w-full"
+            disabled={files.length === 0 || stage !== 'idle' || cooldown.active}
+            onClick={handleStart}
+          >
+            {cooldown.active
+              ? <><Clock className="h-4 w-4" /> Wait {cooldown.secondsLeft}s</>
+              : stage === 'idle'
+                ? (files.length === 0
                   ? <>Generate study pack <ArrowRight className="h-4 w-4" /></>
-                  : <>Generate study pack from {files.length} PDF{files.length > 1 ? 's' : ''} <ArrowRight className="h-4 w-4" /></>
-                }
-              </>
-            )}
-            {stage === 'uploading' && <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>}
-            {stage === 'processing' && <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing with AI…</>}
+                  : <>Generate study pack from {files.length} PDF{files.length > 1 ? 's' : ''} <ArrowRight className="h-4 w-4" /></>)
+                : stage === 'uploading'
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                  : <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing with AI…</>}
           </MotionButton>
         </div>
 

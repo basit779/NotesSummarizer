@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Sparkles, Loader2, User, Zap } from 'lucide-react';
+import { Send, Sparkles, Loader2, User, Zap, Clock } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { cn } from '@/lib/utils';
 import { TypewriterText } from '@/components/ui/TypewriterText';
+import { useCooldown } from '@/lib/client/useCooldown';
 
 interface Message {
   id: string;
@@ -30,6 +31,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
   const [initialLoading, setInitialLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const cooldown = useCooldown();
 
   useEffect(() => {
     api.get(`/chat/${resultId}`)
@@ -54,7 +56,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
 
   async function send(text: string) {
     const content = text.trim();
-    if (!content || loading) return;
+    if (!content || loading || cooldown.active) return;
     setInput('');
     setLoading(true);
     const tempId = `tmp-${Date.now()}`;
@@ -68,6 +70,12 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
         ]),
       );
     } catch (err: any) {
+      const retryAfter = err?.details?.retryAfterSeconds as number | undefined;
+      if (err?.code === 'COOLDOWN_ACTIVE' && retryAfter) {
+        cooldown.start(retryAfter);
+      } else if (err?.code === 'ALL_RATE_LIMITED') {
+        cooldown.start(60);
+      }
       setMessages((m) => m.filter((msg) => msg.id !== tempId).concat([{
         id: `err-${Date.now()}`,
         role: 'assistant',
@@ -175,17 +183,25 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
           />
           <motion.button
             type="submit"
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || cooldown.active}
             whileTap={{ scale: 0.95 }}
             className={cn(
-              'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer',
+              'flex h-9 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer px-2',
+              cooldown.active ? 'w-auto min-w-[3rem] bg-white/[0.05] text-white/60' :
               input.trim() && !loading
-                ? 'bg-mint-500 text-ink-950 shadow-[0_0_20px_rgba(16,185,129,0.45)] hover:bg-mint-400'
-                : 'bg-white/[0.05] text-white/30 cursor-not-allowed',
+                ? 'w-9 bg-mint-500 text-ink-950 shadow-[0_0_20px_rgba(16,185,129,0.45)] hover:bg-mint-400'
+                : 'w-9 bg-white/[0.05] text-white/30 cursor-not-allowed',
             )}
-            aria-label="Send"
+            aria-label={cooldown.active ? `Wait ${cooldown.secondsLeft} seconds` : 'Send'}
           >
-            <Send className="h-4 w-4" />
+            {cooldown.active ? (
+              <span className="inline-flex items-center gap-1 mono text-[11px]">
+                <Clock className="h-3.5 w-3.5" />
+                {cooldown.secondsLeft}s
+              </span>
+            ) : (
+              <Send className="h-4 w-4" />
+            )}
           </motion.button>
         </form>
         <div className="mt-2 text-center mono text-[10px] text-white/25">

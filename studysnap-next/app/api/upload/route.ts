@@ -6,12 +6,15 @@ import { HttpError } from '@/lib/httpError';
 import { checkDailyLimit } from '@/lib/usage';
 import { env } from '@/lib/env';
 import { extractTextFromPdfBuffer } from '@/lib/pdf';
+import { enforceUploadCooldown, MSG_LIMIT_REACHED } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-/** Per-user cooldown between consecutive uploads — prevents cascade duplicates if a request hangs. */
-const UPLOAD_COOLDOWN_MS = 30_000;
+/** Min seconds between consecutive upload attempts — spam / accidental re-clicks. */
+const UPLOAD_COOLDOWN_SECONDS = 15;
+/** Legacy pending-upload window — if a recent upload has no result yet, surface its id. */
+const PENDING_COOLDOWN_MS = 30_000;
 const MAX_FILES = 3;
 
 /**
@@ -30,9 +33,13 @@ export const POST = withErrorHandling(async (req: Request) => {
   const limit = await checkDailyLimit(user.id, user.plan, 'UPLOAD');
   if (!limit.ok) {
     throw new HttpError(429, 'FREE_LIMIT_REACHED',
-      `Daily upload limit reached on Free plan. Upgrade to Pro for unlimited access.`,
+      MSG_LIMIT_REACHED,
       { limit: limit.limit, used: limit.used, upgrade: true });
   }
+
+  // 1b. Per-user cooldown — 15s between upload attempts. Protects free-tier
+  //     Gemini / Groq quotas from rapid repeated submissions.
+  await enforceUploadCooldown({ userId: user.id, cooldownSeconds: UPLOAD_COOLDOWN_SECONDS });
 
   const formData = await req.formData();
   // Accept either `file` (single) or `files` (multiple) — keeps single-file
@@ -90,15 +97,16 @@ export const POST = withErrorHandling(async (req: Request) => {
     }, { status: 200 });
   }
 
-  // 3. Cooldown check
-  const since = new Date(Date.now() - UPLOAD_COOLDOWN_MS);
+  // 3. Pending-upload check — a recent upload hasn't finished processing yet.
+  //    Hand back its id rather than starting a duplicate job.
+  const since = new Date(Date.now() - PENDING_COOLDOWN_MS);
   const recent = await prisma.uploadedFile.findFirst({
     where: { userId: user.id, createdAt: { gte: since } },
     orderBy: { createdAt: 'desc' },
     include: { result: { select: { id: true } } },
   });
   if (recent && !recent.result) {
-    console.log(`[UPLOAD] ${user.id} — cooldown hit, returning existing fileId=${recent.id}`);
+    console.log(`[UPLOAD] ${user.id} — pending upload, returning existing fileId=${recent.id}`);
     throw new HttpError(429, 'UPLOAD_COOLDOWN',
       'A recent upload is still processing. Using the existing one.',
       { fileId: recent.id });
