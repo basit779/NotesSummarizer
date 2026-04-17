@@ -117,7 +117,7 @@ async function geminiChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: 
     body: JSON.stringify({
       ...(sys ? { systemInstruction: { parts: [{ text: sys }] } } : {}),
       contents,
-      generationConfig: { temperature: 0.5, maxOutputTokens: 2048 },
+      generationConfig: { temperature: 0.5, maxOutputTokens: 800 },
     }),
   });
   if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `Gemini ${modelName} rate-limited`, 429);
@@ -161,12 +161,12 @@ interface ProviderConfig { baseUrl: string; apiKey: string; modelName: string; e
 
 function getProviderConfig(id: ModelId, _provider: string): ProviderConfig {
   switch (id) {
-    case 'groq-llama-3.3-70b': return { baseUrl: 'https://api.groq.com/openai/v1', apiKey: env.groqApiKey, modelName: 'llama-3.3-70b-versatile', extraHeaders: {}, maxOutput: 1500 };
-    case 'groq-llama-3.1-8b':  return { baseUrl: 'https://api.groq.com/openai/v1', apiKey: env.groqApiKey, modelName: 'llama-3.1-8b-instant',   extraHeaders: {}, maxOutput: 1200 };
-    case 'openrouter-deepseek': return { baseUrl: 'https://openrouter.ai/api/v1', apiKey: env.openrouterApiKey, modelName: 'deepseek/deepseek-chat-v3.1:free', extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' }, maxOutput: 1800 };
-    case 'mistral-small':       return { baseUrl: 'https://api.mistral.ai/v1',    apiKey: env.mistralApiKey,    modelName: 'mistral-small-latest',              extraHeaders: {}, maxOutput: 1500 };
-    case 'github-gpt-4o-mini':  return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'gpt-4o-mini',               extraHeaders: {}, maxOutput: 1500 };
-    case 'github-llama-3.3-70b':return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'Llama-3.3-70B-Instruct',    extraHeaders: {}, maxOutput: 1500 };
+    case 'groq-llama-3.3-70b': return { baseUrl: 'https://api.groq.com/openai/v1', apiKey: env.groqApiKey, modelName: 'llama-3.3-70b-versatile', extraHeaders: {}, maxOutput: 600 };
+    case 'groq-llama-3.1-8b':  return { baseUrl: 'https://api.groq.com/openai/v1', apiKey: env.groqApiKey, modelName: 'llama-3.1-8b-instant',   extraHeaders: {}, maxOutput: 600 };
+    case 'openrouter-deepseek': return { baseUrl: 'https://openrouter.ai/api/v1', apiKey: env.openrouterApiKey, modelName: 'deepseek/deepseek-chat-v3.1:free', extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' }, maxOutput: 600 };
+    case 'mistral-small':       return { baseUrl: 'https://api.mistral.ai/v1',    apiKey: env.mistralApiKey,    modelName: 'mistral-small-latest',              extraHeaders: {}, maxOutput: 600 };
+    case 'github-gpt-4o-mini':  return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'gpt-4o-mini',               extraHeaders: {}, maxOutput: 600 };
+    case 'github-llama-3.3-70b':return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'Llama-3.3-70B-Instruct',    extraHeaders: {}, maxOutput: 600 };
     default: throw new Error(`Unhandled provider for ${id}`);
   }
 }

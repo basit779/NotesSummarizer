@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, Loader2, User, Zap, Clock } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { cn } from '@/lib/utils';
-import { TypewriterText } from '@/components/ui/TypewriterText';
+import { MarkdownView } from '@/components/ui/MarkdownView';
 import { useCooldown } from '@/lib/client/useCooldown';
 
 interface Message {
@@ -13,8 +13,6 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
-  /** client-side flag: this message just arrived, play streaming animation */
-  justArrived?: boolean;
   /** assistant message served from LRU cache (no AI call) */
   cached?: boolean;
   /** assistant message was a static fallback (all providers failed) */
@@ -72,7 +70,6 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
           data.userMessage,
           {
             ...data.assistantMessage,
-            justArrived: true,
             cached: Boolean(data.cached),
             degraded: Boolean(data.degraded),
           },
@@ -90,7 +87,6 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
         role: 'assistant',
         content: err?.message ?? 'Something went wrong',
         createdAt: new Date().toISOString(),
-        justArrived: true,
       }]));
     } finally {
       setLoading(false);
@@ -251,10 +247,13 @@ function MessageBubble({ message }: { message: Message }) {
                 : 'bg-white/[0.035] border border-white/[0.05] text-white/85 rounded-tl-md',
           )}
         >
-          {message.role === 'assistant' && message.justArrived ? (
-            <TypewriterText text={message.content} />
-          ) : (
+          {isUser || message.degraded ? (
             <span className="whitespace-pre-wrap">{message.content}</span>
+          ) : (
+            <MarkdownView
+              content={message.content}
+              className="[&_p]:!text-[14px] [&_p]:!leading-[1.65] [&_p]:!mb-2 [&_p:last-child]:!mb-0 [&_ul]:!my-2 [&_ol]:!my-2 [&_li]:!text-[14px] [&_strong]:!text-white [&_strong]:!font-semibold"
+            />
           )}
         </div>
         {(message.cached || message.degraded) && !isUser && (
