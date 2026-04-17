@@ -1,6 +1,7 @@
 import { DEFAULT_FALLBACK_ORDER, MODEL_REGISTRY } from './registry';
 import { ModelId, PermanentAIError, ProviderResult, TransientAIError } from './types';
 import { HttpError } from '../httpError';
+import { logProviderEvent } from './telemetry';
 
 /** Hard cap on how many providers we try per request. Protects quotas. */
 const MAX_ATTEMPTS = 3;
@@ -50,6 +51,7 @@ export async function runWithFallback(
       const result = await spec.run(text, plan);
       const elapsed = Date.now() - t0;
       console.log(`[AI][${reqId}] ✓ ${id} succeeded in ${elapsed}ms (${result.tokensUsed} tokens) — TOTAL API CALLS: ${i + 1}`);
+      logProviderEvent({ reqId, providerId: id, outcome: 'success', elapsedMs: elapsed, tokensUsed: result.tokensUsed });
       attempted.push({ id });
       return { ...result, attempted };
     } catch (err: any) {
@@ -61,6 +63,18 @@ export async function runWithFallback(
       const code = err instanceof TransientAIError ? err.code : 'ERROR';
       const msg = err instanceof TransientAIError ? `${err.code}: ${err.message}` : String(err?.message ?? err);
       console.log(`[AI][${reqId}] ✗ ${id} failed in ${elapsed}ms: ${msg}`);
+      logProviderEvent({
+        reqId,
+        providerId: id,
+        outcome: code === 'RATE_LIMIT' ? 'rate_limit'
+          : code === 'BAD_JSON' ? 'bad_json'
+          : code === 'BAD_RESPONSE' ? 'bad_response'
+          : code === 'UPSTREAM' ? 'upstream_error'
+          : code === 'NO_KEY' ? 'no_key'
+          : 'transient_error',
+        elapsedMs: elapsed,
+        errorCode: code,
+      });
 
       // RATE_LIMIT: wait for the per-minute bucket to clear, then retry same provider ONCE.
       // Only do this wait once per request (otherwise we'd exceed the 60s route timeout).

@@ -4,6 +4,7 @@ import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
 import { chatComplete } from '@/lib/ai/chat';
 import { enforceChatCooldown } from '@/lib/rateLimit';
+import { cacheGet, cacheSet, hashKey } from '@/lib/ai/cache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -39,14 +40,24 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
   });
   if (!result || result.userId !== user.id) throw new HttpError(404, 'NOT_FOUND', 'Not found');
 
-  // Build context: study pack + last 10 messages
-  const prior = await prisma.chatMessage.findMany({
+  // Session control: keep the last N turns verbatim. If history goes beyond
+  // that, collapse older messages into a single [summary] system-note message
+  // so the model has continuity without us shipping all of it every call.
+  const RECENT_TURNS = 8;
+  const priorAll = await prisma.chatMessage.findMany({
     where: { resultId },
     orderBy: { createdAt: 'desc' },
-    take: 10,
-    select: { role: true, content: true },
+    take: 20,
+    select: { role: true, content: true, createdAt: true },
   });
-  prior.reverse();
+  priorAll.reverse();
+
+  const recent = priorAll.slice(-RECENT_TURNS);
+  const older = priorAll.slice(0, Math.max(0, priorAll.length - RECENT_TURNS));
+  const olderSummaryNote = older.length > 0
+    ? older.map((m) => `- ${m.role === 'user' ? 'User' : 'AI'}: ${m.content.slice(0, 120)}${m.content.length > 120 ? '…' : ''}`).join('\n')
+    : '';
+  const prior = recent;
 
   // Compact natural-language context. Raw JSON dump would burn ~5-10k tokens
   // per chat turn with no quality gain. Key points + definitions + summary
@@ -64,16 +75,16 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
   // notes are displayed client-side anyway.
   const summarySnippet = (result.summary as string).slice(0, 4000);
 
-  const systemPrompt = `You are a helpful study tutor. The user is studying from "${result.file.filename}". Answer strictly using the notes below as source of truth. If the answer isn't covered, say so clearly and then give your best general guidance. Keep answers concise (2-4 paragraphs max) and use markdown when structure helps.
+  const systemPrompt = `You are a helpful study tutor. The user is studying from "${result.file.filename}". Answer strictly using the notes below. If the answer isn't covered, say so clearly then give your best general guidance. Keep answers concise (2-4 paragraphs) and use markdown when structure helps.
 
-=== STUDY NOTES ===
+=== NOTES ===
 ${summarySnippet}
 
 === KEY POINTS ===
 ${keyPointsBlock}
 
 === DEFINITIONS ===
-${defsBlock}
+${defsBlock}${olderSummaryNote ? `\n\n=== EARLIER CONVERSATION (condensed) ===\n${olderSummaryNote}` : ''}
 === END CONTEXT ===`;
 
   const aiMessages = [
@@ -90,11 +101,24 @@ ${defsBlock}
   let assistantContent: string;
   let model: string;
   let degraded = false;
+  let cached = false;
 
-  try {
+  // Prompt-hash cache: same question against the same pack = served from memory
+  // (no AI call). Keyed by resultId + user message; pack context is already
+  // derived from resultId so it's implicitly part of the key.
+  const cacheKey = hashKey('chat-v1', resultId, userMessage.toLowerCase().trim());
+  const cachedHit = cacheGet<{ content: string; model: string }>(cacheKey);
+
+  if (cachedHit) {
+    assistantContent = cachedHit.content;
+    model = cachedHit.model;
+    cached = true;
+    console.log(`[CHAT] ${user.id} cache hit — 0 AI calls`);
+  } else try {
     const out = await chatComplete(aiMessages);
     assistantContent = out.content;
     model = out.model;
+    cacheSet(cacheKey, { content: assistantContent, model });
   } catch (err: any) {
     // Graceful degradation: store a polite assistant message rather than a
     // hard error, so the user's chat history stays consistent and they
@@ -120,5 +144,6 @@ ${defsBlock}
     assistantMessage: savedAssistant,
     model,
     degraded,
+    cached,
   });
 });

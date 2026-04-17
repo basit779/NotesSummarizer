@@ -15,6 +15,10 @@ interface Message {
   createdAt: string;
   /** client-side flag: this message just arrived, play streaming animation */
   justArrived?: boolean;
+  /** assistant message served from LRU cache (no AI call) */
+  cached?: boolean;
+  /** assistant message was a static fallback (all providers failed) */
+  degraded?: boolean;
 }
 
 const SUGGESTIONS = [
@@ -66,7 +70,12 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
       setMessages((m) =>
         m.filter((msg) => msg.id !== tempId).concat([
           data.userMessage,
-          { ...data.assistantMessage, justArrived: true },
+          {
+            ...data.assistantMessage,
+            justArrived: true,
+            cached: Boolean(data.cached),
+            degraded: Boolean(data.degraded),
+          },
         ]),
       );
     } catch (err: any) {
@@ -237,7 +246,9 @@ function MessageBubble({ message }: { message: Message }) {
             'rounded-2xl px-4 py-3 text-[14.5px] leading-relaxed',
             isUser
               ? 'bg-mint-500/[0.10] border border-mint-500/20 text-white rounded-tr-md'
-              : 'bg-white/[0.035] border border-white/[0.05] text-white/85 rounded-tl-md',
+              : message.degraded
+                ? 'bg-amber-500/[0.05] border border-amber-500/20 text-amber-100/90 rounded-tl-md'
+                : 'bg-white/[0.035] border border-white/[0.05] text-white/85 rounded-tl-md',
           )}
         >
           {message.role === 'assistant' && message.justArrived ? (
@@ -246,6 +257,12 @@ function MessageBubble({ message }: { message: Message }) {
             <span className="whitespace-pre-wrap">{message.content}</span>
           )}
         </div>
+        {(message.cached || message.degraded) && !isUser && (
+          <div className="mt-1 ml-1 mono text-[10px] text-white/35 flex items-center gap-1.5">
+            {message.cached && <span className="inline-flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-mint-400" /> cached · 0 API calls</span>}
+            {message.degraded && <span className="inline-flex items-center gap-1 text-amber-300/60"><span className="h-1 w-1 rounded-full bg-amber-400" /> fallback response</span>}
+          </div>
+        )}
       </div>
     </motion.div>
   );

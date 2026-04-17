@@ -8,6 +8,7 @@ import { MODEL_REGISTRY } from '@/lib/ai/registry';
 import { willTruncate } from '@/lib/ai/truncate';
 import type { ModelId } from '@/lib/ai/types';
 import { logUsage } from '@/lib/usage';
+import { runSerial } from '@/lib/ai/queue';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -18,6 +19,11 @@ const PROCESSING_LOCK_MS = 90_000; // 90s — max expected processing time
 export const POST = withErrorHandling(async (req: Request, ctx: { params: Promise<{ fileId: string }> }) => {
   const user = await requireAuth(req);
   const { fileId } = await ctx.params;
+  // Serialize per-user so concurrent tabs don't double-burn quota.
+  return runSerial(user.id, () => processOne(user, fileId, req));
+});
+
+async function processOne(user: { id: string; plan: 'FREE' | 'PRO' }, fileId: string, req: Request) {
   const body = await req.json().catch(() => ({}));
   const requestedModel: ModelId | undefined = body?.model && MODEL_REGISTRY[body.model as ModelId]
     ? (body.model as ModelId)
@@ -104,4 +110,4 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
     }).catch(() => {});
     throw err;
   }
-});
+}
