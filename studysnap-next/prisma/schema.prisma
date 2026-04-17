@@ -55,12 +55,14 @@ model UploadedFile {
   sizeBytes      Int
   mimeType       String
   pageCount      Int?
+  contentHash    String?  // sha256 of uploaded bytes — used to dedup re-uploads of the same PDF and reuse cached ProcessingResult
   processingAt   DateTime? // set when /process starts; cleared on success/fail. Idempotency lock.
   createdAt      DateTime @default(now())
 
   result         ProcessingResult?
 
   @@index([userId, createdAt])
+  @@index([userId, contentHash])
 }
 
 model ProcessingResult {

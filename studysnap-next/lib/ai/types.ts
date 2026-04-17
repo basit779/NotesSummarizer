@@ -34,7 +34,12 @@ export interface ProviderResult {
   tokensUsed: number;
 }
 
-export type ProviderFn = (text: string, plan: 'FREE' | 'PRO') => Promise<ProviderResult>;
+export interface ProviderRunOptions {
+  /** Retry mode: use a trimmed prompt so output fits in the model's max_tokens cap. */
+  minimal?: boolean;
+}
+
+export type ProviderFn = (text: string, plan: 'FREE' | 'PRO', opts?: ProviderRunOptions) => Promise<ProviderResult>;
 
 export class TransientAIError extends Error {
   readonly code: string;

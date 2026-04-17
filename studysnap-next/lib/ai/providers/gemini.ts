@@ -16,14 +16,19 @@ function toGeminiSchema(s: any): any {
   return s;
 }
 
-export async function geminiProvider(modelName: string, text: string, plan: 'FREE' | 'PRO'): Promise<ProviderResult> {
+export async function geminiProvider(
+  modelName: string,
+  text: string,
+  plan: 'FREE' | 'PRO',
+  opts: { minimal?: boolean } = {},
+): Promise<ProviderResult> {
   const key = env.googleApiKey;
   if (!key) throw new TransientAIError('NO_KEY', `GOOGLE_API_KEY not configured for ${modelName}`);
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: [{ role: 'user', parts: [{ text: buildUserPrompt(text, plan) }] }],
+    contents: [{ role: 'user', parts: [{ text: buildUserPrompt(text, plan, { minimal: opts.minimal }) }] }],
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: toGeminiSchema(STUDY_MATERIAL_SCHEMA),

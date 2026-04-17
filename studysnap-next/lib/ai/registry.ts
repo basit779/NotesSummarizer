@@ -15,78 +15,84 @@ export interface ModelSpec {
 export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   'gemini-2.5-pro': {
     id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'google',
-    run: (text, plan) => geminiProvider('gemini-2.5-pro', truncateForModel(text, 'gemini-2.5-pro'), plan),
+    run: (text, plan, opts) => geminiProvider('gemini-2.5-pro', truncateForModel(text, 'gemini-2.5-pro'), plan, opts),
     isConfigured: () => Boolean(env.googleApiKey),
   },
   'gemini-2.0-flash': {
     id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'google',
-    run: (text, plan) => geminiProvider('gemini-2.0-flash', truncateForModel(text, 'gemini-2.0-flash'), plan),
+    run: (text, plan, opts) => geminiProvider('gemini-2.0-flash', truncateForModel(text, 'gemini-2.0-flash'), plan, opts),
     isConfigured: () => Boolean(env.googleApiKey),
   },
   'groq-llama-3.3-70b': {
     id: 'groq-llama-3.3-70b', label: 'Llama 3.3 70B', provider: 'groq',
-    run: (text, plan) => openaiCompat({
+    run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.groqApiKey,
       modelName: 'llama-3.3-70b-versatile',
       displayName: 'Groq Llama 3.3 70B',
       text: truncateForModel(text, 'groq-llama-3.3-70b'), plan,
+      minimal: opts?.minimal,
     }),
     isConfigured: () => Boolean(env.groqApiKey),
   },
   'groq-llama-3.1-8b': {
     id: 'groq-llama-3.1-8b', label: 'Llama 3.1 8B Instant', provider: 'groq',
-    run: (text, plan) => openaiCompat({
+    run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey: env.groqApiKey,
       modelName: 'llama-3.1-8b-instant',
       displayName: 'Groq Llama 3.1 8B',
       text: truncateForModel(text, 'groq-llama-3.1-8b'), plan,
+      minimal: opts?.minimal,
     }),
     isConfigured: () => Boolean(env.groqApiKey),
   },
   'openrouter-deepseek': {
     id: 'openrouter-deepseek', label: 'DeepSeek V3 (free)', provider: 'openrouter',
-    run: (text, plan) => openaiCompat({
+    run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: env.openrouterApiKey,
       modelName: 'deepseek/deepseek-chat-v3.1:free',
       displayName: 'OpenRouter DeepSeek',
       text: truncateForModel(text, 'openrouter-deepseek'), plan,
       extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' },
+      minimal: opts?.minimal,
     }),
     isConfigured: () => Boolean(env.openrouterApiKey),
   },
   'mistral-small': {
     id: 'mistral-small', label: 'Mistral Small', provider: 'mistral',
-    run: (text, plan) => openaiCompat({
+    run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://api.mistral.ai/v1',
       apiKey: env.mistralApiKey,
       modelName: 'mistral-small-latest',
       displayName: 'Mistral Small',
       text: truncateForModel(text, 'mistral-small'), plan,
+      minimal: opts?.minimal,
     }),
     isConfigured: () => Boolean(env.mistralApiKey),
   },
   'github-gpt-4o-mini': {
     id: 'github-gpt-4o-mini', label: 'GPT-4o mini (GitHub)', provider: 'github',
-    run: (text, plan) => openaiCompat({
+    run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://models.inference.ai.azure.com',
       apiKey: env.githubToken,
       modelName: 'gpt-4o-mini',
       displayName: 'GitHub GPT-4o mini',
       text: truncateForModel(text, 'github-gpt-4o-mini'), plan,
+      minimal: opts?.minimal,
     }),
     isConfigured: () => Boolean(env.githubToken),
   },
   'github-llama-3.3-70b': {
     id: 'github-llama-3.3-70b', label: 'Llama 3.3 70B (GitHub)', provider: 'github',
-    run: (text, plan) => openaiCompat({
+    run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://models.inference.ai.azure.com',
       apiKey: env.githubToken,
       modelName: 'Llama-3.3-70B-Instruct',
       displayName: 'GitHub Llama 3.3 70B',
       text: truncateForModel(text, 'github-llama-3.3-70b'), plan,
+      minimal: opts?.minimal,
     }),
     isConfigured: () => Boolean(env.githubToken),
   },

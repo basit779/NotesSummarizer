@@ -125,22 +125,24 @@ function BillingInner() {
         no real payments in mock mode · stripe activates when account is connected
       </p>
 
-      <div className="mt-10 flex justify-center">
-        <button
-          onClick={async () => {
-            try {
-              const data = await api.post('/dev/reset-usage');
-              toast.success(`Usage reset (${data.deleted} records cleared)`);
-              setTimeout(() => window.location.reload(), 800);
-            } catch (err: any) {
-              toast.error(err?.message ?? 'Reset failed');
-            }
-          }}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.14] px-3 py-1.5 mono text-[11px] text-white/50 hover:text-white/80 transition-colors cursor-pointer"
-        >
-          <RotateCcw className="h-3 w-3" /> reset today's usage (dev)
-        </button>
-      </div>
+      {process.env.NODE_ENV !== 'production' && (
+        <div className="mt-10 flex justify-center">
+          <button
+            onClick={async () => {
+              try {
+                const data = await api.post('/dev/reset-usage');
+                toast.success(`Usage reset (${data.deleted} records cleared)`);
+                setTimeout(() => window.location.reload(), 800);
+              } catch (err: any) {
+                toast.error(err?.message ?? 'Reset failed');
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.14] px-3 py-1.5 mono text-[11px] text-white/50 hover:text-white/80 transition-colors cursor-pointer"
+          >
+            <RotateCcw className="h-3 w-3" /> reset today's usage (dev)
+          </button>
+        </div>
+      )}
     </div>
   );
 }

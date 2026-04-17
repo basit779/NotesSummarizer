@@ -5,6 +5,9 @@ import { HttpError } from '../httpError';
 /** Hard cap on how many providers we try per request. Protects quotas. */
 const MAX_ATTEMPTS = 3;
 
+/** Error codes that are caused by the prompt producing too much output — retryable on the same provider with a smaller prompt, no need to burn the next provider's quota. */
+const BAD_OUTPUT_CODES = new Set(['BAD_JSON', 'BAD_RESPONSE']);
+
 export async function runWithFallback(
   text: string,
   plan: 'FREE' | 'PRO',
@@ -49,8 +52,32 @@ export async function runWithFallback(
         console.log(`[AI][${reqId}] ✗ ${id} permanent error in ${elapsed}ms: ${err.code}`);
         throw new HttpError(400, err.code, err.message);
       }
+      const code = err instanceof TransientAIError ? err.code : 'ERROR';
       const msg = err instanceof TransientAIError ? `${err.code}: ${err.message}` : String(err?.message ?? err);
       console.log(`[AI][${reqId}] ✗ ${id} failed in ${elapsed}ms: ${msg}`);
+
+      // Same-provider retry with minimal prompt on output-shape failures.
+      // This saves the next provider's quota when the real problem was just
+      // that Gemini's 4096 output cap truncated the JSON.
+      if (BAD_OUTPUT_CODES.has(code)) {
+        const t1 = Date.now();
+        try {
+          console.log(`[AI][${reqId}] ↻ ${id} retrying with minimal prompt`);
+          const result = await spec.run(text, plan, { minimal: true });
+          const elapsed2 = Date.now() - t1;
+          console.log(`[AI][${reqId}] ✓ ${id} minimal-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens) — TOTAL API CALLS: ${i + 2}`);
+          attempted.push({ id, error: `${msg} → recovered via minimal retry` });
+          return { ...result, attempted };
+        } catch (err2: any) {
+          const elapsed2 = Date.now() - t1;
+          const msg2 = err2 instanceof TransientAIError ? `${err2.code}: ${err2.message}` : String(err2?.message ?? err2);
+          console.log(`[AI][${reqId}] ✗ ${id} minimal-retry failed in ${elapsed2}ms: ${msg2}`);
+          attempted.push({ id, error: `${msg} | minimal-retry: ${msg2}` });
+          lastError = err2;
+          continue;
+        }
+      }
+
       attempted.push({ id, error: msg });
       lastError = err;
     }

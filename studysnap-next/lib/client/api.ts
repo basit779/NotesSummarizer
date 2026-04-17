@@ -1,10 +1,17 @@
 'use client';
 
 const TOKEN_KEY = 'ss_token';
+const USER_KEY = 'ss_user';
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(TOKEN_KEY);
+}
+
+function clearLocalAuth() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 interface ApiError extends Error {
@@ -34,9 +41,10 @@ async function request<T = any>(
   const data = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
-    if (res.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('ss_user');
+    // Only clear local auth on 401s from auth endpoints. Unrelated 401s (stale
+    // file ids, expired chat result refs, etc.) must NOT nuke the session.
+    if (res.status === 401 && path.startsWith('/auth/')) {
+      clearLocalAuth();
     }
     const err: ApiError = Object.assign(new Error(data?.error?.message ?? 'Request failed'), {
       status: res.status,

@@ -29,19 +29,23 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (typeof window === 'undefined') { set({ loading: false }); return; }
     const token = localStorage.getItem('ss_token');
     const userRaw = localStorage.getItem('ss_user');
-    if (token && userRaw) {
-      set({ token, user: JSON.parse(userRaw) });
-      try {
-        const data = await api.get('/auth/me');
-        set({ user: data.user });
-        localStorage.setItem('ss_user', JSON.stringify(data.user));
-      } catch (err: any) {
-        // Only logout on a real 401 (invalid/expired token). Keep cached user on
-        // network errors, cold-start 5xx, or DB sleeping.
-        if (err?.status === 401) get().logout();
-      }
+    if (!token || !userRaw) {
+      // No cached session — flip loading off immediately so guest UI doesn't flash a skeleton.
+      set({ loading: false });
+      return;
     }
-    set({ loading: false });
+    set({ token, user: JSON.parse(userRaw) });
+    try {
+      const data = await api.get('/auth/me');
+      set({ user: data.user });
+      localStorage.setItem('ss_user', JSON.stringify(data.user));
+    } catch (err: any) {
+      // Only logout on a real 401 (invalid/expired token). Keep cached user on
+      // network errors, cold-start 5xx, or DB sleeping.
+      if (err?.status === 401) get().logout();
+    } finally {
+      set({ loading: false });
+    }
   },
   login: async (email, password) => {
     const data = await api.post('/auth/login', { email, password });

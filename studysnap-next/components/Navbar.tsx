@@ -16,7 +16,7 @@ const navItems = [
 ];
 
 export function Navbar() {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const onLanding = pathname === '/';
@@ -39,7 +39,11 @@ export function Navbar() {
             </span>
           </Link>
 
-          {user ? (
+          {loading && !user ? (
+            <nav className="flex items-center gap-1" aria-hidden>
+              <div className="h-9 w-24 rounded-lg bg-white/[0.03]" />
+            </nav>
+          ) : user ? (
             <nav className="flex items-center gap-1">
               <div className="hidden md:flex items-center gap-0.5">
                 {navItems.map((item) => {

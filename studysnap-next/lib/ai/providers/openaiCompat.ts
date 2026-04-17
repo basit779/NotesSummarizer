@@ -11,9 +11,10 @@ export async function openaiCompat(args: {
   plan: 'FREE' | 'PRO';
   extraHeaders?: Record<string, string>;
   supportsJsonSchema?: boolean;
+  minimal?: boolean;
 }): Promise<ProviderResult> {
   const {
-    baseUrl, apiKey, modelName, displayName, text, plan, extraHeaders = {}, supportsJsonSchema = true,
+    baseUrl, apiKey, modelName, displayName, text, plan, extraHeaders = {}, supportsJsonSchema = true, minimal = false,
   } = args;
 
   if (!apiKey) throw new TransientAIError('NO_KEY', `API key missing for ${displayName}`);
@@ -21,7 +22,7 @@ export async function openaiCompat(args: {
   const schemaInstruction = `Respond with ONLY a JSON object matching this schema (no prose, no code fences):
 ${JSON.stringify(STUDY_MATERIAL_SCHEMA)}`;
 
-  const userPrompt = buildUserPrompt(text, plan) + '\n\n' + schemaInstruction;
+  const userPrompt = buildUserPrompt(text, plan, { minimal }) + '\n\n' + schemaInstruction;
 
   const body: Record<string, unknown> = {
     model: modelName,

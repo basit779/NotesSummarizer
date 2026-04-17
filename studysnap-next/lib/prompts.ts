@@ -8,17 +8,39 @@ Hard rules:
 - Write in clean, neutral, exam-appropriate English.
 - Prefer precise technical language from the source over generic paraphrase.`;
 
-export function buildUserPrompt(text: string, plan: 'FREE' | 'PRO') {
-  const counts = plan === 'PRO'
+interface PromptOptions {
+  /**
+   * Retry mode: cut counts ~40% when the first attempt returned truncated/invalid JSON.
+   * Prevents the output from overflowing the model's max_tokens cap (4096 on FREE).
+   */
+  minimal?: boolean;
+}
+
+export function buildUserPrompt(text: string, plan: 'FREE' | 'PRO', opts: PromptOptions = {}) {
+  const { minimal = false } = opts;
+
+  // FREE counts are sized so the output JSON fits in ~4096 completion tokens.
+  // PRO counts get the full generous volume (8192-token ceiling).
+  let counts = plan === 'PRO'
     ? { key: '15-20', defs: '12-18', exam: '12-15', cards: '30-40', tips: '6-8', connections: '5-7' }
-    : { key: '10-15', defs: '8-12', exam: '10-12', cards: '25-35', tips: '4-6', connections: '3-5' };
+    : { key: '8-10',  defs: '6-8',   exam: '6-8',   cards: '15-20', tips: '3-4', connections: '3-4' };
+
+  if (minimal) {
+    counts = plan === 'PRO'
+      ? { key: '10-12', defs: '8-10', exam: '8-10', cards: '20-25', tips: '4-5', connections: '3-5' }
+      : { key: '6-8',   defs: '4-6',  exam: '4-6',  cards: '10-12', tips: '3',   connections: '2-3' };
+  }
+
+  const summarySpec = plan === 'PRO'
+    ? 'Comprehensive 500-1000 word summary'
+    : 'Comprehensive 250-400 word summary';
 
   return `Analyze the following academic material and produce comprehensive study content.
 
 OUTPUT SCHEMA (return valid JSON only, no code fences):
 {
   "title": "A specific, auto-detected topic title (5-10 words). Not just the filename.",
-  "summary": "Comprehensive 500-1000 word summary. Structured with clear paragraphs (no markdown headings, just paragraph breaks). Cover ALL major concepts, explain them with context, include examples, show how ideas connect. A student should be able to study ONLY from this and understand the topic.",
+  "summary": "${summarySpec}. Structured with clear paragraphs (no markdown headings, just paragraph breaks). Cover ALL major concepts, explain them with context, include examples, show how ideas connect. A student should be able to study ONLY from this and understand the topic.",
   "keyPoints": [
     "Each item is 1-2 sentences. Explain WHY it matters, not just list a fact. ${counts.key} items."
   ],
@@ -55,7 +77,7 @@ QUANTITY REQUIREMENTS:
 QUALITY REQUIREMENTS:
 - Flashcard answers must be 2-3 sentences, never one word.
 - Exam question explanations must say why the right answer is right AND why the wrong options are wrong.
-- Summary must be 500-1000 words. Explanatory, not a listicle.
+- Summary target length: see schema spec above. Explanatory, not a listicle.
 - Study tips must be specific to THIS content, not generic ("use flashcards" is banned — instead say "when memorizing the Krebs cycle, group intermediates by their molecular structure").
 
 SOURCE MATERIAL:
