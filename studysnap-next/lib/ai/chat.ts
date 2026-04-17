@@ -6,15 +6,28 @@ import { HttpError } from '../httpError';
 export interface ChatMsg { role: 'user' | 'assistant' | 'system'; content: string; }
 
 const MAX_CHAT_ATTEMPTS = 3;
+const RATE_LIMIT_WAIT_MS = 7_000;
+
+function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
 /**
  * Non-streaming chat completion with automatic provider fallback.
- * Capped at MAX_CHAT_ATTEMPTS to avoid burning quota on bad days.
+ *
+ * Behaviors matched to runWithFallback for consistency:
+ *  - MAX_ATTEMPTS=3 cap per request
+ *  - On the FIRST 429 in the request, sleep 7s and retry the same provider
+ *    before cascading (free-tier per-minute buckets usually refill within
+ *    that window)
+ *  - On complete failure, throws ALL_RATE_LIMITED (429) if every attempt
+ *    was rate-limited, otherwise ALL_PROVIDERS_FAILED (502)
+ *
+ * Callers should catch HttpError(ALL_*) and surface a graceful user-facing
+ * message rather than the raw error.
  */
 export async function chatComplete(
   messages: ChatMsg[],
   preferred?: ModelId,
-): Promise<{ content: string; model: string; tokensUsed: number }> {
+): Promise<{ content: string; model: string; tokensUsed: number; attempted: { id: ModelId; error?: string }[] }> {
   const reqId = Math.random().toString(36).slice(2, 8);
   const chain: ModelId[] = [];
   if (preferred && MODEL_REGISTRY[preferred]) chain.push(preferred);
@@ -25,7 +38,11 @@ export async function chatComplete(
   }
 
   console.log(`[CHAT][${reqId}] start — will try up to ${configured.length} providers: ${configured.join(', ')}`);
+
+  const attempted: { id: ModelId; error?: string }[] = [];
   let lastErr: Error | undefined;
+  let rateLimitedCount = 0;
+
   for (let i = 0; i < configured.length; i++) {
     const id = configured[i];
     const t0 = Date.now();
@@ -33,13 +50,50 @@ export async function chatComplete(
       console.log(`[CHAT][${reqId}] attempt ${i + 1}/${configured.length} — ${id}`);
       const result = await runChat(id, messages);
       console.log(`[CHAT][${reqId}] ✓ ${id} in ${Date.now() - t0}ms (${result.tokensUsed} tokens) — TOTAL: ${i + 1}`);
-      return result;
+      attempted.push({ id });
+      return { ...result, attempted };
     } catch (err: any) {
-      console.log(`[CHAT][${reqId}] ✗ ${id} failed in ${Date.now() - t0}ms: ${err?.message ?? err}`);
+      const code = err instanceof TransientAIError ? err.code : 'ERROR';
+      const status = err instanceof TransientAIError ? err.status : undefined;
+      const msg = err instanceof TransientAIError ? `${err.code}: ${err.message}` : String(err?.message ?? err);
+      console.log(`[CHAT][${reqId}] ✗ ${id} failed in ${Date.now() - t0}ms: ${msg}`);
+
+      // Wait-retry ONCE per request when the first provider rate-limits.
+      const isRateLimit = code === 'RATE_LIMIT' || status === 429;
+      if (isRateLimit && rateLimitedCount === 0) {
+        rateLimitedCount++;
+        console.log(`[CHAT][${reqId}] ⏱ ${id} rate-limited — sleeping ${RATE_LIMIT_WAIT_MS}ms then retrying`);
+        await sleep(RATE_LIMIT_WAIT_MS);
+        const t1 = Date.now();
+        try {
+          const result = await runChat(id, messages);
+          console.log(`[CHAT][${reqId}] ✓ ${id} wait-retry succeeded in ${Date.now() - t1}ms`);
+          attempted.push({ id, error: `${msg} → recovered after wait` });
+          return { ...result, attempted };
+        } catch (err2: any) {
+          const msg2 = err2 instanceof TransientAIError ? `${err2.code}: ${err2.message}` : String(err2?.message ?? err2);
+          console.log(`[CHAT][${reqId}] ✗ ${id} wait-retry failed: ${msg2}`);
+          attempted.push({ id, error: `${msg} | wait-retry: ${msg2}` });
+          lastErr = err2;
+          continue;
+        }
+      }
+
+      attempted.push({ id, error: msg });
       lastErr = err;
     }
   }
+
   console.log(`[CHAT][${reqId}] ALL ${configured.length} FAILED`);
+
+  const allRateLimited = attempted.every((a) => {
+    if (!a.error) return false;
+    return a.error.includes('RATE_LIMIT') || a.error.includes('rate-limit') || a.error.includes('429');
+  });
+  if (allRateLimited) {
+    throw new HttpError(429, 'ALL_RATE_LIMITED',
+      'All free-tier AI providers are temporarily rate-limited. Wait ~60 seconds and try again.');
+  }
   throw new HttpError(502, 'ALL_PROVIDERS_FAILED', `Chat failed: ${lastErr?.message ?? 'unknown'}`);
 }
 
@@ -66,6 +120,8 @@ async function geminiChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: 
       generationConfig: { temperature: 0.5, maxOutputTokens: 2048 },
     }),
   });
+  if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `Gemini ${modelName} rate-limited`, 429);
+  if (res.status >= 500) throw new TransientAIError('UPSTREAM', `Gemini ${modelName} ${res.status}`, res.status);
   if (!res.ok) throw new TransientAIError('ERR', `Gemini ${res.status}`, res.status);
   const data = await res.json() as any;
   const content = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
@@ -88,9 +144,11 @@ async function openaiStyleChat(id: ModelId, messages: ChatMsg[], provider: strin
       model: config.modelName,
       messages,
       temperature: 0.5,
-      max_tokens: 2048,
+      max_tokens: config.maxOutput ?? 2048,
     }),
   });
+  if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `${id} rate-limited`, 429);
+  if (res.status >= 500) throw new TransientAIError('UPSTREAM', `${id} ${res.status}`, res.status);
   if (!res.ok) throw new TransientAIError('ERR', `${id} ${res.status}`, res.status);
   const data = await res.json() as any;
   const content = data?.choices?.[0]?.message?.content ?? '';
@@ -99,14 +157,16 @@ async function openaiStyleChat(id: ModelId, messages: ChatMsg[], provider: strin
   return { content, model: config.modelName, tokensUsed: tokens };
 }
 
-function getProviderConfig(id: ModelId, _provider: string): { baseUrl: string; apiKey: string; modelName: string; extraHeaders: Record<string, string> } {
+interface ProviderConfig { baseUrl: string; apiKey: string; modelName: string; extraHeaders: Record<string, string>; maxOutput?: number }
+
+function getProviderConfig(id: ModelId, _provider: string): ProviderConfig {
   switch (id) {
-    case 'groq-llama-3.3-70b': return { baseUrl: 'https://api.groq.com/openai/v1', apiKey: env.groqApiKey, modelName: 'llama-3.3-70b-versatile', extraHeaders: {} };
-    case 'groq-llama-3.1-8b': return { baseUrl: 'https://api.groq.com/openai/v1', apiKey: env.groqApiKey, modelName: 'llama-3.1-8b-instant', extraHeaders: {} };
-    case 'openrouter-deepseek': return { baseUrl: 'https://openrouter.ai/api/v1', apiKey: env.openrouterApiKey, modelName: 'deepseek/deepseek-chat-v3.1:free', extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' } };
-    case 'mistral-small': return { baseUrl: 'https://api.mistral.ai/v1', apiKey: env.mistralApiKey, modelName: 'mistral-small-latest', extraHeaders: {} };
-    case 'github-gpt-4o-mini': return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'gpt-4o-mini', extraHeaders: {} };
-    case 'github-llama-3.3-70b': return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'Llama-3.3-70B-Instruct', extraHeaders: {} };
+    case 'groq-llama-3.3-70b': return { baseUrl: 'https://api.groq.com/openai/v1', apiKey: env.groqApiKey, modelName: 'llama-3.3-70b-versatile', extraHeaders: {}, maxOutput: 1500 };
+    case 'groq-llama-3.1-8b':  return { baseUrl: 'https://api.groq.com/openai/v1', apiKey: env.groqApiKey, modelName: 'llama-3.1-8b-instant',   extraHeaders: {}, maxOutput: 1200 };
+    case 'openrouter-deepseek': return { baseUrl: 'https://openrouter.ai/api/v1', apiKey: env.openrouterApiKey, modelName: 'deepseek/deepseek-chat-v3.1:free', extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' }, maxOutput: 1800 };
+    case 'mistral-small':       return { baseUrl: 'https://api.mistral.ai/v1',    apiKey: env.mistralApiKey,    modelName: 'mistral-small-latest',              extraHeaders: {}, maxOutput: 1500 };
+    case 'github-gpt-4o-mini':  return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'gpt-4o-mini',               extraHeaders: {}, maxOutput: 1500 };
+    case 'github-llama-3.3-70b':return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'Llama-3.3-70B-Instruct',    extraHeaders: {}, maxOutput: 1500 };
     default: throw new Error(`Unhandled provider for ${id}`);
   }
 }

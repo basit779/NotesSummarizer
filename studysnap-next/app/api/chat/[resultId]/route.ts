@@ -87,7 +87,29 @@ ${defsBlock}
     data: { resultId, userId: user.id, role: 'user', content: userMessage },
   });
 
-  const { content: assistantContent, model } = await chatComplete(aiMessages);
+  let assistantContent: string;
+  let model: string;
+  let degraded = false;
+
+  try {
+    const out = await chatComplete(aiMessages);
+    assistantContent = out.content;
+    model = out.model;
+  } catch (err: any) {
+    // Graceful degradation: store a polite assistant message rather than a
+    // hard error, so the user's chat history stays consistent and they
+    // always get visible feedback. Client can still read the degraded flag.
+    degraded = true;
+    model = 'fallback-static';
+    if (err?.code === 'ALL_RATE_LIMITED') {
+      assistantContent = "I'm temporarily rate-limited across all free providers. Give it about a minute and ask again — your question is saved.";
+    } else if (err?.code === 'NO_AI_PROVIDER') {
+      assistantContent = 'The AI service is not configured right now. Please try again later.';
+    } else {
+      assistantContent = "I couldn't reach the AI just now. Try asking again in a moment.";
+    }
+    console.log(`[CHAT] ${user.id} degraded response — ${err?.code ?? 'UNKNOWN'}: ${err?.message ?? err}`);
+  }
 
   const savedAssistant = await prisma.chatMessage.create({
     data: { resultId, userId: user.id, role: 'assistant', content: assistantContent },
@@ -97,5 +119,6 @@ ${defsBlock}
     userMessage: savedUser,
     assistantMessage: savedAssistant,
     model,
+    degraded,
   });
 });
