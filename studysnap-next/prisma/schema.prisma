@@ -107,3 +107,19 @@ model UsageLog {
 
   @@index([userId, action, createdAt])
 }
+
+/// Cross-user PDF hash cache. Key = sha256 of uploaded bytes. On hit we reuse
+/// the stored AI pack instead of re-running providers. Standalone (no user rel)
+/// by design — the same content hashed by any user maps to the same pack.
+model PdfCache {
+  id            String   @id @default(cuid())
+  contentHash   String   @unique
+  generatedPack Json
+  pageCount     Int?
+  hitCount      Int      @default(0)
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+
+  @@index([expiresAt])
+  @@map("pdf_cache")
+}

@@ -69,7 +69,9 @@ function UploadInner() {
       for (const f of files) form.append('files', f);
       const uploaded = await api.postForm('/upload', form);
 
-      if (uploaded.deduped) {
+      if (uploaded.cacheSource === 'cross-user') {
+        toast.success('⚡ Instant result (cached)');
+      } else if (uploaded.deduped) {
         toast.success('Already processed — loading cached pack.');
       } else {
         setStage('processing');

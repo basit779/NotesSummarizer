@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
@@ -9,6 +10,7 @@ import { willTruncate } from '@/lib/ai/truncate';
 import type { ModelId } from '@/lib/ai/types';
 import { logUsage } from '@/lib/usage';
 import { runSerial } from '@/lib/ai/queue';
+import { storePdfCache } from '@/lib/ai/pdfCache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -99,6 +101,25 @@ async function processOne(user: { id: string; plan: 'FREE' | 'PRO' }, fileId: st
     });
     await logUsage(user.id, 'UPLOAD');
     await logUsage(user.id, 'PROCESS');
+
+    // Store in cross-user PDF cache so future uploaders hit instantly (0 tokens).
+    // Awaited intentionally: Vercel may kill fire-and-forget promises after the
+    // response flushes. The write is fast (<100ms) and never throws.
+    if (file.contentHash) {
+      await storePdfCache({
+        contentHash: file.contentHash,
+        pack: {
+          summary: material.summary,
+          keyPoints: material.keyPoints,
+          definitions: material.definitions,
+          examQuestions: material.examQuestions,
+          flashcards: material.flashcards,
+          originalModel: model,
+        },
+        pageCount: pages,
+        reqId: crypto.randomBytes(6).toString('hex'),
+      });
+    }
 
     console.log(`[PROCESS] ${fileId} ✓ done — model=${model}, tokens=${tokensUsed}, attempts=${attempted.length}, chunks=${chunks}, sourceChars=${sourceChars}`);
     return NextResponse.json({ result, cached: false, attempted, truncated, chunks, sourceChars }, { status: 201 });

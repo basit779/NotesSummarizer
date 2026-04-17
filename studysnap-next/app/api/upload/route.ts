@@ -7,6 +7,7 @@ import { checkDailyLimit } from '@/lib/usage';
 import { env } from '@/lib/env';
 import { extractTextFromPdfBuffer } from '@/lib/pdf';
 import { enforceUploadCooldown, MSG_LIMIT_REACHED } from '@/lib/rateLimit';
+import { lookupPdfCache } from '@/lib/ai/pdfCache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -94,6 +95,60 @@ export const POST = withErrorHandling(async (req: Request) => {
         createdAt: existingHashMatch.createdAt,
       },
       deduped: true,
+    }, { status: 200 });
+  }
+
+  // 2b. Cross-user PDF cache lookup. Same content hash uploaded by anyone else
+  //     before? Reuse their pack — materialize a fresh UploadedFile +
+  //     ProcessingResult for this user in one transaction. No AI calls.
+  const reqId = crypto.randomBytes(6).toString('hex');
+  const cacheHit = await lookupPdfCache(contentHash, reqId);
+  if (cacheHit) {
+    const combinedFilename = rawFiles.length > 1
+      ? files.map((f) => f.name).join(' + ')
+      : files[0].name;
+    const newFile = await prisma.$transaction(async (tx) => {
+      const uf = await tx.uploadedFile.create({
+        data: {
+          userId: user.id,
+          filename: combinedFilename,
+          storagePath: 'consumed',
+          sizeBytes: totalBytes,
+          mimeType: 'application/pdf',
+          contentHash,
+          pageCount: cacheHit.pageCount,
+        },
+      });
+      await tx.processingResult.create({
+        data: {
+          fileId: uf.id,
+          userId: user.id,
+          summary: cacheHit.pack.summary,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          keyPoints: cacheHit.pack.keyPoints as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          definitions: cacheHit.pack.definitions as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          examQuestions: cacheHit.pack.examQuestions as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          flashcards: cacheHit.pack.flashcards as any,
+          model: 'pdf_cache',
+          tokensUsed: 0,
+        },
+      });
+      return uf;
+    });
+    console.log(`[UPLOAD] ${user.id} cross-user cache hit — hash=${contentHash.slice(0, 12)} hitCount=${cacheHit.hitCount} origModel=${cacheHit.pack.originalModel} (0 AI calls)`);
+    return NextResponse.json({
+      file: {
+        id: newFile.id,
+        filename: newFile.filename,
+        sizeBytes: newFile.sizeBytes,
+        mimeType: newFile.mimeType,
+        createdAt: newFile.createdAt,
+      },
+      deduped: true,
+      cacheSource: 'cross-user',
     }, { status: 200 });
   }
 
