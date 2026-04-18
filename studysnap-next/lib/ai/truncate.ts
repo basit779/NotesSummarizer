@@ -19,7 +19,7 @@
  *   - Groq 8B XL:  input 1.6k + out 2.5k + overhead ≈ 5.2k (leaves 0.8k under 6k TPM)
  *   - Gemini Flash: 1M TPM — effectively unlimited
  *   - Mistral Small: 500K TPM — generous, flat 8k suffices
- *   - OpenRouter DeepSeek: no tight TPM, flat 10k suffices
+ *   - OpenRouter Free (auto-router): no tight TPM, flat 10k suffices
  */
 
 import { type Tier } from '../prompts';
@@ -31,7 +31,7 @@ const TOKEN_BUDGETS: Record<string, TierBudget> = {
   'gemini-2.0-flash':    { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
   'groq-llama-3.3-70b':  { short:  3_500, medium:  4_500, long:  5_500, xl:  4_500 },
   'groq-llama-3.1-8b':   { short:  1_800, medium:  2_200, long:  2_500, xl:  1_600 },
-  'openrouter-deepseek': { short: 10_000, medium: 10_000, long: 10_000, xl: 10_000 },
+  'openrouter-free':     { short: 10_000, medium: 10_000, long: 10_000, xl: 10_000 },
   'mistral-small':       { short:  8_000, medium:  8_000, long:  8_000, xl:  8_000 },
   'github-gpt-4o-mini':  { short:  3_000, medium:  3_000, long:  3_000, xl:  3_000 },
   'github-llama-3.3-70b':{ short:  7_000, medium:  7_000, long:  7_000, xl:  7_000 },

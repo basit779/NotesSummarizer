@@ -23,7 +23,7 @@ export type ModelId =
   | 'gemini-2.0-flash'
   | 'groq-llama-3.3-70b'
   | 'groq-llama-3.1-8b'
-  | 'openrouter-deepseek'
+  | 'openrouter-free'
   | 'mistral-small'
   | 'github-gpt-4o-mini'
   | 'github-llama-3.3-70b';
@@ -71,7 +71,7 @@ export const MODEL_IDS: ModelId[] = [
   'gemini-2.0-flash',
   'groq-llama-3.3-70b',
   'groq-llama-3.1-8b',
-  'openrouter-deepseek',
+  'openrouter-free',
   'mistral-small',
   'github-gpt-4o-mini',
   'github-llama-3.3-70b',

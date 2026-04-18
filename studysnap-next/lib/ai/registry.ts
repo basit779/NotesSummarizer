@@ -32,8 +32,8 @@ export interface ModelSpec {
 const OUTPUT_CAPS: Record<string, number> = {
   'groq-llama-3.3-70b': 4096,
   'groq-llama-3.1-8b': 2500,
-  'openrouter-deepseek': 4096,
-  'mistral-small': 4096,
+  'openrouter-free': 4096,
+  'mistral-small': 7500,
   'github-gpt-4o-mini': 3500,
   'github-llama-3.3-70b': 4096,
 };
@@ -82,19 +82,23 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     }),
     isConfigured: () => Boolean(env.groqApiKey),
   },
-  'openrouter-deepseek': {
-    id: 'openrouter-deepseek', label: 'DeepSeek V3 (free)', provider: 'openrouter',
+  'openrouter-free': {
+    id: 'openrouter-free', label: 'OpenRouter Free (auto)', provider: 'openrouter',
+    // `openrouter/free` auto-routes to any available free model on OpenRouter
+    // (DeepSeek, Qwen, Meta, etc.). Resilient to individual model sunsets —
+    // previously pinned to deepseek/deepseek-chat-v3.1:free which 404'd when
+    // DeepSeek V3.2 shipped and V3.1 was retired.
     run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: env.openrouterApiKey,
-      modelName: 'deepseek/deepseek-chat-v3.1:free',
-      displayName: 'OpenRouter DeepSeek',
-      text: truncateForModel(text, 'openrouter-deepseek', selectTier(text.length, opts?.pages)), plan,
+      modelName: 'openrouter/free',
+      displayName: 'OpenRouter Free',
+      text: truncateForModel(text, 'openrouter-free', selectTier(text.length, opts?.pages)), plan,
       extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' },
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
-      maxOutputTokens: OUTPUT_CAPS['openrouter-deepseek'],
+      maxOutputTokens: OUTPUT_CAPS['openrouter-free'],
     }),
     isConfigured: () => Boolean(env.openrouterApiKey),
   },
@@ -158,7 +162,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  *
  *   1. gemini-2.0-flash      — Google. 1M ctx, 8k output. 15 RPM / 1M TPM / 1500 RPD free.
  *   2. groq-llama-3.3-70b    — Groq. 128k ctx, 8k output. 30 RPM / 12k TPM.
- *   3. openrouter-deepseek   — OpenRouter. Different org from Groq; separate TPM bucket.
+ *   3. openrouter-free       — OpenRouter auto-router over free variants. Different org from Groq; separate TPM bucket.
  *   4. mistral-small         — Mistral. Yet another org. Final safety net.
  *   5. groq-llama-3.1-8b     — Only tried if nothing else is configured (same-org risk).
  *
@@ -167,7 +171,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.0-flash',
   'groq-llama-3.3-70b',
-  'openrouter-deepseek',
+  'openrouter-free',
   'mistral-small',
   'groq-llama-3.1-8b',
 ];
@@ -176,7 +180,7 @@ export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
  * XL fallback order — Groq 70B demoted to 4th because its free-tier TPM
  * (12K/min rolling, enforced per-request) caps single-call input at ~6K
  * tokens = ~24K chars = 45% of a typical XL doc. Mistral (500K TPM, 8K
- * input budget = 32K chars = 60% coverage) and OpenRouter DeepSeek
+ * input budget = 32K chars = 60% coverage) and OpenRouter Free auto-router
  * (generous TPM, 10K budget = 40K chars = 75% coverage) serve XL
  * fallback meaningfully better than Groq single-call. Gemini still
  * primary; Groq still before GitHub-gated providers as a safety net.
@@ -184,7 +188,7 @@ export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
 const XL_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.0-flash',
   'mistral-small',
-  'openrouter-deepseek',
+  'openrouter-free',
   'groq-llama-3.3-70b',
   'groq-llama-3.1-8b',
 ];
