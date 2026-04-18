@@ -18,7 +18,7 @@ export interface PromptOptions {
   pages?: number;
 }
 
-type Tier = 'short' | 'medium' | 'long' | 'xl';
+export type Tier = 'short' | 'medium' | 'long' | 'xl';
 
 type Counts = {
   summaryWords: string;

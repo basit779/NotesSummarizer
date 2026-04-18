@@ -2,33 +2,39 @@
  * Per-model INPUT token budgets (text payload only — system prompt, schema
  * and output reserved separately). Heuristic: 1 token ≈ 4 characters.
  *
- * These sit well inside each provider's context window so output has full
- * room to breathe:
- *   - Gemini Flash / Pro: 1M ctx → we send 40k tok (plenty; bigger docs
- *     still get covered via smart-truncate head/middle/tail sampling)
- *   - Groq Llama 3.x: 128k ctx → 12k in, 8k out comfortably
- *   - GitHub gpt-4o-mini: 8k TOTAL → only 3k in (we also force minimal prompt)
- */
-/**
+ * TIER-AWARE since the XL shallowness fix: SHORT/MEDIUM/LONG keep the
+ * original TPM-conservative budgets (fast, reliable). XL pushes budgets
+ * to the per-request TPM ceiling on Groq so fallback on large docs covers
+ * meaningfully more source. Larger-context providers (Gemini, Mistral,
+ * DeepSeek) already have enough headroom that per-tier variance isn't
+ * needed — the flat number works across tiers.
+ *
  * Free-tier TPM caps each call's TOTAL tokens (input + output + overhead)
- * per rolling minute:
- *   - Groq 70B: 12,000 TPM  → input 3.5k + out 4k + overhead ≈ 8k, leaves slack
- *   - Groq 8B:   6,000 TPM  → input 1.8k + out 2.5k + overhead ≈ 5k, leaves slack
- *   - Gemini Flash: 1M TPM  → can send much more
- *   - GitHub 4o-mini: 8k TOTAL ctx → keep input tiny
+ * in a rolling 60s window. Groq enforces this PER-REQUEST — a single call
+ * that exceeds TPM instant-429s, the minute doesn't bucket.
+ *   - Groq 70B XL: input 6k + out 4k + overhead ≈ 11k (leaves 1k under 12k TPM)
+ *   - Groq 8B XL:  input 2.8k + out 2.5k + overhead ≈ 5.5k (leaves 0.5k under 6k TPM)
+ *   - Gemini Flash: 1M TPM — effectively unlimited
+ *   - Mistral Small: 500K TPM — generous, flat 8k suffices
+ *   - OpenRouter DeepSeek: no tight TPM, flat 10k suffices
  */
-const TOKEN_BUDGETS: Record<string, number> = {
-  'gemini-2.5-pro': 40_000,
-  'gemini-2.0-flash': 40_000,
-  'groq-llama-3.3-70b': 3_500,
-  'groq-llama-3.1-8b': 1_800,
-  'openrouter-deepseek': 10_000,
-  'mistral-small': 8_000,
-  'github-gpt-4o-mini': 3_000,
-  'github-llama-3.3-70b': 7_000,
+
+import { type Tier } from '../prompts';
+
+type TierBudget = Record<Tier, number>;
+
+const TOKEN_BUDGETS: Record<string, TierBudget> = {
+  'gemini-2.5-pro':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
+  'gemini-2.0-flash':    { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
+  'groq-llama-3.3-70b':  { short:  3_500, medium:  4_500, long:  5_500, xl:  6_000 },
+  'groq-llama-3.1-8b':   { short:  1_800, medium:  2_200, long:  2_500, xl:  2_800 },
+  'openrouter-deepseek': { short: 10_000, medium: 10_000, long: 10_000, xl: 10_000 },
+  'mistral-small':       { short:  8_000, medium:  8_000, long:  8_000, xl:  8_000 },
+  'github-gpt-4o-mini':  { short:  3_000, medium:  3_000, long:  3_000, xl:  3_000 },
+  'github-llama-3.3-70b':{ short:  7_000, medium:  7_000, long:  7_000, xl:  7_000 },
 };
 
-const DEFAULT_TOKENS = 8_000;
+const DEFAULT_TOKENS: TierBudget = { short: 8_000, medium: 8_000, long: 8_000, xl: 8_000 };
 const CHARS_PER_TOKEN = 4;
 
 const TRUNCATION_NOTE =
@@ -73,12 +79,22 @@ export function smartTruncate(text: string, maxChars: number): string {
   );
 }
 
-export function truncateForModel(text: string, modelId: string): string {
-  const tokens = TOKEN_BUDGETS[modelId] ?? DEFAULT_TOKENS;
+export function truncateForModel(text: string, modelId: string, tier: Tier = 'medium'): string {
+  const budget = TOKEN_BUDGETS[modelId] ?? DEFAULT_TOKENS;
+  const tokens = budget[tier];
   const maxChars = tokens * CHARS_PER_TOKEN;
-  if (text.length <= maxChars) return text;
+
+  if (text.length <= maxChars) {
+    // Log even when no truncation happens — makes tier-aware budget behavior
+    // visible in logs for sanity-checking.
+    // eslint-disable-next-line no-console
+    console.log(`[AI][truncate] model=${modelId} tier=${tier} original=${text.length} truncated=${text.length} budget_tok=${tokens} (no truncation)`);
+    return text;
+  }
+
   const out = smartTruncate(text, maxChars);
-  console.log(`[AI] smart-truncated for ${modelId}: ${text.length} → ${out.length} chars (~${tokens} tok budget)`);
+  // eslint-disable-next-line no-console
+  console.log(`[AI][truncate] model=${modelId} tier=${tier} original=${text.length} truncated=${out.length} budget_tok=${tokens}`);
   return out;
 }
 

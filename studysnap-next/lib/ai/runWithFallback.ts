@@ -1,7 +1,8 @@
-import { DEFAULT_FALLBACK_ORDER, MODEL_REGISTRY } from './registry';
+import { getFallbackOrder, MODEL_REGISTRY } from './registry';
 import { ModelId, PermanentAIError, ProviderResult, TransientAIError } from './types';
 import { HttpError } from '../httpError';
 import { logProviderEvent } from './telemetry';
+import { selectTier } from '../prompts';
 
 /** Hard cap on how many providers we try per request. Protects quotas. */
 const MAX_ATTEMPTS = 3;
@@ -23,9 +24,12 @@ export async function runWithFallback(
 ): Promise<ProviderResult & { attempted: { id: ModelId; error?: string }[] }> {
   const reqId = Math.random().toString(36).slice(2, 8);
 
+  // Tier-aware fallback order. XL demotes Groq (TPM-bound, small per-request
+  // budget) in favor of Mistral + DeepSeek which have generous free-tier TPM.
+  const tier = selectTier(text.length, pages);
   const chain: ModelId[] = [];
   if (preferred && MODEL_REGISTRY[preferred]) chain.push(preferred);
-  for (const id of DEFAULT_FALLBACK_ORDER) {
+  for (const id of getFallbackOrder(tier)) {
     if (!chain.includes(id)) chain.push(id);
   }
 
@@ -38,7 +42,7 @@ export async function runWithFallback(
     );
   }
 
-  console.log(`[AI][${reqId}] start — will try up to ${configured.length} providers: ${configured.join(', ')}`);
+  console.log(`[AI][${reqId}] start tier=${tier}${pass ? ` pass=${pass}` : ''} — will try up to ${configured.length} providers: ${configured.join(', ')}`);
 
   const attempted: { id: ModelId; error?: string }[] = [];
   let lastError: Error | undefined;

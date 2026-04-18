@@ -3,6 +3,7 @@ import { geminiProvider } from './providers/gemini';
 import { openaiCompat } from './providers/openaiCompat';
 import { ModelId, ProviderFn } from './types';
 import { truncateForModel } from './truncate';
+import { selectTier, type Tier } from '../prompts';
 
 export interface ModelSpec {
   id: ModelId;
@@ -40,12 +41,12 @@ const OUTPUT_CAPS: Record<string, number> = {
 export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   'gemini-2.5-pro': {
     id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'google',
-    run: (text, plan, opts) => geminiProvider('gemini-2.5-pro', truncateForModel(text, 'gemini-2.5-pro'), plan, opts),
+    run: (text, plan, opts) => geminiProvider('gemini-2.5-pro', truncateForModel(text, 'gemini-2.5-pro', selectTier(text.length, opts?.pages)), plan, opts),
     isConfigured: () => Boolean(env.googleApiKey),
   },
   'gemini-2.0-flash': {
     id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'google',
-    run: (text, plan, opts) => geminiProvider('gemini-2.0-flash', truncateForModel(text, 'gemini-2.0-flash'), plan, opts),
+    run: (text, plan, opts) => geminiProvider('gemini-2.0-flash', truncateForModel(text, 'gemini-2.0-flash', selectTier(text.length, opts?.pages)), plan, opts),
     isConfigured: () => Boolean(env.googleApiKey),
   },
   'groq-llama-3.3-70b': {
@@ -57,7 +58,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.groqApiKey,
       modelName: 'llama-3.3-70b-versatile',
       displayName: 'Groq Llama 3.3 70B',
-      text: truncateForModel(text, 'groq-llama-3.3-70b'), plan,
+      text: truncateForModel(text, 'groq-llama-3.3-70b', selectTier(text.length, opts?.pages)), plan,
       minimal: true,
       pages: opts?.pages,
       pass: opts?.pass,
@@ -73,7 +74,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.groqApiKey,
       modelName: 'llama-3.1-8b-instant',
       displayName: 'Groq Llama 3.1 8B',
-      text: truncateForModel(text, 'groq-llama-3.1-8b'), plan,
+      text: truncateForModel(text, 'groq-llama-3.1-8b', selectTier(text.length, opts?.pages)), plan,
       minimal: true,
       pages: opts?.pages,
       pass: opts?.pass,
@@ -88,7 +89,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.openrouterApiKey,
       modelName: 'deepseek/deepseek-chat-v3.1:free',
       displayName: 'OpenRouter DeepSeek',
-      text: truncateForModel(text, 'openrouter-deepseek'), plan,
+      text: truncateForModel(text, 'openrouter-deepseek', selectTier(text.length, opts?.pages)), plan,
       extraHeaders: { 'HTTP-Referer': env.appUrl, 'X-Title': 'StudySnap AI' },
       minimal: opts?.minimal,
       pages: opts?.pages,
@@ -104,7 +105,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.mistralApiKey,
       modelName: 'mistral-small-latest',
       displayName: 'Mistral Small',
-      text: truncateForModel(text, 'mistral-small'), plan,
+      text: truncateForModel(text, 'mistral-small', selectTier(text.length, opts?.pages)), plan,
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
@@ -121,7 +122,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.githubToken,
       modelName: 'gpt-4o-mini',
       displayName: 'GitHub GPT-4o mini',
-      text: truncateForModel(text, 'github-gpt-4o-mini'), plan,
+      text: truncateForModel(text, 'github-gpt-4o-mini', selectTier(text.length, opts?.pages)), plan,
       minimal: true,
       pages: opts?.pages,
       pass: opts?.pass,
@@ -136,7 +137,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       apiKey: env.githubToken,
       modelName: 'Llama-3.3-70B-Instruct',
       displayName: 'GitHub Llama 3.3 70B',
-      text: truncateForModel(text, 'github-llama-3.3-70b'), plan,
+      text: truncateForModel(text, 'github-llama-3.3-70b', selectTier(text.length, opts?.pages)), plan,
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
@@ -170,6 +171,27 @@ export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
   'mistral-small',
   'groq-llama-3.1-8b',
 ];
+
+/**
+ * XL fallback order — Groq 70B demoted to 4th because its free-tier TPM
+ * (12K/min rolling, enforced per-request) caps single-call input at ~6K
+ * tokens = ~24K chars = 45% of a typical XL doc. Mistral (500K TPM, 8K
+ * input budget = 32K chars = 60% coverage) and OpenRouter DeepSeek
+ * (generous TPM, 10K budget = 40K chars = 75% coverage) serve XL
+ * fallback meaningfully better than Groq single-call. Gemini still
+ * primary; Groq still before GitHub-gated providers as a safety net.
+ */
+const XL_FALLBACK_ORDER: ModelId[] = [
+  'gemini-2.0-flash',
+  'mistral-small',
+  'openrouter-deepseek',
+  'groq-llama-3.3-70b',
+  'groq-llama-3.1-8b',
+];
+
+export function getFallbackOrder(tier: Tier): ModelId[] {
+  return tier === 'xl' ? XL_FALLBACK_ORDER : DEFAULT_FALLBACK_ORDER;
+}
 
 export function listConfiguredModels(): ModelSpec[] {
   return Object.values(MODEL_REGISTRY).filter((m) => m.isConfigured());
