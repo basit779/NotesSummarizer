@@ -11,9 +11,12 @@
  *
  * Free-tier TPM caps each call's TOTAL tokens (input + output + overhead)
  * in a rolling 60s window. Groq enforces this PER-REQUEST — a single call
- * that exceeds TPM instant-429s, the minute doesn't bucket.
- *   - Groq 70B XL: input 6k + out 4k + overhead ≈ 11k (leaves 1k under 12k TPM)
- *   - Groq 8B XL:  input 2.8k + out 2.5k + overhead ≈ 5.5k (leaves 0.5k under 6k TPM)
+ * that exceeds TPM instant-429s, the minute doesn't bucket. Overhead is
+ * larger than first estimated because `STUDY_MATERIAL_SCHEMA` is inlined
+ * into the user prompt for OpenAI-style providers (see openaiCompat.ts) —
+ * system prompt + schema JSON + scaffolding runs ~1.1-1.4k tokens.
+ *   - Groq 70B XL: input 4.5k + out 4k + overhead ≈ 10k (leaves 2k under 12k TPM)
+ *   - Groq 8B XL:  input 1.6k + out 2.5k + overhead ≈ 5.2k (leaves 0.8k under 6k TPM)
  *   - Gemini Flash: 1M TPM — effectively unlimited
  *   - Mistral Small: 500K TPM — generous, flat 8k suffices
  *   - OpenRouter DeepSeek: no tight TPM, flat 10k suffices
@@ -26,8 +29,8 @@ type TierBudget = Record<Tier, number>;
 const TOKEN_BUDGETS: Record<string, TierBudget> = {
   'gemini-2.5-pro':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
   'gemini-2.0-flash':    { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
-  'groq-llama-3.3-70b':  { short:  3_500, medium:  4_500, long:  5_500, xl:  6_000 },
-  'groq-llama-3.1-8b':   { short:  1_800, medium:  2_200, long:  2_500, xl:  2_800 },
+  'groq-llama-3.3-70b':  { short:  3_500, medium:  4_500, long:  5_500, xl:  4_500 },
+  'groq-llama-3.1-8b':   { short:  1_800, medium:  2_200, long:  2_500, xl:  1_600 },
   'openrouter-deepseek': { short: 10_000, medium: 10_000, long: 10_000, xl: 10_000 },
   'mistral-small':       { short:  8_000, medium:  8_000, long:  8_000, xl:  8_000 },
   'github-gpt-4o-mini':  { short:  3_000, medium:  3_000, long:  3_000, xl:  3_000 },
