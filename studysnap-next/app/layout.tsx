@@ -8,9 +8,27 @@ import { AuthInit } from '@/components/AuthInit';
 import { KeepAlive } from '@/components/KeepAlive';
 import { RouteProgress } from '@/components/RouteProgress';
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+const OG_TITLE = 'StudySnap — AI study packs from any PDF';
+const OG_DESCRIPTION = 'Upload a PDF, get structured notes, flashcards, quizzes, and a chat tutor. Free for students.';
+
 export const metadata: Metadata = {
-  title: 'StudySnap AI — Study at the speed of thought',
-  description: 'The AI study operating system. Upload a PDF, get summaries, flashcards, and exam-ready notes in seconds.',
+  metadataBase: new URL(APP_URL),
+  title: OG_TITLE,
+  description: OG_DESCRIPTION,
+  openGraph: {
+    title: OG_TITLE,
+    description: OG_DESCRIPTION,
+    url: APP_URL,
+    siteName: 'StudySnap',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: OG_TITLE,
+    description: OG_DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {
