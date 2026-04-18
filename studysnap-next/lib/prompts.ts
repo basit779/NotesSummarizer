@@ -73,7 +73,7 @@ const TIER_COUNTS: Record<Tier, Counts> = {
  * have low char density (sparse text on each slide) but high topic density
  * (one concept per slide), so page count is often the truer signal.
  */
-function selectTier(chars: number, pages: number | undefined): Tier {
+export function selectTier(chars: number, pages: number | undefined): Tier {
   const p = pages ?? 0;
   if (p >= 45 || chars >= 60000) return 'xl';
   if (p >= 30 || chars >= 40000) return 'long';
@@ -128,6 +128,128 @@ Counts (aim for ~1 flashcard per distinct concept, ~1 quiz question per major se
 - examQuestions: ${counts.exam} MCQs, each with exactly 4 options A-D, a correct letter, an explanation for why right AND why each distractor is wrong; mix ~30% easy / 40% understanding / 30% application
 - topicConnections: ${counts.connections} one-sentence items
 - studyTips: ${counts.tips} items specific to THIS content (not generic advice)
+
+SOURCE:
+"""
+${text}
+"""`;
+}
+
+/**
+ * XL 2-pass sizing. Conservative vs single-pass XL because the user's
+ * 45-page test overflowed at ~8641 tokens with items running ~30% fatter
+ * than 4-chars-per-token estimates. Each pass targets ~5K tokens output
+ * with headroom to ~6.5K before we'd risk the 8192 cap — so even if items
+ * run verbose on the upper bound, we stay safe.
+ */
+interface Pass1Counts {
+  summaryWords: string;
+  key: string;
+  defs: string;
+  tips: string;
+  connections: string;
+}
+interface Pass2Counts {
+  cards: string;
+  exam: string;
+}
+const XL_PASS1_COUNTS: Pass1Counts = {
+  summaryWords: '400-600',
+  key: '22-26',
+  defs: '20-24',
+  tips: '4-6',
+  connections: '4-6',
+};
+const XL_PASS2_COUNTS: Pass2Counts = {
+  cards: '32-38',
+  exam: '16-20',
+};
+
+function scalePass1(c: Pass1Counts, factor: number): Pass1Counts {
+  return {
+    summaryWords: scaleRange(c.summaryWords, factor),
+    key: scaleRange(c.key, factor),
+    defs: scaleRange(c.defs, factor),
+    tips: scaleRange(c.tips, factor),
+    connections: scaleRange(c.connections, factor),
+  };
+}
+function scalePass2(c: Pass2Counts, factor: number): Pass2Counts {
+  return {
+    cards: scaleRange(c.cards, factor),
+    exam: scaleRange(c.exam, factor),
+  };
+}
+
+/**
+ * XL Pass 1 — notes half. Produces summary + keyPoints + definitions +
+ * topicConnections + studyTips. Skips flashcards + examQuestions (pass 2).
+ */
+export function buildUserPromptPass1(text: string, opts: { minimal?: boolean; pages?: number } = {}) {
+  const { minimal = false, pages } = opts;
+  const base = minimal ? scalePass1(XL_PASS1_COUNTS, 0.7) : XL_PASS1_COUNTS;
+  const pageInfo = pages ? `${pages} pages, ${text.length} chars` : `${text.length} chars`;
+
+  return `Analyze this source and produce the NOTES HALF of a study pack as JSON. Source is an XL document (${pageInfo}).
+
+This is PASS 1 of 2. A separate pass will generate flashcards and exam questions from the same source — DO NOT produce those here. Output only the fields requested below.
+
+summary (${base.summaryWords}-word MARKDOWN, comprehensive study notes — a student should be able to learn from this ALONE without re-reading the source):
+
+## Overview
+2-4 sentences on what the document covers and why it matters.
+
+## Core concepts
+ONE subsection per distinct concept in the source. Cover EVERY one — do not collapse distinct concepts together. For XL sources (30+ pages), aim for 20-30+ concept subsections, each tight (3-4 sentences + bullets), rather than 5-8 long ones. For each:
+### Concept name
+- 3-5 sentence explanation in plain language with **bold** for critical terms and \`code\` for formulas/identifiers.
+- **Why it matters:** 1-2 sentences on context, stakes, or implications.
+- *Example:* concrete example from the source (quote or paraphrase; omit this line only if the source has no example).
+- *Connections:* how this links to other concepts (→, "depends on", "contrasts with", "leads to").
+
+## Key relationships
+3-6 bullets showing cross-concept structure — dependencies, hierarchies, causal chains, comparisons.
+
+## What to remember for the exam
+4-8 bullets: **bold** formulas, dates, names, numbers, or defining criteria — each drilled into recall-ready form.
+
+> End with ONE blockquote line capturing the big idea in the source's own register.
+
+Counts:
+- keyPoints: ${base.key} items (1-2 sentences each; explain WHY, not just WHAT)
+- definitions: ${base.defs} items (cover every technical term, formula, jargon in the source)
+- topicConnections: ${base.connections} one-sentence items
+- studyTips: ${base.tips} items specific to THIS content (not generic advice)
+
+DO NOT include flashcards or examQuestions — those are handled by pass 2.
+
+SOURCE:
+"""
+${text}
+"""`;
+}
+
+/**
+ * XL Pass 2 — practice half. Produces flashcards + examQuestions only.
+ * The notes half was produced in pass 1; this pass does NOT reproduce
+ * summary/keyPoints/definitions.
+ */
+export function buildUserPromptPass2(text: string, opts: { minimal?: boolean; pages?: number } = {}) {
+  const { minimal = false, pages } = opts;
+  const base = minimal ? scalePass2(XL_PASS2_COUNTS, 0.7) : XL_PASS2_COUNTS;
+  const pageInfo = pages ? `${pages} pages, ${text.length} chars` : `${text.length} chars`;
+
+  return `Analyze this source and produce the PRACTICE HALF of a study pack as JSON. Source is an XL document (${pageInfo}).
+
+This is PASS 2 of 2. Pass 1 already generated the notes (summary, keyPoints, definitions, topicConnections, studyTips). DO NOT reproduce those. Output only flashcards + examQuestions.
+
+Aim for coverage across every distinct topic in the source — roughly 1 flashcard per concept and 1 MCQ per major section.
+
+Counts:
+- flashcards: ${base.cards} items (mix: definition, cause/effect, compare, apply, scenario; answers 2-3 sentences)
+- examQuestions: ${base.exam} MCQs, each with exactly 4 options A-D, a correct letter, an explanation for why right AND why each distractor is wrong; mix ~30% easy / 40% understanding / 30% application
+
+DO NOT include summary, keyPoints, definitions, topicConnections, or studyTips — those were handled by pass 1.
 
 SOURCE:
 """

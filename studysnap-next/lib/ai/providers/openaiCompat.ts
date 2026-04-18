@@ -1,5 +1,12 @@
-import { SYSTEM_PROMPT, buildUserPrompt } from '../../prompts';
-import { STUDY_MATERIAL_SCHEMA, validateStudyMaterial } from '../schema';
+import { SYSTEM_PROMPT, buildUserPrompt, buildUserPromptPass1, buildUserPromptPass2 } from '../../prompts';
+import {
+  STUDY_MATERIAL_SCHEMA,
+  PASS1_SCHEMA,
+  PASS2_SCHEMA,
+  validateStudyMaterial,
+  validatePass1,
+  validatePass2,
+} from '../schema';
 import { ProviderResult, TransientAIError } from '../types';
 
 export async function openaiCompat(args: {
@@ -14,6 +21,8 @@ export async function openaiCompat(args: {
   minimal?: boolean;
   /** PDF page count for tier selection — forwarded to buildUserPrompt. */
   pages?: number;
+  /** XL 2-pass signal — see ProviderRunOptions in types.ts. */
+  pass?: 1 | 2;
   /**
    * Cap on completion tokens. Honors each provider's actual ceiling.
    * Gemini supports 8192 for FREE+PRO. Groq supports 8192. GitHub Models
@@ -24,15 +33,21 @@ export async function openaiCompat(args: {
 }): Promise<ProviderResult> {
   const {
     baseUrl, apiKey, modelName, displayName, text, plan, extraHeaders = {}, supportsJsonSchema = true, minimal = false,
-    pages, maxOutputTokens,
+    pages, pass, maxOutputTokens,
   } = args;
 
   if (!apiKey) throw new TransientAIError('NO_KEY', `API key missing for ${displayName}`);
 
+  const effectiveSchema = pass === 1 ? PASS1_SCHEMA : pass === 2 ? PASS2_SCHEMA : STUDY_MATERIAL_SCHEMA;
   const schemaInstruction = `Respond with ONLY a JSON object matching this schema (no prose, no code fences):
-${JSON.stringify(STUDY_MATERIAL_SCHEMA)}`;
+${JSON.stringify(effectiveSchema)}`;
 
-  const userPrompt = buildUserPrompt(text, plan, { minimal, pages }) + '\n\n' + schemaInstruction;
+  const userPromptText = pass === 1
+    ? buildUserPromptPass1(text, { minimal, pages })
+    : pass === 2
+    ? buildUserPromptPass2(text, { minimal, pages })
+    : buildUserPrompt(text, plan, { minimal, pages });
+  const userPrompt = userPromptText + '\n\n' + schemaInstruction;
 
   const body: Record<string, unknown> = {
     model: modelName,
@@ -64,8 +79,17 @@ ${JSON.stringify(STUDY_MATERIAL_SCHEMA)}`;
 
   const data = await res.json() as any;
   const content = data?.choices?.[0]?.message?.content;
+  const finishReason = data?.choices?.[0]?.finish_reason ?? 'unknown';
+  const promptTok = data?.usage?.prompt_tokens ?? 0;
+  const completionTok = data?.usage?.completion_tokens ?? 0;
+
+  // Surface finish_reason + separate token counts so MAX_TOKENS truncation
+  // is visible in Vercel logs rather than hidden inside combined tokensUsed.
+  // eslint-disable-next-line no-console
+  console.log(`[AI][${displayName}] pass=${pass ?? 'single'} finish=${finishReason} promptTok=${promptTok} completionTok=${completionTok}`);
+
   if (!content || typeof content !== 'string') {
-    throw new TransientAIError('BAD_RESPONSE', `${displayName} returned no content`);
+    throw new TransientAIError('BAD_RESPONSE', `${displayName} returned no content (finish=${finishReason})`);
   }
 
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
@@ -73,13 +97,14 @@ ${JSON.stringify(STUDY_MATERIAL_SCHEMA)}`;
   let parsed: unknown;
   try { parsed = JSON.parse(cleaned); } catch {
     const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw new TransientAIError('BAD_JSON', `${displayName} returned invalid JSON`);
+    if (!match) throw new TransientAIError('BAD_JSON', `${displayName} returned invalid JSON (finish=${finishReason})`);
     try { parsed = JSON.parse(match[0]); } catch {
-      throw new TransientAIError('BAD_JSON', `${displayName} returned invalid JSON`);
+      throw new TransientAIError('BAD_JSON', `${displayName} returned invalid JSON (finish=${finishReason})`);
     }
   }
 
-  const material = validateStudyMaterial(parsed);
-  const tokens = (data?.usage?.prompt_tokens ?? 0) + (data?.usage?.completion_tokens ?? 0);
-  return { material, model: modelName, tokensUsed: tokens };
+  const material = pass === 1 ? validatePass1(parsed)
+    : pass === 2 ? validatePass2(parsed)
+    : validateStudyMaterial(parsed);
+  return { material, model: modelName, tokensUsed: promptTok + completionTok };
 }

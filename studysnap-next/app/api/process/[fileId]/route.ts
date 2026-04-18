@@ -78,7 +78,7 @@ async function processOne(user: { id: string; plan: 'FREE' | 'PRO' }, fileId: st
     console.log(`[PROCESS] ${fileId} — ${pages} pages, ${text.length} chars, model=${requestedModel ?? 'auto'}`);
 
     const truncated = willTruncate(text);
-    const { material, model, tokensUsed, attempted, chunks, sourceChars } = await analyzeText(text, user.plan, requestedModel, pages);
+    const { material, model, tokensUsed, attempted, chunks, sourceChars, degraded } = await analyzeText(text, user.plan, requestedModel, pages);
 
     const result = await prisma.processingResult.create({
       data: {
@@ -121,8 +121,8 @@ async function processOne(user: { id: string; plan: 'FREE' | 'PRO' }, fileId: st
       });
     }
 
-    console.log(`[PROCESS] ${fileId} ✓ done — model=${model}, tokens=${tokensUsed}, attempts=${attempted.length}, chunks=${chunks}, sourceChars=${sourceChars}`);
-    return NextResponse.json({ result, cached: false, attempted, truncated, chunks, sourceChars }, { status: 201 });
+    console.log(`[PROCESS] ${fileId} ✓ done — model=${model}, tokens=${tokensUsed}, attempts=${attempted.length}, chunks=${chunks}, sourceChars=${sourceChars}${degraded ? ', DEGRADED (pass-2 failed)' : ''}`);
+    return NextResponse.json({ result, cached: false, attempted, truncated, chunks, sourceChars, degraded: Boolean(degraded) }, { status: 201 });
   } catch (err) {
     // Release lock on failure so user can retry
     await prisma.uploadedFile.update({

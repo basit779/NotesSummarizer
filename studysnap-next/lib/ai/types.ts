@@ -40,6 +40,10 @@ export interface ProviderRunOptions {
   /** Number of PDF pages (if known). Used by the prompt builder for tier
    *  selection — slide-heavy PDFs need page signal, not just char count. */
   pages?: number;
+  /** XL 2-pass signal. 1 = notes half (summary + keyPoints + definitions +
+   *  connections + tips). 2 = practice half (flashcards + examQuestions).
+   *  Undefined = single-pass mode (default for SHORT/MEDIUM/LONG). */
+  pass?: 1 | 2;
 }
 
 export type ProviderFn = (text: string, plan: 'FREE' | 'PRO', opts?: ProviderRunOptions) => Promise<ProviderResult>;

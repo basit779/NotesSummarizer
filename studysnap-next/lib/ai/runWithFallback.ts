@@ -19,6 +19,7 @@ export async function runWithFallback(
   plan: 'FREE' | 'PRO',
   preferred?: ModelId,
   pages?: number,
+  pass?: 1 | 2,
 ): Promise<ProviderResult & { attempted: { id: ModelId; error?: string }[] }> {
   const reqId = Math.random().toString(36).slice(2, 8);
 
@@ -48,8 +49,8 @@ export async function runWithFallback(
     const spec = MODEL_REGISTRY[id];
     const t0 = Date.now();
     try {
-      console.log(`[AI][${reqId}] attempt ${i + 1}/${configured.length} — ${id}`);
-      const result = await spec.run(text, plan, { pages });
+      console.log(`[AI][${reqId}] attempt ${i + 1}/${configured.length} — ${id}${pass ? ` pass=${pass}` : ''}`);
+      const result = await spec.run(text, plan, { pages, pass });
       const elapsed = Date.now() - t0;
       console.log(`[AI][${reqId}] ✓ ${id} succeeded in ${elapsed}ms (${result.tokensUsed} tokens) — TOTAL API CALLS: ${i + 1}`);
       logProviderEvent({ reqId, providerId: id, outcome: 'success', elapsedMs: elapsed, tokensUsed: result.tokensUsed });
@@ -86,7 +87,7 @@ export async function runWithFallback(
         const t1 = Date.now();
         try {
           console.log(`[AI][${reqId}] ↻ ${id} wait-retry`);
-          const result = await spec.run(text, plan, { pages });
+          const result = await spec.run(text, plan, { pages, pass });
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} wait-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered after ${RATE_LIMIT_WAIT_MS}ms wait` });
@@ -110,7 +111,7 @@ export async function runWithFallback(
         const t1 = Date.now();
         try {
           console.log(`[AI][${reqId}] ↻ ${id} retrying with minimal prompt`);
-          const result = await spec.run(text, plan, { minimal: true, pages });
+          const result = await spec.run(text, plan, { minimal: true, pages, pass });
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} minimal-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered via minimal retry` });

@@ -83,6 +83,9 @@ function UploadInner() {
       } else if (processed.truncated) {
         toast.info('Large PDF detected — we analyzed the key sections for best coverage.');
       }
+      if (processed.degraded) {
+        toast.warning('Notes generated, but flashcards and quiz questions couldn\u2019t finish. Try regenerating the pack.', { duration: 8000 });
+      }
       toast.success('Study pack ready');
       router.push(`/results/${processed.result.id}`);
     } catch (err: any) {

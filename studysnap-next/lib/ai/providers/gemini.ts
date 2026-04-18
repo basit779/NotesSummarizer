@@ -1,6 +1,13 @@
 import { env } from '../../env';
-import { SYSTEM_PROMPT, buildUserPrompt } from '../../prompts';
-import { STUDY_MATERIAL_SCHEMA, validateStudyMaterial } from '../schema';
+import { SYSTEM_PROMPT, buildUserPrompt, buildUserPromptPass1, buildUserPromptPass2 } from '../../prompts';
+import {
+  STUDY_MATERIAL_SCHEMA,
+  PASS1_SCHEMA,
+  PASS2_SCHEMA,
+  validateStudyMaterial,
+  validatePass1,
+  validatePass2,
+} from '../schema';
 import { ProviderResult, TransientAIError } from '../types';
 
 function toGeminiSchema(s: any): any {
@@ -20,21 +27,31 @@ export async function geminiProvider(
   modelName: string,
   text: string,
   plan: 'FREE' | 'PRO',
-  opts: { minimal?: boolean; pages?: number } = {},
+  opts: { minimal?: boolean; pages?: number; pass?: 1 | 2 } = {},
 ): Promise<ProviderResult> {
   const key = env.googleApiKey;
   if (!key) throw new TransientAIError('NO_KEY', `GOOGLE_API_KEY not configured for ${modelName}`);
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
-  // Gemini 2.0 Flash / 2.5 Pro support 8192 output tokens on BOTH the free
-  // and paid tier. Use the full ceiling for FREE too so students get the
-  // full, detailed study pack — not a truncated "shit ass summary".
+
+  // Pass selection — XL 2-pass uses narrower schema + narrower prompt each call,
+  // so the 8192 output-token ceiling serves one half of the pack instead of both.
+  const userPromptText = opts.pass === 1
+    ? buildUserPromptPass1(text, { minimal: opts.minimal, pages: opts.pages })
+    : opts.pass === 2
+    ? buildUserPromptPass2(text, { minimal: opts.minimal, pages: opts.pages })
+    : buildUserPrompt(text, plan, { minimal: opts.minimal, pages: opts.pages });
+
+  const responseSchema = opts.pass === 1 ? PASS1_SCHEMA
+    : opts.pass === 2 ? PASS2_SCHEMA
+    : STUDY_MATERIAL_SCHEMA;
+
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: [{ role: 'user', parts: [{ text: buildUserPrompt(text, plan, { minimal: opts.minimal, pages: opts.pages }) }] }],
+    contents: [{ role: 'user', parts: [{ text: userPromptText }] }],
     generationConfig: {
       responseMimeType: 'application/json',
-      responseSchema: toGeminiSchema(STUDY_MATERIAL_SCHEMA),
+      responseSchema: toGeminiSchema(responseSchema),
       maxOutputTokens: 8192,
       temperature: 0.4,
     },
@@ -55,14 +72,24 @@ export async function geminiProvider(
 
   const data = await res.json() as any;
   const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!raw) throw new TransientAIError('BAD_RESPONSE', `Gemini ${modelName} returned no content`);
+  const finishReason = data?.candidates?.[0]?.finishReason ?? 'UNKNOWN';
+  const promptTok = data?.usageMetadata?.promptTokenCount ?? 0;
+  const completionTok = data?.usageMetadata?.candidatesTokenCount ?? 0;
+
+  // Surface finish_reason + separate token counts. tokensUsed (combined) hid
+  // truncation signal in the 45-page XL test — this makes MAX_TOKENS visible.
+  // eslint-disable-next-line no-console
+  console.log(`[AI][gemini] ${modelName} pass=${opts.pass ?? 'single'} finish=${finishReason} promptTok=${promptTok} completionTok=${completionTok}`);
+
+  if (!raw) throw new TransientAIError('BAD_RESPONSE', `Gemini ${modelName} returned no content (finish=${finishReason})`);
 
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch {
-    throw new TransientAIError('BAD_JSON', `Gemini ${modelName} returned invalid JSON`);
+    throw new TransientAIError('BAD_JSON', `Gemini ${modelName} returned invalid JSON (finish=${finishReason})`);
   }
 
-  const material = validateStudyMaterial(parsed);
-  const tokens = (data?.usageMetadata?.promptTokenCount ?? 0) + (data?.usageMetadata?.candidatesTokenCount ?? 0);
-  return { material, model: modelName, tokensUsed: tokens };
+  const material = opts.pass === 1 ? validatePass1(parsed)
+    : opts.pass === 2 ? validatePass2(parsed)
+    : validateStudyMaterial(parsed);
+  return { material, model: modelName, tokensUsed: promptTok + completionTok };
 }
