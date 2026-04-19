@@ -146,23 +146,23 @@ interface Pass1Counts {
   summaryWords: string;
   key: string;
   defs: string;
-  tips: string;
-  connections: string;
 }
 interface Pass2Counts {
   cards: string;
   exam: string;
+  tips: string;
+  connections: string;
 }
 const XL_PASS1_COUNTS: Pass1Counts = {
   summaryWords: '400-600',
   key: '22-26',
   defs: '20-24',
-  tips: '4-6',
-  connections: '4-6',
 };
 const XL_PASS2_COUNTS: Pass2Counts = {
   cards: '32-38',
   exam: '16-20',
+  tips: '4-6',
+  connections: '4-6',
 };
 
 function scalePass1(c: Pass1Counts, factor: number): Pass1Counts {
@@ -170,29 +170,31 @@ function scalePass1(c: Pass1Counts, factor: number): Pass1Counts {
     summaryWords: scaleRange(c.summaryWords, factor),
     key: scaleRange(c.key, factor),
     defs: scaleRange(c.defs, factor),
-    tips: scaleRange(c.tips, factor),
-    connections: scaleRange(c.connections, factor),
   };
 }
 function scalePass2(c: Pass2Counts, factor: number): Pass2Counts {
   return {
     cards: scaleRange(c.cards, factor),
     exam: scaleRange(c.exam, factor),
+    tips: scaleRange(c.tips, factor),
+    connections: scaleRange(c.connections, factor),
   };
 }
 
 /**
- * XL Pass 1 — notes half. Produces summary + keyPoints + definitions +
- * topicConnections + studyTips. Skips flashcards + examQuestions (pass 2).
+ * XL Pass 1 — core notes. Produces summary + keyPoints + definitions.
+ * topicConnections + studyTips were moved to Pass 2 after Mistral pass 1 hit
+ * the 7500-token cap with finish=length on a 45-page test — pass 1 carrying
+ * 5 sections was too heavy. Splitting 3/4 fits both passes comfortably.
  */
 export function buildUserPromptPass1(text: string, opts: { minimal?: boolean; pages?: number } = {}) {
   const { minimal = false, pages } = opts;
   const base = minimal ? scalePass1(XL_PASS1_COUNTS, 0.7) : XL_PASS1_COUNTS;
   const pageInfo = pages ? `${pages} pages, ${text.length} chars` : `${text.length} chars`;
 
-  return `Analyze this source and produce the NOTES HALF of a study pack as JSON. Source is an XL document (${pageInfo}).
+  return `Analyze this source and produce the CORE NOTES HALF of a study pack as JSON. Source is an XL document (${pageInfo}).
 
-This is PASS 1 of 2. A separate pass will generate flashcards and exam questions from the same source — DO NOT produce those here. Output only the fields requested below.
+This is PASS 1 of 2. A separate pass will generate flashcards, exam questions, topic connections, and study tips from the same source — DO NOT produce those here. Output only the fields requested below.
 
 summary (${base.summaryWords}-word MARKDOWN, comprehensive study notes — a student should be able to learn from this ALONE without re-reading the source):
 
@@ -218,10 +220,8 @@ ONE subsection per distinct concept in the source. Cover EVERY one — do not co
 Counts:
 - keyPoints: ${base.key} items (1-2 sentences each; explain WHY, not just WHAT)
 - definitions: ${base.defs} items (cover every technical term, formula, jargon in the source)
-- topicConnections: ${base.connections} one-sentence items
-- studyTips: ${base.tips} items specific to THIS content (not generic advice)
 
-DO NOT include flashcards or examQuestions — those are handled by pass 2.
+DO NOT include flashcards, examQuestions, topicConnections, or studyTips — those are handled by pass 2.
 
 SOURCE:
 """
@@ -230,9 +230,9 @@ ${text}
 }
 
 /**
- * XL Pass 2 — practice half. Produces flashcards + examQuestions only.
- * The notes half was produced in pass 1; this pass does NOT reproduce
- * summary/keyPoints/definitions.
+ * XL Pass 2 — practice + secondary sections. Produces flashcards +
+ * examQuestions + topicConnections + studyTips. Pass 1 handled core notes
+ * (summary/keyPoints/definitions).
  */
 export function buildUserPromptPass2(text: string, opts: { minimal?: boolean; pages?: number } = {}) {
   const { minimal = false, pages } = opts;
@@ -241,15 +241,17 @@ export function buildUserPromptPass2(text: string, opts: { minimal?: boolean; pa
 
   return `Analyze this source and produce the PRACTICE HALF of a study pack as JSON. Source is an XL document (${pageInfo}).
 
-This is PASS 2 of 2. Pass 1 already generated the notes (summary, keyPoints, definitions, topicConnections, studyTips). DO NOT reproduce those. Output only flashcards + examQuestions.
+This is PASS 2 of 2. Pass 1 already generated the core notes (summary, keyPoints, definitions). DO NOT reproduce those. Output only flashcards, examQuestions, topicConnections, and studyTips.
 
 Aim for coverage across every distinct topic in the source — roughly 1 flashcard per concept and 1 MCQ per major section.
 
 Counts:
 - flashcards: ${base.cards} items (mix: definition, cause/effect, compare, apply, scenario; answers 2-3 sentences)
 - examQuestions: ${base.exam} MCQs, each with exactly 4 options A-D, a correct letter, an explanation for why right AND why each distractor is wrong; mix ~30% easy / 40% understanding / 30% application
+- topicConnections: ${base.connections} one-sentence items (cross-concept links — dependencies, contrasts, progressions)
+- studyTips: ${base.tips} items specific to THIS content (not generic advice)
 
-DO NOT include summary, keyPoints, definitions, topicConnections, or studyTips — those were handled by pass 1.
+DO NOT include summary, keyPoints, or definitions — those were handled by pass 1.
 
 SOURCE:
 """

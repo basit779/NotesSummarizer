@@ -17,10 +17,16 @@
  * end up on Gemini and pass 2 may fall through to Mistral. That's fine; both
  * passes write into the same merged StudyMaterial.
  *
+ * Schema split (post-rebalance): pass 1 carries summary + keyPoints +
+ * definitions; pass 2 carries flashcards + examQuestions + topicConnections
+ * + studyTips. Mistral pass 1 was hitting 7500-tok finish=length with 5
+ * sections; 3/4 fits both under the cap.
+ *
  * Failure semantics:
- *   - pass 1 failure → throw (notes half missing would be useless)
- *   - pass 2 failure OR timeout → return pass 1 + empty flashcards/exam arrays
- *     + degraded: true. Route layer surfaces degraded to the client toast.
+ *   - pass 1 failure → throw (core notes missing would be useless)
+ *   - pass 2 failure OR timeout → return pass 1 + empty flashcards/exam
+ *     arrays + undefined topicConnections/studyTips + degraded: true. Route
+ *     layer surfaces degraded to the client toast.
  */
 
 import { runWithFallback } from './runWithFallback';
@@ -100,10 +106,10 @@ export async function runTwoPassXL(
     summary: pass1.material.summary,
     keyPoints: pass1.material.keyPoints,
     definitions: pass1.material.definitions,
-    topicConnections: pass1.material.topicConnections,
-    studyTips: pass1.material.studyTips,
     examQuestions: pass2Material?.examQuestions ?? [],
     flashcards: pass2Material?.flashcards ?? [],
+    topicConnections: pass2Material?.topicConnections,
+    studyTips: pass2Material?.studyTips,
   };
 
   const modelLabel = degraded

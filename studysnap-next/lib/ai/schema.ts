@@ -43,7 +43,7 @@ export const STUDY_MATERIAL_SCHEMA = {
   required: ['summary', 'keyPoints', 'definitions', 'examQuestions', 'flashcards'],
 } as const;
 
-/** Pass 1 of XL 2-pass: notes half (summary + keyPoints + definitions + connections + tips). */
+/** Pass 1 of XL 2-pass: core notes (summary + keyPoints + definitions). */
 export const PASS1_SCHEMA = {
   type: 'object',
   properties: {
@@ -58,13 +58,12 @@ export const PASS1_SCHEMA = {
         required: ['term', 'definition'],
       },
     },
-    topicConnections: { type: 'array', items: { type: 'string' } },
-    studyTips: { type: 'array', items: { type: 'string' } },
   },
   required: ['summary', 'keyPoints', 'definitions'],
 } as const;
 
-/** Pass 2 of XL 2-pass: practice half (flashcards + examQuestions). */
+/** Pass 2 of XL 2-pass: practice + secondary sections
+ *  (flashcards + examQuestions + topicConnections + studyTips). */
 export const PASS2_SCHEMA = {
   type: 'object',
   properties: {
@@ -91,6 +90,8 @@ export const PASS2_SCHEMA = {
         required: ['front', 'back'],
       },
     },
+    topicConnections: { type: 'array', items: { type: 'string' } },
+    studyTips: { type: 'array', items: { type: 'string' } },
   },
   required: ['examQuestions', 'flashcards'],
 } as const;
@@ -138,7 +139,8 @@ export function validateStudyMaterial(obj: unknown): StudyMaterial {
   };
 }
 
-/** Pass 1 result — StudyMaterial shape with empty flashcards/examQuestions. */
+/** Pass 1 result — StudyMaterial shape with core notes only
+ *  (flashcards/examQuestions/topicConnections/studyTips live in pass 2). */
 export function validatePass1(obj: unknown): StudyMaterial {
   if (!obj || typeof obj !== 'object') throw new Error('Not an object');
   const o = obj as Record<string, unknown>;
@@ -152,16 +154,11 @@ export function validatePass1(obj: unknown): StudyMaterial {
     definitions: (o.definitions as any[]).filter((d) => d?.term && d?.definition),
     examQuestions: [],
     flashcards: [],
-    topicConnections: Array.isArray(o.topicConnections)
-      ? (o.topicConnections as unknown[]).filter((x): x is string => typeof x === 'string')
-      : undefined,
-    studyTips: Array.isArray(o.studyTips)
-      ? (o.studyTips as unknown[]).filter((x): x is string => typeof x === 'string')
-      : undefined,
   };
 }
 
-/** Pass 2 result — StudyMaterial shape with only flashcards + examQuestions populated. */
+/** Pass 2 result — practice + secondary sections (flashcards, examQuestions,
+ *  topicConnections, studyTips). Pass 1 holds summary/keyPoints/definitions. */
 export function validatePass2(obj: unknown): StudyMaterial {
   if (!obj || typeof obj !== 'object') throw new Error('Not an object');
   const o = obj as Record<string, unknown>;
@@ -191,5 +188,11 @@ export function validatePass2(obj: unknown): StudyMaterial {
         };
       }),
     flashcards: (o.flashcards as any[]).filter((f) => f?.front && f?.back),
+    topicConnections: Array.isArray(o.topicConnections)
+      ? (o.topicConnections as unknown[]).filter((x): x is string => typeof x === 'string')
+      : undefined,
+    studyTips: Array.isArray(o.studyTips)
+      ? (o.studyTips as unknown[]).filter((x): x is string => typeof x === 'string')
+      : undefined,
   };
 }

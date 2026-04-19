@@ -38,6 +38,14 @@ const OUTPUT_CAPS: Record<string, number> = {
   'github-llama-3.3-70b': 4096,
 };
 
+/**
+ * Per-pass override for Mistral on XL 2-pass. Pass 1 (summary + keyPoints +
+ * definitions) hits the 7500 cap with finish=length; 6500 forces the model
+ * to stay concise. Pass 2 keeps 7500 since flashcards + MCQs + secondary
+ * sections use nearly all of it without truncating.
+ */
+const MISTRAL_PASS_CAPS: Record<1 | 2, number> = { 1: 6500, 2: 7500 };
+
 export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   'gemini-2.5-pro': {
     id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'google',
@@ -113,7 +121,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
-      maxOutputTokens: OUTPUT_CAPS['mistral-small'],
+      maxOutputTokens: opts?.pass ? MISTRAL_PASS_CAPS[opts.pass] : OUTPUT_CAPS['mistral-small'],
     }),
     isConfigured: () => Boolean(env.mistralApiKey),
   },
