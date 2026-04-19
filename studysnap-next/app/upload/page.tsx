@@ -9,7 +9,9 @@ import { UploadCloud, FileText, X, ArrowRight, Loader2, Sparkles, Zap, Brain, Pl
 import { api } from '@/lib/client/api';
 import { Protected } from '@/components/Protected';
 import { MotionButton } from '@/components/ui/MotionButton';
+import { BlurFade } from '@/components/ui/BlurFade';
 import { useCooldown } from '@/lib/client/useCooldown';
+import { cn } from '@/lib/utils';
 
 type Stage = 'idle' | 'uploading' | 'processing';
 
@@ -114,116 +116,156 @@ function UploadInner() {
   const canAddMore = files.length < MAX_FILES && stage === 'idle';
 
   return (
-    <div className="mx-auto max-w-2xl px-5 md:px-6 py-12 md:py-20">
-      {/* Hero — Geist Sans headline, mono eyebrow */}
-      <motion.div
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-      >
-        <div className="flex items-center gap-2 mono text-[11px] text-mint-400/90 tracking-[0.18em] uppercase">
-          <span className="inline-block h-1 w-1 rounded-full bg-mint-400 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
-          new pack
-        </div>
-        <h1 className="mt-3 text-[34px] md:text-[40px] leading-[1.05] font-semibold tracking-[-0.02em] text-white">
-          Drop PDFs.
-          <span className="block text-white/40">Get notes.</span>
-        </h1>
-        <p className="mt-3 text-[14.5px] text-white/55 leading-relaxed">
-          Up to {MAX_FILES} PDFs per pack · structured notes, flashcards, quiz, chat tutor.
-        </p>
-      </motion.div>
+    <div className="mx-auto max-w-2xl px-5 md:px-6 py-14 md:py-24">
+      {/* HERO — editorial two-register, blur-slide entrance */}
+      <div>
+        <BlurFade delay={0}>
+          <div className="flex items-center gap-2.5 mono text-[10.5px] text-mint-400 tracking-[0.22em] uppercase">
+            <span className="inline-block h-1 w-1 rounded-full bg-mint-400 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+            <span>// New pack</span>
+          </div>
+        </BlurFade>
+        <BlurFade delay={0.08}>
+          <h1 className="mt-4 text-[36px] md:text-[46px] leading-[1.02] font-semibold tracking-[-0.025em] text-white">
+            Drop PDFs.
+            <span className="block text-white/35">Get notes.</span>
+          </h1>
+        </BlurFade>
+        <BlurFade delay={0.16}>
+          <p className="mt-4 text-[14.5px] text-white/55 leading-relaxed max-w-md">
+            Up to {MAX_FILES} PDFs per pack · structured notes, flashcards, quiz, chat tutor.
+          </p>
+        </BlurFade>
+      </div>
 
-      {/* Dropzone */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.32, delay: 0.06 }}
-        className="mt-8"
-      >
+      {/* DROPZONE — harvested 21st.dev motion shell (border solidify + cloud bob + halo pulse), mint-swapped, wired to our useDropzone */}
+      <BlurFade delay={0.24} className="mt-10">
         {canAddMore && (
-          <div
+          <motion.div
             {...(getRootProps() as any)}
-            className={`group relative cursor-pointer rounded-xl border border-dashed px-5 ${files.length === 0 ? 'py-14' : 'py-8'} text-center overflow-hidden transition-[border-color,background-color] duration-150 ${
-              isDragActive
-                ? 'border-mint-500/50 bg-mint-500/[0.035]'
-                : 'border-white/[0.08] hover:border-white/[0.14] bg-white/[0.012] hover:bg-white/[0.02]'
-            }`}
+            initial={false}
+            animate={{
+              borderColor: isDragActive ? 'rgba(16,185,129,0.85)' : 'rgba(255,255,255,0.06)',
+              scale: isDragActive ? 1.012 : 1,
+            }}
+            whileHover={{ scale: 1.004 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className={cn(
+              'relative rounded-xl border overflow-hidden cursor-pointer bg-white/[0.012]',
+              isDragActive && 'ring-4 ring-mint-500/25',
+              files.length === 0 ? 'px-8 py-14' : 'px-8 py-10',
+            )}
           >
-            {/* top hairline: mint → transparent; intensifies on dragActive */}
+            {/* top hairline mint→transparent — intensifies on drag */}
             <div
-              className={`pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-mint-400 to-transparent transition-opacity duration-[180ms] ${
-                isDragActive ? 'opacity-75' : 'opacity-35'
-              }`}
+              className={cn(
+                'pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-mint-400 to-transparent transition-opacity duration-200',
+                isDragActive ? 'opacity-80' : 'opacity-30',
+              )}
               aria-hidden
             />
-
             <input {...getInputProps()} />
-            <div className="relative">
-              <div
-                className={`mx-auto flex ${files.length === 0 ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-[10px] border bg-white/[0.02] transition-colors duration-150 ${
-                  isDragActive ? 'border-mint-500/40 bg-mint-500/[0.06]' : 'border-white/[0.06]'
-                }`}
+            <div className="flex flex-col items-center gap-5 text-center">
+              {/* Cloud bob (outer) + halo pulse (absolute, only on drag) */}
+              <motion.div
+                animate={{ y: isDragActive ? [-3, 0, -3] : 0 }}
+                transition={{ duration: 1.4, repeat: isDragActive ? Infinity : 0, ease: 'easeInOut' }}
+                className="relative"
               >
-                {files.length === 0 ? (
-                  <UploadCloud className={`h-[18px] w-[18px] transition-colors duration-150 ${isDragActive ? 'text-mint-400' : 'text-white/55'}`} />
-                ) : (
-                  <Plus className={`h-4 w-4 transition-colors duration-150 ${isDragActive ? 'text-mint-400' : 'text-white/55'}`} />
+                {isDragActive && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.85 }}
+                    animate={{ opacity: [0.35, 0.65, 0.35], scale: [0.95, 1.08, 0.95] }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                    className="absolute -inset-3 rounded-full bg-mint-500/25 blur-lg"
+                    aria-hidden
+                  />
                 )}
+                <div
+                  className={cn(
+                    'relative flex h-14 w-14 items-center justify-center rounded-[10px] border transition-colors duration-200',
+                    isDragActive ? 'border-mint-500/50 bg-mint-500/[0.08]' : 'border-white/[0.08] bg-white/[0.02]',
+                  )}
+                >
+                  {files.length === 0 ? (
+                    <UploadCloud
+                      className={cn(
+                        'h-6 w-6 transition-colors duration-200',
+                        isDragActive ? 'text-mint-400' : 'text-white/60',
+                      )}
+                    />
+                  ) : (
+                    <Plus
+                      className={cn(
+                        'h-5 w-5 transition-colors duration-200',
+                        isDragActive ? 'text-mint-400' : 'text-white/60',
+                      )}
+                    />
+                  )}
+                </div>
+              </motion.div>
+
+              <div className="space-y-1.5">
+                <h3 className="text-[15px] font-medium text-white">
+                  {isDragActive
+                    ? 'Release to upload'
+                    : files.length === 0
+                      ? 'Drop PDFs here, or click to browse'
+                      : 'Add another PDF'}
+                </h3>
+                <p className="mono text-[10.5px] text-white/40 tracking-[0.18em] uppercase">
+                  {files.length === 0
+                    ? `PDF · max 15 MB · up to ${MAX_FILES}`
+                    : `${files.length}/${MAX_FILES} · mixed into one pack`}
+                </p>
               </div>
-              {files.length === 0 ? (
-                <>
-                  <div className="mt-5 text-[14.5px] font-medium text-white">
-                    {isDragActive ? 'Release to upload' : 'Drop PDFs here'}
-                  </div>
-                  <div className="mt-1.5 mono text-[11px] text-white/40 tracking-wide">
-                    click to browse · pdf · max 15 MB · up to {MAX_FILES}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="mt-3 text-[13.5px] font-medium text-white">
-                    {isDragActive ? 'Release to add' : 'Add another PDF'}
-                  </div>
-                  <div className="mt-1 mono text-[11px] text-white/40">
-                    {files.length}/{MAX_FILES} · mixed into one pack
-                  </div>
-                </>
-              )}
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* File list — precision rows with mint left-rail */}
+        {/* File list — harvested spring entry (stiffness 300, damping 24) */}
         <AnimatePresence initial={false}>
           {files.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              className="mt-3 space-y-2"
+              transition={{ duration: 0.2 }}
+              className="mt-4 flex flex-col gap-2"
             >
+              <div className="flex items-center justify-between px-1 mono text-[10px] text-white/35 tracking-[0.2em] uppercase">
+                <span>// Queued · {files.length}</span>
+                {files.length > 1 && (
+                  <button
+                    onClick={() => setFiles([])}
+                    disabled={stage !== 'idle'}
+                    className="text-white/40 hover:text-white transition-colors duration-150 cursor-pointer disabled:opacity-40"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
               {files.map((file, i) => (
                 <motion.div
                   key={`${file.name}-${file.size}`}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="relative overflow-hidden rounded-xl border border-white/[0.04] bg-white/[0.015] hover:bg-white/[0.03] hover:border-white/[0.08] transition-colors duration-150"
+                  initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -12, scale: 0.96 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                  className="relative overflow-hidden rounded-xl border border-white/[0.05] bg-white/[0.015] hover:bg-white/[0.03] hover:border-white/[0.08] transition-colors duration-150"
                 >
                   <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-mint-400/80" aria-hidden />
                   <div className="flex items-center justify-between gap-3 pl-4 pr-2 py-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-white/[0.06] bg-white/[0.02]">
-                        <FileText className="h-[14px] w-[14px] text-white/55" />
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border border-white/[0.06] bg-white/[0.02]">
+                        <FileText className="h-[15px] w-[15px] text-white/55" />
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate text-[13.5px] font-medium text-white">{file.name}</div>
-                        <div className="mono text-[11px] text-white/40">
+                        <div className="truncate text-[14px] font-medium text-white">{file.name}</div>
+                        <div className="mono text-[10.5px] text-white/40 tracking-[0.1em] uppercase">
                           {(file.size / 1024 / 1024).toFixed(2)} MB
-                          <span className="text-white/20 mx-1.5">·</span>
+                          <span className="text-white/15 mx-1.5">·</span>
                           <span>{i + 1}/{files.length}</span>
                         </div>
                       </div>
@@ -231,7 +273,7 @@ function UploadInner() {
                     <button
                       onClick={() => removeFile(i)}
                       disabled={stage !== 'idle'}
-                      className="flex h-8 w-8 items-center justify-center rounded-[8px] text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors duration-150 cursor-pointer disabled:opacity-40"
+                      className="flex h-8 w-8 items-center justify-center rounded-[6px] text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors duration-150 cursor-pointer disabled:opacity-40"
                       aria-label={`Remove ${file.name}`}
                     >
                       <X className="h-[14px] w-[14px]" />
@@ -243,11 +285,11 @@ function UploadInner() {
           )}
         </AnimatePresence>
 
-        {/* Primary CTA */}
+        {/* Primary CTA — sharp-cornered precision language (4px override) */}
         <div className="mt-5">
           <MotionButton
             size="lg"
-            className="w-full"
+            className="w-full !rounded-[6px]"
             disabled={files.length === 0 || stage !== 'idle' || cooldown.active}
             onClick={handleStart}
           >
@@ -263,24 +305,24 @@ function UploadInner() {
           </MotionButton>
         </div>
 
-        {/* Processing — single thin indeterminate bar + mono phase label */}
+        {/* PROCESSING — mono phase label + single indeterminate sweep */}
         <AnimatePresence>
           {stage === 'processing' && (
             <motion.div
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="mt-4 rounded-xl border border-white/[0.04] bg-white/[0.015] px-4 py-4"
+              transition={{ duration: 0.22 }}
+              className="mt-4 rounded-xl border border-white/[0.05] bg-white/[0.015] px-4 py-4"
             >
-              <div className="flex items-center justify-between mono text-[11px] text-white/55 tracking-wide">
+              <div className="flex items-center justify-between mono text-[10.5px] text-white/55 tracking-[0.16em] uppercase">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-3 w-3 text-mint-400" />
-                  <span>{files.length > 1 ? `// reading ${files.length} pdfs in parallel` : '// reading your pdf'}</span>
+                  <span>{files.length > 1 ? `// Reading ${files.length} PDFs in parallel` : '// Reading your PDF'}</span>
                 </div>
-                <span className="text-white/35">~15–40s</span>
+                <span className="text-white/30 tracking-[0.1em]">~15–40s</span>
               </div>
-              <div className="mt-3 h-[2px] w-full rounded-full bg-white/[0.04] overflow-hidden relative">
+              <div className="mt-3 h-[2px] w-full rounded-full bg-white/[0.05] overflow-hidden relative">
                 <motion.div
                   className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-mint-400 to-transparent"
                   animate={{ x: ['-100%', '300%'] }}
@@ -290,33 +332,27 @@ function UploadInner() {
             </motion.div>
           )}
         </AnimatePresence>
-      </motion.div>
+      </BlurFade>
 
-      {/* Benefits — precision rows, no card chrome */}
+      {/* BENEFITS — editorial page-turn: hairline divider + mono section label */}
       {stage === 'idle' && (
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.32, delay: 0.14 }}
-          className="mt-10 border-t border-white/[0.04] pt-6"
-        >
-          <div className="mono text-[10px] text-white/35 tracking-[0.16em] uppercase mb-3">
-            what you get
+        <BlurFade delay={0.36} className="mt-14">
+          <div className="border-t border-white/[0.04] pt-6">
+            <div className="mono text-[10px] text-white/35 tracking-[0.22em] uppercase mb-4">
+              // What you get
+            </div>
+            <div className="space-y-1">
+              {BENEFITS.map((b) => (
+                <div key={b.label} className="flex items-center gap-3 py-1.5 text-[13.5px]">
+                  <b.icon className="h-[14px] w-[14px] text-white/45 shrink-0" />
+                  <span className="text-white/85 shrink-0">{b.label}</span>
+                  <span className="text-white/15">·</span>
+                  <span className="mono text-[11px] text-white/40 tracking-[0.05em] truncate">{b.hint}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-1">
-            {BENEFITS.map((b) => (
-              <div
-                key={b.label}
-                className="flex items-center gap-3 py-1.5 text-[13.5px]"
-              >
-                <b.icon className="h-[14px] w-[14px] text-mint-400/80 shrink-0" />
-                <span className="text-white/80 shrink-0">{b.label}</span>
-                <span className="text-white/20">·</span>
-                <span className="mono text-[11.5px] text-white/40 truncate">{b.hint}</span>
-              </div>
-            ))}
-          </div>
-        </motion.div>
+        </BlurFade>
       )}
     </div>
   );
