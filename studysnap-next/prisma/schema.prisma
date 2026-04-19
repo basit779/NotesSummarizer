@@ -78,6 +78,10 @@ model ProcessingResult {
   flashcards     Json
   model          String
   tokensUsed     Int?
+  /// Non-null when generation fell through primary Gemini to a fallback provider.
+  /// Stores the provider id that actually served the pack (e.g. "mistral-small",
+  /// "openrouter-free"). Null = primary Gemini succeeded clean.
+  fallbackUsed   String?
   createdAt      DateTime     @default(now())
 
   chatMessages   ChatMessage[]

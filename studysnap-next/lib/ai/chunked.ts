@@ -18,6 +18,10 @@ export interface ChunkedResult {
   sourceChars: number;     // total chars actually covered by the AI
   /** True if XL 2-pass pass-2 failed — notes half present, practice half empty. */
   degraded?: boolean;
+  /** Provider id if generation fell through primary Gemini (e.g. "mistral-small").
+   *  Null when primary succeeded clean. For chunked runs, set to the first
+   *  non-primary provider that served any chunk. */
+  fallbackUsed?: string | null;
 }
 
 /**
@@ -52,10 +56,11 @@ export async function analyzeChunked(
         chunks: 1,
         sourceChars: rawText.length,
         degraded: r.degraded,
+        fallbackUsed: r.fallbackUsed,
       };
     }
     const r = await runWithFallback(rawText, plan, preferredModel, pages);
-    return { ...r, chunks: 1, sourceChars: rawText.length };
+    return { ...r, chunks: 1, sourceChars: rawText.length, fallbackUsed: r.fallbackUsed };
   }
 
   const chunks = splitIntoChunks(rawText, CHUNK_CHAR_BUDGET, MAX_CHUNKS);
@@ -75,7 +80,7 @@ export async function analyzeChunked(
     ),
   );
 
-  const successes: ProviderResult[] = [];
+  const successes: (ProviderResult & { fallbackUsed?: string | null })[] = [];
   const allAttempted: AttemptedEntry[] = [];
   for (const s of settled) {
     if (s.status === 'fulfilled') {
@@ -95,7 +100,12 @@ export async function analyzeChunked(
 
   console.log(`[AI][chunked] ✓ ${successes.length}/${chunks.length} chunks succeeded`);
   const merged = mergeResults(successes, chunks.length);
-  return { ...merged, attempted: allAttempted, chunks: chunks.length, sourceChars: rawText.length };
+  // First non-null fallbackUsed across chunks — if any chunk fell through the
+  // primary, mark the whole pack as fallback. Clean-Gemini chunks contribute null.
+  const chunkFallback = successes
+    .map((s) => s.fallbackUsed)
+    .find((v): v is string => typeof v === 'string' && v.length > 0) ?? null;
+  return { ...merged, attempted: allAttempted, chunks: chunks.length, sourceChars: rawText.length, fallbackUsed: chunkFallback };
 }
 
 /**

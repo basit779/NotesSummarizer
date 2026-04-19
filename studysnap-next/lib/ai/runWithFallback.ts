@@ -15,13 +15,16 @@ const RATE_LIMIT_WAIT_MS = 7_000;
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
+/** Primary provider — any other winning provider marks the result as fallback. */
+const PRIMARY_PROVIDER: ModelId = 'gemini-2.0-flash';
+
 export async function runWithFallback(
   text: string,
   plan: 'FREE' | 'PRO',
   preferred?: ModelId,
   pages?: number,
   pass?: 1 | 2,
-): Promise<ProviderResult & { attempted: { id: ModelId; error?: string }[] }> {
+): Promise<ProviderResult & { attempted: { id: ModelId; error?: string }[]; fallbackUsed: string | null }> {
   const reqId = Math.random().toString(36).slice(2, 8);
 
   // Tier-aware fallback order. XL demotes Groq (TPM-bound, small per-request
@@ -59,7 +62,7 @@ export async function runWithFallback(
       console.log(`[AI][${reqId}] ✓ ${id} succeeded in ${elapsed}ms (${result.tokensUsed} tokens) — TOTAL API CALLS: ${i + 1}`);
       logProviderEvent({ reqId, providerId: id, outcome: 'success', elapsedMs: elapsed, tokensUsed: result.tokensUsed });
       attempted.push({ id });
-      return { ...result, attempted };
+      return { ...result, attempted, fallbackUsed: id === PRIMARY_PROVIDER ? null : id };
     } catch (err: any) {
       const elapsed = Date.now() - t0;
       if (err instanceof PermanentAIError) {
@@ -95,7 +98,7 @@ export async function runWithFallback(
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} wait-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered after ${RATE_LIMIT_WAIT_MS}ms wait` });
-          return { ...result, attempted };
+          return { ...result, attempted, fallbackUsed: id === PRIMARY_PROVIDER ? null : id };
         } catch (err2: any) {
           const elapsed2 = Date.now() - t1;
           const code2 = err2 instanceof TransientAIError ? err2.code : 'ERROR';
@@ -119,7 +122,7 @@ export async function runWithFallback(
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} minimal-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered via minimal retry` });
-          return { ...result, attempted };
+          return { ...result, attempted, fallbackUsed: id === PRIMARY_PROVIDER ? null : id };
         } catch (err2: any) {
           const elapsed2 = Date.now() - t1;
           const msg2 = err2 instanceof TransientAIError ? `${err2.code}: ${err2.message}` : String(err2?.message ?? err2);

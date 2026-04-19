@@ -37,6 +37,9 @@ interface AttemptedEntry { id: ModelId; error?: string }
 export interface TwoPassResult extends ProviderResult {
   attempted: AttemptedEntry[];
   degraded: boolean;
+  /** Non-null if pass 1 ran on a non-primary provider. Pass 2 is advisory only —
+   *  notes half (pass 1) is the authoritative signal for user-visible quality. */
+  fallbackUsed: string | null;
 }
 
 const PASS2_TIMEOUT_MS = 40_000;
@@ -124,5 +127,6 @@ export async function runTwoPassXL(
     tokensUsed: pass1.tokensUsed + pass2TokensUsed,
     attempted: [...pass1.attempted, ...pass2Attempted],
     degraded,
+    fallbackUsed: pass1.fallbackUsed,
   };
 }
