@@ -16,8 +16,8 @@ type Stage = 'idle' | 'uploading' | 'processing';
 const MAX_FILES = 3;
 
 const BENEFITS = [
-  { icon: Brain,    label: 'Structured notes', hint: 'Real markdown with headings, bullets, examples.' },
-  { icon: Sparkles, label: 'Flashcards',       hint: '22-40 cards per pack. CSV export (Pro).' },
+  { icon: Brain,    label: 'Structured notes', hint: 'Markdown with headings, bullets, examples.' },
+  { icon: Sparkles, label: 'Flashcards',       hint: '22–40 cards. CSV export on Pro.' },
   { icon: Zap,      label: 'Quiz questions',   hint: 'MCQs with explained answers.' },
 ];
 
@@ -114,110 +114,127 @@ function UploadInner() {
   const canAddMore = files.length < MAX_FILES && stage === 'idle';
 
   return (
-    <div className="mx-auto max-w-3xl px-5 md:px-6 py-10 md:py-16">
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center">
-        <div className="mono text-[11px] text-mint-400 tracking-widest">// new pack</div>
-        <h1 className="mt-2 mono text-[36px] md:text-[48px] leading-[1.05] font-semibold tracking-tightest text-white text-balance">
-          Drop PDFs. <span className="text-white/40">Get notes.</span>
+    <div className="mx-auto max-w-2xl px-5 md:px-6 py-12 md:py-20">
+      {/* Hero — Geist Sans headline, mono eyebrow */}
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="flex items-center gap-2 mono text-[11px] text-mint-400/90 tracking-[0.18em] uppercase">
+          <span className="inline-block h-1 w-1 rounded-full bg-mint-400 shadow-[0_0_8px_rgba(16,185,129,0.7)]" />
+          new pack
+        </div>
+        <h1 className="mt-3 text-[34px] md:text-[40px] leading-[1.05] font-semibold tracking-[-0.02em] text-white">
+          Drop PDFs.
+          <span className="block text-white/40">Get notes.</span>
         </h1>
-        <p className="mt-3 text-white/55 text-[15px]">
-          Up to {MAX_FILES} PDFs per pack · structured notes, flashcards, quiz, chat · ~20-40s.
+        <p className="mt-3 text-[14.5px] text-white/55 leading-relaxed">
+          Up to {MAX_FILES} PDFs per pack · structured notes, flashcards, quiz, chat tutor.
         </p>
       </motion.div>
 
       {/* Dropzone */}
       <motion.div
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-        className="mt-10"
+        transition={{ duration: 0.32, delay: 0.06 }}
+        className="mt-8"
       >
         {canAddMore && (
-          <motion.div
+          <div
             {...(getRootProps() as any)}
-            animate={{ scale: isDragActive ? 1.01 : 1 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-            className={`relative cursor-pointer rounded-3xl border-2 border-dashed ${isDragActive
-                ? 'border-mint-500/50 bg-mint-500/[0.05]'
-                : 'border-white/[0.10] bg-gradient-to-b from-white/[0.02] to-transparent hover:border-white/[0.18] hover:bg-white/[0.025]'
-              } px-6 ${files.length === 0 ? 'py-16' : 'py-10'} text-center overflow-hidden transition-colors`}
+            className={`group relative cursor-pointer rounded-xl border border-dashed px-5 ${files.length === 0 ? 'py-14' : 'py-8'} text-center overflow-hidden transition-[border-color,background-color] duration-150 ${
+              isDragActive
+                ? 'border-mint-500/50 bg-mint-500/[0.035]'
+                : 'border-white/[0.08] hover:border-white/[0.14] bg-white/[0.012] hover:bg-white/[0.02]'
+            }`}
           >
-            <AnimatePresence>
-              {isDragActive && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="absolute inset-0"
-                  style={{ boxShadow: 'inset 0 0 60px rgba(16,185,129,0.3)' }}
-                />
-              )}
-            </AnimatePresence>
-            <div className="absolute inset-x-0 -top-20 h-40 bg-gradient-to-b from-mint-500/[0.06] to-transparent blur-2xl" aria-hidden />
+            {/* top hairline: mint → transparent; intensifies on dragActive */}
+            <div
+              className={`pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-mint-400 to-transparent transition-opacity duration-[180ms] ${
+                isDragActive ? 'opacity-75' : 'opacity-35'
+              }`}
+              aria-hidden
+            />
+
             <input {...getInputProps()} />
-            <motion.div animate={{ y: isDragActive ? -4 : 0 }} className="relative">
-              <div className={`mx-auto flex ${files.length === 0 ? 'h-16 w-16' : 'h-12 w-12'} items-center justify-center rounded-2xl border border-mint-500/25 bg-gradient-to-b from-mint-500/[0.12] to-mint-500/[0.03] transition-all`}>
+            <div className="relative">
+              <div
+                className={`mx-auto flex ${files.length === 0 ? 'h-11 w-11' : 'h-9 w-9'} items-center justify-center rounded-[10px] border bg-white/[0.02] transition-colors duration-150 ${
+                  isDragActive ? 'border-mint-500/40 bg-mint-500/[0.06]' : 'border-white/[0.06]'
+                }`}
+              >
                 {files.length === 0 ? (
-                  <UploadCloud className={`h-7 w-7 transition-colors ${isDragActive ? 'text-mint-400' : 'text-white/60'}`} />
+                  <UploadCloud className={`h-[18px] w-[18px] transition-colors duration-150 ${isDragActive ? 'text-mint-400' : 'text-white/55'}`} />
                 ) : (
-                  <Plus className={`h-5 w-5 transition-colors ${isDragActive ? 'text-mint-400' : 'text-white/60'}`} />
+                  <Plus className={`h-4 w-4 transition-colors duration-150 ${isDragActive ? 'text-mint-400' : 'text-white/55'}`} />
                 )}
               </div>
               {files.length === 0 ? (
                 <>
-                  <div className="mt-6 text-[17px] font-medium text-white">
-                    {isDragActive ? 'Release to upload' : 'Drop your PDFs here'}
+                  <div className="mt-5 text-[14.5px] font-medium text-white">
+                    {isDragActive ? 'Release to upload' : 'Drop PDFs here'}
                   </div>
-                  <div className="mt-1 text-[13px] text-white/45">or click to browse · up to {MAX_FILES} files · PDF · max 15 MB each</div>
+                  <div className="mt-1.5 mono text-[11px] text-white/40 tracking-wide">
+                    click to browse · pdf · max 15 MB · up to {MAX_FILES}
+                  </div>
                 </>
               ) : (
                 <>
-                  <div className="mt-3 text-[14px] font-medium text-white">
-                    {isDragActive ? 'Release to add' : `Add another PDF (${files.length}/${MAX_FILES})`}
+                  <div className="mt-3 text-[13.5px] font-medium text-white">
+                    {isDragActive ? 'Release to add' : 'Add another PDF'}
                   </div>
-                  <div className="mt-0.5 text-[12px] text-white/40">Mixing multiple PDFs creates one unified study pack</div>
+                  <div className="mt-1 mono text-[11px] text-white/40">
+                    {files.length}/{MAX_FILES} · mixed into one pack
+                  </div>
                 </>
               )}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
 
-        {/* File list */}
-        <AnimatePresence>
+        {/* File list — precision rows with mint left-rail */}
+        <AnimatePresence initial={false}>
           {files.length > 0 && (
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mt-4 space-y-2"
+              transition={{ duration: 0.18 }}
+              className="mt-3 space-y-2"
             >
               {files.map((file, i) => (
                 <motion.div
                   key={`${file.name}-${file.size}`}
-                  initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.98 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="relative overflow-hidden rounded-xl border border-white/[0.04] bg-white/[0.015] hover:bg-white/[0.03] hover:border-white/[0.08] transition-colors duration-150"
                 >
-                  <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.03] to-transparent p-4 flex items-center justify-between gap-3">
+                  <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-r bg-mint-400/80" aria-hidden />
+                  <div className="flex items-center justify-between gap-3 pl-4 pr-2 py-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-mint-500/25 bg-mint-500/[0.08]">
-                        <FileText className="h-4.5 w-4.5 text-mint-400" />
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-white/[0.06] bg-white/[0.02]">
+                        <FileText className="h-[14px] w-[14px] text-white/55" />
                       </div>
                       <div className="min-w-0">
-                        <div className="truncate text-[14.5px] font-medium text-white">{file.name}</div>
+                        <div className="truncate text-[13.5px] font-medium text-white">{file.name}</div>
                         <div className="mono text-[11px] text-white/40">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB · file {i + 1}/{files.length}
+                          {(file.size / 1024 / 1024).toFixed(2)} MB
+                          <span className="text-white/20 mx-1.5">·</span>
+                          <span>{i + 1}/{files.length}</span>
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={() => removeFile(i)}
                       disabled={stage !== 'idle'}
-                      className="flex h-9 w-9 items-center justify-center rounded-xl text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer disabled:opacity-40"
+                      className="flex h-8 w-8 items-center justify-center rounded-[8px] text-white/40 hover:text-white hover:bg-white/[0.05] transition-colors duration-150 cursor-pointer disabled:opacity-40"
                       aria-label={`Remove ${file.name}`}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-[14px] w-[14px]" />
                     </button>
                   </div>
                 </motion.div>
@@ -226,7 +243,8 @@ function UploadInner() {
           )}
         </AnimatePresence>
 
-        <div className="mt-4">
+        {/* Primary CTA */}
+        <div className="mt-5">
           <MotionButton
             size="lg"
             className="w-full"
@@ -238,70 +256,66 @@ function UploadInner() {
               : stage === 'idle'
                 ? (files.length === 0
                   ? <>Generate study pack <ArrowRight className="h-4 w-4" /></>
-                  : <>Generate study pack from {files.length} PDF{files.length > 1 ? 's' : ''} <ArrowRight className="h-4 w-4" /></>)
+                  : <>Generate from {files.length} PDF{files.length > 1 ? 's' : ''} <ArrowRight className="h-4 w-4" /></>)
                 : stage === 'uploading'
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
                   : <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing with AI…</>}
           </MotionButton>
         </div>
 
-        {/* Processing skeleton */}
+        {/* Processing — single thin indeterminate bar + mono phase label */}
         <AnimatePresence>
           {stage === 'processing' && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mt-4"
+              transition={{ duration: 0.2 }}
+              className="mt-4 rounded-xl border border-white/[0.04] bg-white/[0.015] px-4 py-4"
             >
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.015] p-5">
-                <div className="flex items-center gap-2.5 mb-4">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-mint-500/10 border border-mint-500/25">
-                    <Sparkles className="h-3.5 w-3.5 text-mint-400 animate-pulse" />
-                  </div>
-                  <div className="mono text-[11px] text-white/60 tracking-widest">
-                    {files.length > 1 ? `READING ${files.length} PDFs IN PARALLEL` : 'AI IS READING YOUR PDF'}
-                  </div>
+              <div className="flex items-center justify-between mono text-[11px] text-white/55 tracking-wide">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-3 w-3 text-mint-400" />
+                  <span>{files.length > 1 ? `// reading ${files.length} pdfs in parallel` : '// reading your pdf'}</span>
                 </div>
-                <div className="space-y-2.5">
-                  {[95, 78, 62, 86, 54].map((w, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{ opacity: [0.3, 0.7, 0.3] }}
-                      transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.15 }}
-                      className="h-2.5 rounded-full bg-white/[0.06]"
-                      style={{ width: `${w}%` }}
-                    />
-                  ))}
-                </div>
+                <span className="text-white/35">~15–40s</span>
+              </div>
+              <div className="mt-3 h-[2px] w-full rounded-full bg-white/[0.04] overflow-hidden relative">
+                <motion.div
+                  className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-mint-400 to-transparent"
+                  animate={{ x: ['-100%', '300%'] }}
+                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                />
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
 
-      {/* Benefit row */}
+      {/* Benefits — precision rows, no card chrome */}
       {stage === 'idle' && (
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.25 }}
-          className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-3"
+          transition={{ duration: 0.32, delay: 0.14 }}
+          className="mt-10 border-t border-white/[0.04] pt-6"
         >
-          {BENEFITS.map((b) => (
-            <div
-              key={b.label}
-              className="rounded-2xl border border-white/[0.05] bg-gradient-to-b from-white/[0.015] to-transparent p-4 flex items-start gap-3"
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-mint-500/20 bg-mint-500/[0.06]">
-                <b.icon className="h-4 w-4 text-mint-400" />
+          <div className="mono text-[10px] text-white/35 tracking-[0.16em] uppercase mb-3">
+            what you get
+          </div>
+          <div className="space-y-1">
+            {BENEFITS.map((b) => (
+              <div
+                key={b.label}
+                className="flex items-center gap-3 py-1.5 text-[13.5px]"
+              >
+                <b.icon className="h-[14px] w-[14px] text-mint-400/80 shrink-0" />
+                <span className="text-white/80 shrink-0">{b.label}</span>
+                <span className="text-white/20">·</span>
+                <span className="mono text-[11.5px] text-white/40 truncate">{b.hint}</span>
               </div>
-              <div>
-                <div className="text-[13.5px] font-medium text-white">{b.label}</div>
-                <div className="mt-0.5 text-[12px] text-white/45 leading-relaxed">{b.hint}</div>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </motion.div>
       )}
     </div>
