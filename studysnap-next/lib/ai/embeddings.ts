@@ -19,7 +19,11 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { env } from '@/lib/env';
 
-export const EMBED_MODEL = 'text-embedding-004';
+/** Gemini's text-embedding-004 was sunset on v1beta — replaced by
+ *  gemini-embedding-001 which defaults to 3072 dims. We explicitly request
+ *  768 via outputDimensionality on every call so storage format (Float32Array
+ *  × 768 = 3072 bytes per row) and cosine math stay identical. */
+export const EMBED_MODEL = 'gemini-embedding-001';
 export const EMBED_DIMS = 768;
 
 export function hashText(text: string): string {
@@ -127,7 +131,10 @@ async function callGeminiEmbedSingle(text: string): Promise<Float32Array> {
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content: { parts: [{ text }] } }),
+    body: JSON.stringify({
+      content: { parts: [{ text }] },
+      outputDimensionality: EMBED_DIMS,
+    }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => '');
@@ -152,6 +159,7 @@ async function callGeminiEmbedBatch(texts: string[]): Promise<Float32Array[]> {
     requests: texts.map((t) => ({
       model: `models/${EMBED_MODEL}`,
       content: { parts: [{ text: t }] },
+      outputDimensionality: EMBED_DIMS,
     })),
   };
   const res = await fetch(url, {
