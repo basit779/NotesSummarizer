@@ -5,6 +5,7 @@ import { HttpError } from '@/lib/httpError';
 import { chatComplete } from '@/lib/ai/chat';
 import { enforceChatCooldown } from '@/lib/rateLimit';
 import { cacheGet, cacheSet, hashKey } from '@/lib/ai/cache';
+import { retrieveTopK } from '@/lib/ai/retrieval';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -36,7 +37,7 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
 
   const result = await prisma.processingResult.findUnique({
     where: { id: resultId },
-    include: { file: { select: { filename: true } } },
+    include: { file: { select: { filename: true, contentHash: true } } },
   });
   if (!result || result.userId !== user.id) throw new HttpError(404, 'NOT_FOUND', 'Not found');
 
@@ -59,25 +60,27 @@ export const POST = withErrorHandling(async (req: Request, ctx: { params: Promis
     : '';
   const prior = recent;
 
-  // Compact natural-language context. Raw JSON dump would burn ~5-10k tokens
-  // per chat turn with no quality gain. Key points + definitions + summary
-  // cover 95% of grounded Q&A needs; flashcards/quiz lists are redundant.
-  const keyPointsBlock = (result.keyPoints as string[])
-    .slice(0, 20)
-    .map((p, i) => `${i + 1}. ${p}`)
-    .join('\n');
-  const defsBlock = (result.definitions as Array<{ term: string; definition: string }>)
-    .slice(0, 20)
-    .map((d) => `- **${d.term}**: ${d.definition}`)
-    .join('\n');
+  // Route between RAG and legacy context. RAG activates only when the
+  // document has been chunked + embedded (new uploads post-rollout, and
+  // cache-hit users who inherit an indexed hash). Pre-RAG packs and docs
+  // without a contentHash stay on the legacy summary/keyPoints/definitions
+  // dump — self-heals as users re-upload.
+  const contentHash = result.file.contentHash;
+  const hashShort = contentHash ? contentHash.slice(0, 12) : 'none';
+  let useRag = false;
+  let ragChunkCount = 0;
+  if (contentHash) {
+    const firstChunk = await prisma.pdfChunk.findFirst({
+      where: { contentHash },
+      select: { id: true },
+    });
+    if (firstChunk) {
+      useRag = true;
+      ragChunkCount = await prisma.pdfChunk.count({ where: { contentHash } });
+    }
+  }
 
-  // Cap summary at ~4k chars inside the system prompt; the full markdown
-  // notes are displayed client-side anyway.
-  const summarySnippet = (result.summary as string).slice(0, 4000);
-
-  const systemPrompt = `You are a helpful study tutor. The user is studying from "${result.file.filename}". Answer strictly using the notes below. If the answer isn't covered, say so clearly then give your best general guidance.
-
-LENGTH (strict):
+  const commonRules = `LENGTH (strict):
 - Simple definitional questions ("what is X?", "define Y"): answer in 1-2 sentences.
 - Complex or multi-part questions: at most 3 short paragraphs.
 - No preamble ("Great question!"), no recap at the end, no padding.
@@ -86,7 +89,45 @@ FORMATTING (use markdown sparingly):
 - **bold** for key terms only.
 - Bullets ONLY when listing 3+ distinct items.
 - No headers (no #, ##, ###) in chat responses.
-- No code blocks unless the question is about code.
+- No code blocks unless the question is about code.`;
+
+  let systemPrompt: string;
+
+  if (useRag) {
+    const topK = await retrieveTopK(contentHash as string, userMessage, 4);
+    const topScore = topK[0]?.score ?? 0;
+    const passagesBlock = topK
+      .map((c, i) => `[Passage ${i + 1} (chunk #${c.chunkIndex}, similarity ${c.score.toFixed(3)})]\n${c.text}`)
+      .join('\n---\n');
+
+    systemPrompt = `You are a helpful study tutor. The user is studying from "${result.file.filename}". Use ONLY the passages below to answer. If the answer isn't in them, say "That's not covered in the notes I have." and give one or two sentences of general guidance.
+
+${commonRules}
+
+=== RELEVANT PASSAGES ===
+${passagesBlock || '(no passages retrieved — tell the user the doc is empty)'}
+=== END PASSAGES ===${olderSummaryNote ? `\n\n=== EARLIER CONVERSATION (condensed) ===\n${olderSummaryNote}` : ''}
+=== END CONTEXT ===`;
+
+    const approxInputTok = Math.ceil((systemPrompt.length + userMessage.length) / 4);
+    console.log(`[AI][chat] contentHash=${hashShort} mode=rag chunks_available=${ragChunkCount}`);
+    console.log(`[AI][rag] resultId=${resultId} question="${userMessage.slice(0, 60)}${userMessage.length > 60 ? '…' : ''}" chunks_retrieved=${topK.length} top_score=${topScore.toFixed(3)} total_input_tok=${approxInputTok}`);
+  } else {
+    // Legacy compact context: summary + keyPoints + definitions. ~5-10k
+    // tokens per turn but grounded in full pack content.
+    const keyPointsBlock = (result.keyPoints as string[])
+      .slice(0, 20)
+      .map((p, i) => `${i + 1}. ${p}`)
+      .join('\n');
+    const defsBlock = (result.definitions as Array<{ term: string; definition: string }>)
+      .slice(0, 20)
+      .map((d) => `- **${d.term}**: ${d.definition}`)
+      .join('\n');
+    const summarySnippet = (result.summary as string).slice(0, 4000);
+
+    systemPrompt = `You are a helpful study tutor. The user is studying from "${result.file.filename}". Answer strictly using the notes below. If the answer isn't covered, say so clearly then give your best general guidance.
+
+${commonRules}
 
 === NOTES ===
 ${summarySnippet}
@@ -97,6 +138,9 @@ ${keyPointsBlock}
 === DEFINITIONS ===
 ${defsBlock}${olderSummaryNote ? `\n\n=== EARLIER CONVERSATION (condensed) ===\n${olderSummaryNote}` : ''}
 === END CONTEXT ===`;
+
+    console.log(`[AI][chat] contentHash=${hashShort} mode=legacy reason=${contentHash ? 'no_chunks' : 'no_hash'}`);
+  }
 
   const aiMessages = [
     { role: 'system' as const, content: systemPrompt },

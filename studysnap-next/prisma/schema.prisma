@@ -127,3 +127,35 @@ model PdfCache {
   @@index([expiresAt])
   @@map("pdf_cache")
 }
+
+/// Per-PDF text chunks for RAG retrieval. Keyed by contentHash (not resultId)
+/// so that cache-hit users inherit chunks natively — same PDF = same chunks,
+/// regardless of which user triggered the original /process. Pre-RAG packs
+/// have zero rows for their hash; chat route falls back to legacy context.
+model PdfChunk {
+  id          String   @id @default(cuid())
+  contentHash String
+  chunkIndex  Int
+  text        String   @db.Text
+  tokenCount  Int
+  createdAt   DateTime @default(now())
+
+  @@unique([contentHash, chunkIndex])
+  @@index([contentHash])
+  @@map("pdf_chunk")
+}
+
+/// Embedding cache keyed by sha256 of the embedded text. Serves two callers:
+///  - chunk embeddings (text = chunk body, written at /process time)
+///  - question embeddings (text = user chat message, written at retrieval)
+/// Single table because both cases are "embed arbitrary text; cache by text
+/// hash". Vector stored as raw Float32Array bytes (768 dims x 4 = 3 KB per
+/// row) to skip pgvector dependency.
+model EmbeddingCache {
+  textHash  String   @id
+  vector    Bytes
+  model     String
+  createdAt DateTime @default(now())
+
+  @@map("embedding_cache")
+}

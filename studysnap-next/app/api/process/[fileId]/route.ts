@@ -11,6 +11,7 @@ import type { ModelId } from '@/lib/ai/types';
 import { logUsage } from '@/lib/usage';
 import { runSerial } from '@/lib/ai/queue';
 import { storePdfCache } from '@/lib/ai/pdfCache';
+import { buildRagIndex } from '@/lib/ai/ragIndex';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -107,6 +108,7 @@ async function processOne(user: { id: string; plan: 'FREE' | 'PRO' }, fileId: st
     // Awaited intentionally: Vercel may kill fire-and-forget promises after the
     // response flushes. The write is fast (<100ms) and never throws.
     if (file.contentHash) {
+      const cacheReqId = crypto.randomBytes(6).toString('hex');
       await storePdfCache({
         contentHash: file.contentHash,
         pack: {
@@ -118,8 +120,15 @@ async function processOne(user: { id: string; plan: 'FREE' | 'PRO' }, fileId: st
           originalModel: model,
         },
         pageCount: pages,
-        reqId: crypto.randomBytes(6).toString('hex'),
+        reqId: cacheReqId,
       });
+
+      // Build the RAG index (chunks + embeddings) for this PDF's content hash.
+      // Synchronous on purpose — we want the index ready before the user's
+      // first chat message arrives. Adds ~5-10s but only once per unique PDF
+      // (cache-hit users share the index via contentHash). Failures are
+      // swallowed inside buildRagIndex so a RAG outage never blocks the pack.
+      await buildRagIndex({ contentHash: file.contentHash, text, reqId: cacheReqId });
     }
 
     console.log(`[PROCESS] ${fileId} ✓ done — model=${model}, tokens=${tokensUsed}, attempts=${attempted.length}, chunks=${chunks}, sourceChars=${sourceChars}${degraded ? ', DEGRADED (pass-2 failed)' : ''}${fallbackUsed ? `, FALLBACK=${fallbackUsed}` : ''}`);
