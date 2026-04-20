@@ -65,21 +65,33 @@ function Hero() {
   return (
     <section ref={ref} className="relative overflow-hidden pb-16 pt-24 md:pt-32">
       <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 text-center sm:gap-16">
-        {/* Badge */}
+        {/* Brand wordmark — living gradient sweep + mint halo on hover */}
         <motion.div
           initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-xs text-white/70 backdrop-blur-md"
+          transition={{ duration: 0.6 }}
+          className="relative inline-block"
         >
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inset-0 animate-ping rounded-full bg-mint-500/70" />
-            <span className="relative h-1.5 w-1.5 rounded-full bg-mint-400" />
-          </span>
-          <span>Now in public beta</span>
-          <span className="text-white/30">·</span>
-          <Link href="#features" className="flex items-center gap-1 text-white/90 hover:text-mint-400 transition-colors duration-200">
-            See what&apos;s new <ArrowRight className="h-3 w-3" />
+          <Link
+            href="/"
+            aria-label="StudySnap home"
+            className="group relative inline-block cursor-default"
+          >
+            {/* Ambient glow halo — present at rest, intensifies on hover */}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -inset-x-10 -inset-y-4 rounded-[50%] bg-mint-500/[0.04] blur-2xl transition-opacity duration-500 group-hover:bg-mint-500/[0.18] group-hover:blur-3xl"
+            />
+            {/* The wordmark — gradient shimmer sweeps across continuously */}
+            <span
+              className="relative inline-block bg-gradient-to-r from-white via-mint-300 to-white bg-clip-text text-5xl font-semibold leading-none tracking-[-0.04em] text-transparent md:text-6xl"
+              style={{
+                backgroundSize: '200% 100%',
+                animation: 'shimmer 6s ease-in-out infinite',
+              }}
+            >
+              StudySnap
+            </span>
           </Link>
         </motion.div>
 
