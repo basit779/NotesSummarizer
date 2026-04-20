@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/client/auth';
 import { cn } from '@/lib/utils';
 import { MotionButton } from './ui/MotionButton';
 import { UsageIndicator } from './UsageIndicator';
+import { StudySnapLogo } from './brand/StudySnapLogo';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -17,21 +18,16 @@ const navItems = [
 ];
 
 // ———————————————————————————————————————————————
-// Document-mark logo — tiny glyph with mint middle rule
-// (passes 5-meter test: the mint line reads from distance)
+// Brand tile — stacked-books logo + wordmark
 // ———————————————————————————————————————————————
 function Logo() {
   return (
-    <Link href="/" className="group flex items-center gap-2 pl-2">
-      <svg viewBox="0 0 20 20" className="h-[18px] w-[18px] shrink-0" aria-hidden>
-        <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" className="text-white/30" fill="none" />
-        <line x1="6" y1="7"  x2="14" y2="7"  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-white/35" />
-        <line x1="6" y1="11" x2="14" y2="11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-mint-400" />
-        <line x1="6" y1="15" x2="11" y2="15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-white/25" />
-      </svg>
-      <span className="text-[14.5px] font-semibold tracking-[-0.01em] text-white">
-        StudySnap
-      </span>
+    <Link
+      href="/"
+      aria-label="StudySnap home"
+      className="group flex items-center rounded-md px-2 py-1 -ml-1 text-mint-400 transition-colors duration-150 hover:bg-white/[0.04]"
+    >
+      <StudySnapLogo size={26} showWordmark wordmarkSize={15} gap={9} />
     </Link>
   );
 }

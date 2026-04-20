@@ -1,4 +1,5 @@
 import { ImageResponse } from 'next/og';
+import { StudySnapLogo } from '@/components/brand/StudySnapLogo';
 
 export const runtime = 'edge';
 export const alt = 'StudySnap — AI study packs from any PDF';
@@ -21,29 +22,15 @@ export default function OpengraphImage() {
             'radial-gradient(circle at 20% 0%, rgba(16, 185, 129, 0.12), transparent 55%), radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.08), transparent 50%)',
         }}
       >
-        {/* top: brand */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 9999,
-              background: '#10b981',
-              boxShadow: '0 0 20px 4px rgba(16, 185, 129, 0.6)',
-            }}
-          />
-          <div
-            style={{
-              color: 'rgba(255, 255, 255, 0.55)',
-              fontFamily: 'monospace',
-              fontSize: 26,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-            }}
-          >
-            StudySnap
-          </div>
-        </div>
+        {/* top: brand — stacked-books logo + wordmark */}
+        <StudySnapLogo
+          size={56}
+          showWordmark
+          color="#10b981"
+          cutoutColor="#09090b"
+          wordmarkColor="#ffffff"
+          wordmarkSize={36}
+        />
 
         {/* middle: headline + tagline */}
         <div style={{ display: 'flex', flexDirection: 'column' }}>

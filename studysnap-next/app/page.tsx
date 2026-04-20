@@ -8,6 +8,7 @@ import {
   MessageSquare, Layers, Gauge, Lock,
 } from 'lucide-react';
 import { MotionButton } from '@/components/ui/MotionButton';
+import { StudySnapLogo } from '@/components/brand/StudySnapLogo';
 import { cn } from '@/lib/utils';
 
 // ————————————————————————————————————————————————————————————————
@@ -65,7 +66,7 @@ function Hero() {
   return (
     <section ref={ref} className="relative overflow-hidden pb-16 pt-24 md:pt-32">
       <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 text-center sm:gap-16">
-        {/* Brand wordmark — living gradient sweep + mint halo on hover */}
+        {/* Brand wordmark — living gradient sweep, mint halo intensifies on hover */}
         <motion.div
           initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
           animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -75,19 +76,24 @@ function Hero() {
           <Link
             href="/"
             aria-label="StudySnap home"
-            className="group relative inline-block cursor-default"
+            className="group relative inline-flex items-center gap-3 cursor-default px-4 py-2"
           >
-            {/* Ambient glow halo — present at rest, intensifies on hover */}
+            {/* Ambient glow halo — present at rest, intensifies and expands on hover */}
             <span
               aria-hidden
-              className="pointer-events-none absolute -inset-x-10 -inset-y-4 rounded-[50%] bg-mint-500/[0.04] blur-2xl transition-opacity duration-500 group-hover:bg-mint-500/[0.18] group-hover:blur-3xl"
+              className="pointer-events-none absolute -inset-x-12 -inset-y-6 rounded-[50%] bg-mint-500/[0.06] blur-2xl transition-all duration-500 group-hover:bg-mint-500/[0.22] group-hover:blur-3xl group-hover:-inset-x-16"
             />
+            {/* Stacked-books logo glyph */}
+            <span className="relative text-mint-400 transition-transform duration-500 group-hover:scale-[1.04]">
+              <StudySnapLogo size={44} />
+            </span>
             {/* The wordmark — gradient shimmer sweeps across continuously */}
             <span
-              className="relative inline-block bg-gradient-to-r from-white via-mint-300 to-white bg-clip-text text-5xl font-semibold leading-none tracking-[-0.04em] text-transparent md:text-6xl"
+              className="relative inline-block bg-gradient-to-r from-white/70 via-mint-300 to-white/70 bg-clip-text pb-2 text-5xl font-semibold tracking-[-0.04em] text-transparent md:text-6xl"
               style={{
-                backgroundSize: '200% 100%',
-                animation: 'shimmer 6s ease-in-out infinite',
+                backgroundSize: '250% 100%',
+                animation: 'shimmer 4.5s ease-in-out infinite',
+                lineHeight: 1.15,
               }}
             >
               StudySnap
