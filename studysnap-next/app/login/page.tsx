@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { ArrowRight, Mail, Lock, Sparkles } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { MotionButton } from '@/components/ui/MotionButton';
@@ -33,74 +33,109 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-120px)] flex items-center justify-center px-5 py-12 overflow-hidden">
-      <div aria-hidden className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[900px] rounded-full bg-mint-500/[0.08] blur-[120px]" />
-      </div>
+    <div className="flex min-h-[calc(100vh-120px)] items-center justify-center px-5 py-12">
       <motion.div
-        initial={{ opacity: 0, y: 14, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-full max-w-md"
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full max-w-sm"
       >
-        <div className="mb-8 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-mint-500/25 bg-gradient-to-b from-mint-500/[0.12] to-mint-500/[0.03] shadow-[0_0_30px_-8px_rgba(16,185,129,0.6)]">
-            <Sparkles className="h-5 w-5 text-mint-400" />
-          </div>
-          <div className="mt-5 mono text-[11px] text-mint-400 tracking-widest">// sign in</div>
-          <h1 className="mt-2 mono text-[30px] font-semibold tracking-tightest text-white">Welcome back</h1>
-          <p className="mt-2 text-[13.5px] text-white/50">Pick up where you left off.</p>
-        </div>
+        {/* Brand mark tile — consistency signature */}
+        <Link
+          href="/"
+          aria-label="StudySnap home"
+          className="mx-auto mb-8 flex h-10 w-10 items-center justify-center rounded-md border border-white/[0.06] bg-white/[0.02] transition-colors duration-150 hover:bg-white/[0.04]"
+        >
+          <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
+            <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" className="text-white/30" fill="none" />
+            <line x1="6" y1="7"  x2="14" y2="7"  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-white/35" />
+            <line x1="6" y1="11" x2="14" y2="11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-mint-400" />
+            <line x1="6" y1="15" x2="11" y2="15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-white/25" />
+          </svg>
+        </Link>
 
-        <div className="relative rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-white/[0.01] backdrop-blur-xl p-7 md:p-8 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)]">
-          <form onSubmit={onSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="mono text-[10.5px] text-white/55 tracking-widest flex items-center gap-1.5">
-                <Mail className="h-3 w-3" /> EMAIL
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@school.edu"
-              />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="mono text-[10.5px] text-white/55 tracking-widest flex items-center gap-1.5">
-                  <Lock className="h-3 w-3" /> PASSWORD
-                </Label>
-                <Link href="/forgot-password" className="mono text-[10.5px] text-white/40 hover:text-mint-400 transition-colors cursor-pointer">
-                  forgot?
-                </Link>
-              </div>
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-              />
-            </div>
-            <MotionButton type="submit" className="w-full" loading={loading}>
-              {loading ? 'Signing in…' : <>Sign in <ArrowRight className="h-4 w-4" /></>}
-            </MotionButton>
-          </form>
-          <p className="mt-7 text-center text-[13.5px] text-white/55">
-            No account?{' '}
-            <Link href="/signup" className="text-mint-400 hover:text-mint-300 transition-colors cursor-pointer font-medium">
-              Create one — it's free
-            </Link>
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-[30px] font-semibold tracking-[-0.025em] leading-[1.1] text-white">
+            Welcome back
+          </h1>
+          <p className="mt-2 text-[13.5px] leading-relaxed text-white/55">
+            Sign in to your StudySnap account.
           </p>
         </div>
 
-        <p className="mt-6 text-center mono text-[10.5px] text-white/25">
-          10 free PDFs / day · no card required
+        {/* Form */}
+        <form
+          onSubmit={onSubmit}
+          className="space-y-4 rounded-xl border border-white/[0.06] bg-white/[0.015] p-6"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-[12px] font-medium text-white/65">
+              Email
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="you@school.edu"
+              className="!rounded-[6px]"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password" className="text-[12px] font-medium text-white/65">
+                Password
+              </Label>
+              <Link
+                href="/forgot-password"
+                className="text-[12px] text-white/45 transition-colors duration-150 hover:text-mint-400"
+              >
+                Forgot?
+              </Link>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="••••••••"
+              className="!rounded-[6px]"
+            />
+          </div>
+
+          <MotionButton
+            type="submit"
+            className="w-full !rounded-[6px]"
+            loading={loading}
+          >
+            {loading ? 'Signing in…' : (
+              <>
+                Sign in
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
+          </MotionButton>
+        </form>
+
+        {/* Footer */}
+        <p className="mt-6 text-center text-[13px] text-white/55">
+          No account?{' '}
+          <Link
+            href="/signup"
+            className="font-medium text-white transition-colors duration-150 hover:text-mint-400"
+          >
+            Create one
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center mono text-[10.5px] uppercase tracking-[0.15em] text-white/25">
+          10 free PDFs daily · No card required
         </p>
       </motion.div>
     </div>
