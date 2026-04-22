@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
 import { checkDailyLimit } from '@/lib/usage';
-import { env } from '@/lib/env';
+import { env, isTestUser } from '@/lib/env';
 import { extractTextFromPdfBuffer } from '@/lib/pdf';
 import { enforceUploadCooldown, MSG_LIMIT_REACHED } from '@/lib/rateLimit';
 import { lookupPdfCache } from '@/lib/ai/pdfCache';
@@ -30,6 +30,16 @@ const MAX_FILES = 3;
 export const POST = withErrorHandling(async (req: Request) => {
   const user = await requireAuth(req);
 
+  // ?fresh=1 + allowlisted test user email → bypass all caches (user dedup,
+  // cross-user PdfCache, cooldown). Lets the owner re-test AI pipeline
+  // changes on a PDF that already has a cached pack, without blowing
+  // away other users' cache hits. Normal users get HTTP 403 if they try.
+  const freshParam = new URL(req.url).searchParams.get('fresh') === '1';
+  const forceFresh = freshParam && isTestUser(user.email);
+  if (freshParam && !forceFresh) {
+    throw new HttpError(403, 'FRESH_NOT_ALLOWED', 'Fresh regen is not enabled for this account.');
+  }
+
   // 1. Daily free-tier limit
   const limit = await checkDailyLimit(user.id, user.plan, 'UPLOAD');
   if (!limit.ok) {
@@ -39,8 +49,11 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   // 1b. Per-user cooldown — 15s between upload attempts. Protects free-tier
-  //     Gemini / Groq quotas from rapid repeated submissions.
-  await enforceUploadCooldown({ userId: user.id, cooldownSeconds: UPLOAD_COOLDOWN_SECONDS });
+  //     Gemini / Groq quotas from rapid repeated submissions. Skipped under
+  //     forceFresh so the test account can iterate rapidly.
+  if (!forceFresh) {
+    await enforceUploadCooldown({ userId: user.id, cooldownSeconds: UPLOAD_COOLDOWN_SECONDS });
+  }
 
   const formData = await req.formData();
   // Accept either `file` (single) or `files` (multiple) — keeps single-file
@@ -79,7 +92,7 @@ export const POST = withErrorHandling(async (req: Request) => {
   const fileHashes = files.map((f) => crypto.createHash('sha256').update(f.buffer).digest('hex')).sort();
   const contentHash = crypto.createHash('sha256').update(fileHashes.join('|')).digest('hex');
 
-  const existingHashMatch = await prisma.uploadedFile.findFirst({
+  const existingHashMatch = forceFresh ? null : await prisma.uploadedFile.findFirst({
     where: { userId: user.id, contentHash },
     orderBy: { createdAt: 'desc' },
     include: { result: { select: { id: true } } },
@@ -102,7 +115,10 @@ export const POST = withErrorHandling(async (req: Request) => {
   //     before? Reuse their pack — materialize a fresh UploadedFile +
   //     ProcessingResult for this user in one transaction. No AI calls.
   const reqId = crypto.randomBytes(6).toString('hex');
-  const cacheHit = await lookupPdfCache(contentHash, reqId);
+  const cacheHit = forceFresh ? null : await lookupPdfCache(contentHash, reqId);
+  if (forceFresh) {
+    console.log(`[UPLOAD] ${user.id} forceFresh=true — bypassing user dedup + PdfCache lookup for hash=${contentHash.slice(0, 12)}`);
+  }
   if (cacheHit) {
     const combinedFilename = rawFiles.length > 1
       ? files.map((f) => f.name).join(' + ')

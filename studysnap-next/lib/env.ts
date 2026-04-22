@@ -82,4 +82,22 @@ export const env = {
 
   freeDailyUploadLimit: Number(process.env.FREE_DAILY_UPLOAD_LIMIT ?? 10),
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB ?? 15),
+
+  // Allowlist of emails that may bypass PdfCache / user-dedup on upload by
+  // passing ?fresh=1. Used for testing new AI pipeline output on PDFs that
+  // already have a cached pack — without wiping the cache for other users.
+  // Comma-separated list in TEST_USER_EMAILS env var. basitraja334411+1@gmail.com
+  // is always included for the project owner's QA account.
+  testUserEmails: new Set(
+    (process.env.TEST_USER_EMAILS ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+      .concat(['basitraja334411+1@gmail.com']),
+  ),
 };
+
+export function isTestUser(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return env.testUserEmails.has(email.trim().toLowerCase());
+}

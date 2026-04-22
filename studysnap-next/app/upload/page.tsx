@@ -70,7 +70,12 @@ function UploadInner() {
       setStage('uploading');
       const form = new FormData();
       for (const f of files) form.append('files', f);
-      const uploaded = await api.postForm('/upload', form);
+      // Propagate ?fresh=1 through to the API so allowlisted test users can
+      // force a regen bypassing PdfCache. Server enforces the allowlist; a
+      // normal user hitting /upload?fresh=1 gets 403.
+      const isFresh = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('fresh') === '1';
+      const uploaded = await api.postForm(isFresh ? '/upload?fresh=1' : '/upload', form);
+      if (isFresh) toast.info('Fresh regen mode — bypassing cache');
 
       if (uploaded.cacheSource === 'cross-user') {
         toast.success('⚡ Instant result (cached)');
