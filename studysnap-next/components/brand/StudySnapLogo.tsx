@@ -47,7 +47,7 @@ export function StudySnapLogo({
     <div
       className={className}
       style={{
-        display: 'inline-flex',
+        display: 'flex',
         alignItems: 'center',
         gap: `${resolvedGap}px`,
         ...style,
