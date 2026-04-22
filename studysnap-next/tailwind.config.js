@@ -30,6 +30,14 @@ module.exports = {
         'mint-glow': '0 0 0 1px rgba(16,185,129,0.25), 0 20px 60px -20px rgba(16,185,129,0.35)',
         'glass': 'inset 0 1px 0 0 rgba(255,255,255,0.04), 0 30px 60px -30px rgba(0,0,0,0.6)',
       },
+      keyframes: {
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        },
+      },
+      animation: {
+        shimmer: 'shimmer 1.5s infinite',
+      },
     },
   },
   plugins: [require('tailwindcss-animate')],

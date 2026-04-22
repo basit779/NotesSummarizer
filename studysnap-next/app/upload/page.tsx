@@ -12,6 +12,7 @@ import { MotionButton } from '@/components/ui/MotionButton';
 import { BlurFade } from '@/components/ui/BlurFade';
 import { useCooldown } from '@/lib/client/useCooldown';
 import { cn } from '@/lib/utils';
+import { MouseGlow } from '@/components/ui/MouseGlow';
 
 type Stage = 'idle' | 'uploading' | 'processing';
 
@@ -116,8 +117,10 @@ function UploadInner() {
   const canAddMore = files.length < MAX_FILES && stage === 'idle';
 
   return (
-    <div className="mx-auto max-w-2xl px-5 md:px-6 py-14 md:py-24">
-      {/* HERO — editorial two-register, blur-slide entrance */}
+    <div className="min-h-screen relative overflow-hidden bg-ink-950 font-sans flex flex-col items-center">
+      <MouseGlow />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-mint-500/10 blur-[150px] rounded-full pointer-events-none" />
+      <div className="mx-auto w-full max-w-3xl px-5 md:px-6 py-14 md:py-24 relative z-10 flex flex-col pt-32">
       <div>
         <BlurFade delay={0}>
           <div className="flex items-center gap-2.5 mono text-[10.5px] text-mint-400 tracking-[0.22em] uppercase">
@@ -354,6 +357,7 @@ function UploadInner() {
           </div>
         </BlurFade>
       )}
+      </div>
     </div>
   );
 }

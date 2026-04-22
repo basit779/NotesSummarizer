@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useScroll, useTransform, AnimatePresence } from 'framer-motion';
 import { useRef, type ReactNode } from 'react';
 import {
   Brain, Target, Zap, FileText, Sparkles, Check, ArrowRight, Command,
@@ -10,26 +10,36 @@ import {
 import { MotionButton } from '@/components/ui/MotionButton';
 import { StudySnapLogo } from '@/components/brand/StudySnapLogo';
 import { cn } from '@/lib/utils';
+import { TiltCard } from '@/components/ui/TiltCard';
+import { MouseGlow } from '@/components/ui/MouseGlow';
 
 // ————————————————————————————————————————————————————————————————
-// Local primitives sourced from 21st.dev `hero-with-mockup`
+// Primitives
 // ————————————————————————————————————————————————————————————————
 
-function Glow({ className }: { className?: string }) {
+function Glow() {
   return (
-    <div aria-hidden className={cn('pointer-events-none absolute inset-x-0 w-full', className)}>
-      <div className="absolute left-1/2 h-[256px] w-[60%] -translate-x-1/2 scale-[2.5] rounded-[50%] bg-[radial-gradient(ellipse_at_center,_rgba(52,211,153,0.4)_10%,_transparent_60%)] sm:h-[512px]" />
-      <div className="absolute left-1/2 h-[128px] w-[40%] -translate-x-1/2 scale-[2] rounded-[50%] bg-[radial-gradient(ellipse_at_center,_rgba(16,185,129,0.28)_10%,_transparent_60%)] sm:h-[256px]" />
+    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 w-full flex justify-center">
+      <div className="absolute top-[-20%] w-[1000px] h-[600px] rounded-[100%] bg-[radial-gradient(ellipse_at_center,rgba(52,211,153,0.15)_0%,transparent_70%)] mix-blend-screen blur-[100px] animate-pulse" />
+      <div className="absolute top-0 w-[500px] h-[300px] rounded-[100%] bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.25)_0%,transparent_60%)] mix-blend-screen blur-[60px]" />
     </div>
   );
 }
 
 function MockupFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="relative z-10 overflow-hidden rounded-2xl bg-white/[0.03] p-2 backdrop-blur-xl shadow-[0_40px_100px_-20px_rgba(0,0,0,0.9)]">
-      <div className="relative z-10 flex overflow-hidden rounded-xl border border-white/[0.06] border-t-white/[0.12] shadow-2xl">
-        {children}
-      </div>
+    <div className="relative z-10 w-full max-w-[1000px] mx-auto perspective-1000 mt-20">
+      <motion.div 
+        initial={{ rotateX: 15, scale: 0.95, opacity: 0, y: 50 }}
+        animate={{ rotateX: 0, scale: 1, opacity: 1, y: 0 }}
+        transition={{ type: "spring", damping: 30, stiffness: 100, delay: 0.2 }}
+        className="relative overflow-hidden rounded-2xl bg-white/[0.02] p-1 backdrop-blur-3xl shadow-[0_40px_100px_-20px_rgba(0,0,0,1)] ring-1 ring-white/[0.08]"
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-mint-500/10 via-transparent to-transparent opacity-50" />
+        <div className="relative z-10 overflow-hidden rounded-xl bg-ink-950/90 shadow-2xl ring-1 ring-white/[0.05]">
+          {children}
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -39,251 +49,160 @@ function MockupFrame({ children }: { children: ReactNode }) {
 // ————————————————————————————————————————————————————————————————
 
 const features = [
-  { icon: Brain,         title: 'Structured notes',   desc: 'Markdown-formatted study notes with headings, bullets, examples — not a wall of prose.' },
-  { icon: Target,        title: 'Exam questions',     desc: 'MCQs with 4 options, correct answer, and explanation that grades why the distractors are wrong.' },
+  { icon: Brain,         title: 'Structured Notes',   desc: 'Markdown-formatted study notes with headings, bullets, examples — not a wall of prose.' },
+  { icon: Target,        title: 'Exam Questions',     desc: 'MCQs with 4 options, correct answer, and explanation that grades why distractors are wrong.' },
   { icon: Zap,           title: 'Flashcards',         desc: '22-40 cards per pack, spaced-repetition ready, CSV export for Anki.' },
-  { icon: FileText,      title: 'Every definition',   desc: 'Ten+ precise definitions per pack. No glossary gaps, no jargon left unexplained.' },
-  { icon: MessageSquare, title: 'Chat with your PDF', desc: 'Ask questions about the exact document you uploaded. Grounded answers, zero hallucinations.' },
-  { icon: Layers,        title: 'Multi-model AI',     desc: 'Gemini 2.0 Flash primary, Groq Llama and OpenRouter fallback. Never locked to one vendor.' },
+  { icon: FileText,      title: 'Every Definition',   desc: 'Ten+ precise definitions per pack. No glossary gaps, no jargon left unexplained.' },
+  { icon: MessageSquare, title: 'Chat With Your PDF', desc: 'Ask questions about the exact document you uploaded. Grounded answers, zero hallucinations.' },
+  { icon: Layers,        title: 'Multi-Model AI',     desc: 'Gemini 2.0 Flash primary, Groq Llama and OpenRouter fallback. Never locked to one vendor.' },
 ];
 
 const HOW_STEPS = [
   { n: '01', title: 'Drop a PDF',   desc: 'Any lecture slide, textbook chapter, or research paper up to 15 MB.' },
-  { n: '02', title: 'AI reads it',  desc: 'Gemini 2.0 Flash extracts every concept, term, and testable fact — ~20 seconds.' },
+  { n: '02', title: 'AI extracts it',  desc: 'Gemini 2.0 Flash extracts every concept, term, and testable fact in ~20 seconds.' },
   { n: '03', title: 'Study faster', desc: 'Structured notes, flashcards, quiz, definitions. Plus an AI tutor grounded in your document.' },
 ];
 
 // ————————————————————————————————————————————————————————————————
-// Hero — Glow halo + MockupFrame
+// Sections
 // ————————————————————————————————————————————————————————————————
 
 function Hero() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
-  const mockY = useTransform(scrollYProgress, [0, 1], [0, -80]);
-  const mockOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0.3]);
+  const container = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.15, ease: "easeOut" }
+    }
+  };
+
+  const item = {
+    hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
+    show: { opacity: 1, y: 0, filter: "blur(0px)", transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] } }
+  };
 
   return (
-    <section ref={ref} className="relative overflow-hidden pb-16 pt-24 md:pt-32">
-      <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-12 px-6 text-center sm:gap-16">
-        {/* Brand wordmark — living gradient sweep, mint halo intensifies on hover */}
-        <motion.div
-          initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          transition={{ duration: 0.6 }}
-          className="relative inline-block"
-        >
+    <section className="relative min-h-[90vh] flex flex-col items-center pt-32 pb-20 overflow-hidden">
+      <Glow />
+      <motion.div
+        variants={container}
+        initial="hidden"
+        animate="show"
+        className="relative z-10 w-full max-w-6xl px-6 text-center"
+      >
+        <motion.div variants={item} className="mb-8 flex justify-center">
           <Link
             href="/"
-            aria-label="StudySnap home"
-            className="group relative inline-flex items-center gap-3 cursor-default px-4 py-2"
+            className="group relative inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.03] px-5 py-2 backdrop-blur-md transition-all hover:bg-white/[0.08] hover:border-mint-500/30"
           >
-            {/* Ambient glow halo — present at rest, intensifies and expands on hover */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute -inset-x-12 -inset-y-6 rounded-[50%] bg-mint-500/[0.06] blur-2xl transition-all duration-500 group-hover:bg-mint-500/[0.22] group-hover:blur-3xl group-hover:-inset-x-16"
-            />
-            {/* Stacked-books logo glyph */}
-            <span className="relative text-mint-400 transition-transform duration-500 group-hover:scale-[1.04]">
-              <StudySnapLogo size={44} />
+            <StudySnapLogo size={24} />
+            <span className="bg-gradient-to-r from-white/90 to-white/50 bg-clip-text text-sm font-medium tracking-tight text-transparent">
+              StudySnap is evolving.
             </span>
-            {/* The wordmark — gradient shimmer sweeps across continuously */}
-            <span
-              className="relative inline-block bg-gradient-to-r from-white/70 via-mint-300 to-white/70 bg-clip-text pb-2 text-5xl font-semibold tracking-[-0.04em] text-transparent md:text-6xl"
-              style={{
-                backgroundSize: '250% 100%',
-                animation: 'shimmer 4.5s ease-in-out infinite',
-                lineHeight: 1.15,
-              }}
-            >
-              StudySnap
-            </span>
+            <div className="absolute inset-0 rounded-full shadow-[0_0_20px_rgba(16,185,129,0)_inset] transition-shadow duration-500 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.15)_inset]" />
           </Link>
         </motion.div>
 
-        {/* Display headline — Geist Sans, gradient on second line */}
-        <motion.h1
-          initial={{ opacity: 0, y: 10, filter: 'blur(6px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          transition={{ duration: 0.7, delay: 0.1 }}
-          className="relative z-10 inline-block max-w-3xl bg-gradient-to-br from-white to-white/60 bg-clip-text text-5xl font-semibold leading-[1.02] tracking-[-0.03em] text-transparent drop-shadow-[0_2px_24px_rgba(16,185,129,0.12)] sm:text-6xl md:text-7xl"
-        >
-          Study at the speed
-          <br />
-          <span className="bg-gradient-to-r from-mint-300 via-mint-400 to-emerald-400 bg-clip-text text-transparent">
+        <motion.h1 variants={item} className="mx-auto max-w-4xl text-6xl md:text-8xl font-bold tracking-tighter text-white drop-shadow-2xl">
+          Study at the speed <br className="hidden md:block"/>
+          <span className="inline-block bg-gradient-to-r from-mint-300 via-mint-400 to-emerald-500 bg-clip-text text-transparent transform md:-rotate-1">
             of thought.
           </span>
         </motion.h1>
 
-        {/* Description */}
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.25 }}
-          className="relative z-10 max-w-xl text-base leading-relaxed text-white/60 md:text-lg"
-        >
-          Drop a PDF. Get exam-ready notes, flashcards, quizzes, definitions, and an AI tutor grounded in your document. Built for students who move fast.
+        <motion.p variants={item} className="mx-auto mt-8 max-w-2xl text-lg md:text-xl text-white/50 font-light tracking-wide leading-relaxed">
+          Drop a PDF. Get exam-ready notes, flashcards, quizzes, and an AI tutor grounded in your document. Built for elite students who move fast.
         </motion.p>
 
-        {/* Actions */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="relative z-10 flex flex-col items-center gap-3"
-        >
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <Link href="/signup">
-              <MotionButton size="lg" className="!rounded-[6px]">
-                Start free <ArrowRight className="h-4 w-4" />
-              </MotionButton>
-            </Link>
-            <Link href="/login">
-              <MotionButton size="lg" variant="outline" className="!rounded-[6px]">
-                I have an account
-              </MotionButton>
-            </Link>
-          </div>
-          <div className="mono text-xs text-white/40">No credit card · 10 uploads/day free forever</div>
+        <motion.div variants={item} className="mt-10 flex flex-wrap justify-center gap-4">
+          <Link href="/signup">
+            <MotionButton size="lg" className="rounded-full px-8 py-6 text-base shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)]">
+              Start Free <ArrowRight className="ml-2 h-4 w-4" />
+            </MotionButton>
+          </Link>
+          <Link href="/login">
+            <MotionButton size="lg" variant="ghost" className="rounded-full px-8 py-6 text-base border border-white/5 bg-white/5 hover:bg-white/10 backdrop-blur-lg">
+              I have an account
+            </MotionButton>
+          </Link>
         </motion.div>
-
-        {/* Mockup with Glow halo — signature element */}
-        <motion.div
-          style={{ y: mockY, opacity: mockOpacity }}
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="relative w-full pt-12"
-        >
-          <Glow className="-top-32" />
-          <MockupFrame>
-            <div className="w-full">
-              {/* window chrome */}
-              <div className="flex items-center gap-1.5 border-b border-white/[0.05] bg-ink-950 px-4 py-3">
-                <div className="h-2.5 w-2.5 rounded-full bg-white/10" />
-                <div className="h-2.5 w-2.5 rounded-full bg-white/10" />
-                <div className="h-2.5 w-2.5 rounded-full bg-white/10" />
-                <div className="ml-3 flex items-center gap-2 rounded-md bg-white/[0.04] px-3 py-1 mono text-[11px] text-white/55">
-                  <Command className="h-3 w-3" /> biology-ch12.pdf
-                </div>
-                <div className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-mint-500/25 bg-mint-500/[0.08] px-2 py-0.5 mono text-[10px] text-mint-300">
-                  <span className="h-1 w-1 rounded-full bg-mint-400" /> gemini 2.0 flash
-                </div>
+        
+        <MockupFrame>
+          <div className="w-full flex flex-col h-[600px]">
+            {/* Top Bar */}
+            <div className="flex h-12 items-center gap-4 border-b border-white/[0.05] bg-white/[0.01] px-4">
+              <div className="flex gap-2">
+                <div className="h-3 w-3 rounded-full bg-white/10 hover:bg-rose-500/50 transition-colors" />
+                <div className="h-3 w-3 rounded-full bg-white/10 hover:bg-amber-500/50 transition-colors" />
+                <div className="h-3 w-3 rounded-full bg-white/10 hover:bg-emerald-500/50 transition-colors" />
               </div>
-              {/* body */}
-              <div className="grid bg-ink-950 md:grid-cols-[200px_1fr_260px]">
-                {/* sidebar */}
-                <div className="space-y-1 border-r border-white/[0.05] p-4">
-                  <div className="mono px-2 py-1 text-[10px] uppercase tracking-[0.15em] text-white/40">Contents</div>
-                  {[
-                    { l: 'Notes',       a: true  },
-                    { l: 'Key points',  a: false },
-                    { l: 'Definitions', a: false },
-                    { l: 'Flashcards',  a: false },
-                    { l: 'Quiz',        a: false },
-                    { l: 'Ask AI',      a: false },
-                  ].map((t) => (
-                    <div
-                      key={t.l}
-                      className={cn(
-                        'flex items-center gap-2 rounded-md px-2.5 py-2 text-[12.5px]',
-                        t.a ? 'bg-white/[0.05] text-white' : 'text-white/50',
-                      )}
-                    >
-                      {t.a && <span className="h-3 w-[2px] rounded-full bg-mint-400" />}
-                      <span className={t.a ? '' : 'ml-[10px]'}>{t.l}</span>
-                    </div>
-                  ))}
-                </div>
-                {/* notes pane */}
-                <div className="space-y-3 p-6 text-left">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block h-4 w-[3px] rounded-full bg-mint-400" />
-                    <div className="text-[14px] font-semibold text-white tracking-tight">Cellular respiration</div>
-                  </div>
-                  <div className="h-3 w-full rounded bg-white/[0.06]" />
-                  <div className="h-3 w-[94%] rounded bg-white/[0.06]" />
-                  <div className="h-3 w-[78%] rounded bg-white/[0.06]" />
-                  <div className="flex items-center gap-2 pt-3">
-                    <span className="inline-block h-4 w-[3px] rounded-full bg-mint-400" />
-                    <div className="text-[14px] font-semibold text-white tracking-tight">Key stages</div>
-                  </div>
-                  <div className="space-y-2 pl-5">
-                    {[80, 64, 72].map((w, i) => (
-                      <div key={i} className="flex items-start gap-2">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-mint-400/70" />
-                        <div className="h-3 rounded bg-white/[0.055]" style={{ width: `${w}%` }} />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 pt-3">
-                    <div className="rounded-lg border border-mint-500/25 bg-mint-500/[0.05] p-3">
-                      <div className="mono text-[10px] uppercase tracking-[0.12em] text-mint-400">Flashcard · 1/24</div>
-                      <div className="mt-1 text-xs text-white/85">What is mitochondrial DNA?</div>
-                    </div>
-                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                      <div className="mono text-[10px] uppercase tracking-[0.12em] text-white/40">Flashcard · 2/24</div>
-                      <div className="mt-1 text-xs text-white/40">Tap to reveal</div>
-                    </div>
-                  </div>
-                </div>
-                {/* chat rail */}
-                <div className="hidden border-l border-white/[0.05] p-4 text-left md:block">
-                  <div className="mb-3 flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-md border border-mint-500/25 bg-mint-500/10">
-                      <Sparkles className="h-3 w-3 text-mint-400" />
-                    </div>
-                    <div className="mono text-[11px] text-white/60">Ask about pack</div>
-                  </div>
-                  <div className="mb-2 ml-6 rounded-xl border border-mint-500/20 bg-mint-500/[0.08] p-2.5 text-[11.5px] text-white/90">
-                    Which stage produces most ATP?
-                  </div>
-                  <div className="mr-6 rounded-xl border border-white/[0.05] bg-white/[0.03] p-2.5 text-[11.5px] text-white/75">
-                    <span className="text-mint-300">▸</span> The electron transport chain produces ~34 ATP, by far the largest yield…
-                  </div>
-                  <div className="mt-4 flex items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[11px] text-white/40">
-                    Ask something…
-                    <div className="h-5 w-5 rounded-md bg-mint-500/80" />
-                  </div>
-                </div>
+              <div className="mx-auto flex h-6 w-64 items-center justify-center rounded-md bg-white/[0.03] text-xs text-white/40 font-mono tracking-wider border border-white/[0.05]">
+                biology_ch12_respiration.pdf
               </div>
             </div>
-          </MockupFrame>
-        </motion.div>
-      </div>
+            {/* Body */}
+            <div className="flex flex-1 overflow-hidden bg-[radial-gradient(ellipse_at_top_right,rgba(16,185,129,0.05),transparent)]">
+              {/* Sidebar */}
+              <div className="w-64 border-r border-white/[0.05] bg-white/[0.01] p-4 flex flex-col gap-2">
+                {['Notes', 'Flashcards', 'Quizzes', 'Definitions', 'Chat'].map((item, i) => (
+                  <div key={item} className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-all group flex items-center gap-3 cursor-pointer", i === 0 ? "bg-mint-500/10 text-mint-400 border border-mint-500/20" : "text-white/40 hover:bg-white/[0.05] hover:text-white/80")}>
+                    <div className={cn("h-1.5 w-1.5 rounded-full", i === 0 ? "bg-mint-400" : "bg-white/20 group-hover:bg-white/60")} />
+                    {item}
+                  </div>
+                ))}
+              </div>
+              {/* Content area */}
+              <div className="flex-1 p-8 overflow-hidden relative">
+                 <div className="text-sm font-mono text-mint-400 mb-4 tracking-widest uppercase opacity-80 z-10 relative">Generated Note</div>
+                 <div className="text-3xl font-bold text-white mb-6 z-10 relative tracking-tight">Cellular Respiration</div>
+                 
+                 <div className="space-y-4 max-w-2xl relative z-10">
+                   {[90, 80, 85, 70, 95].map((w, i) => (
+                     <div key={i} className="flex gap-4">
+                       <div className="h-4 w-4 rounded-sm bg-mint-500/20 mt-1 shrink-0 border border-mint-500/30" />
+                       <div className="h-4 rounded bg-white/[0.06] backdrop-blur-sm" style={{ width: `${w}%` }} />
+                     </div>
+                   ))}
+                 </div>
+
+                 {/* Decorative background grid */}
+                 <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_10%,transparent_100%)] pointer-events-none" />
+              </div>
+            </div>
+          </div>
+        </MockupFrame>
+      </motion.div>
     </section>
   );
 }
-
-// ————————————————————————————————————————————————————————————————
-// ProofStrip
-// ————————————————————————————————————————————————————————————————
 
 function ProofStrip() {
   const facts = [
-    { icon: Gauge,  label: '~20s',   hint: 'Pack generation' },
+    { icon: Gauge,  label: '~20s',   hint: 'Processing Time' },
     { icon: Layers, label: '30+',    hint: 'Flashcards per pack' },
-    { icon: Lock,   label: '0',      hint: 'Cards required' },
-    { icon: Zap,    label: 'Gemini', hint: '2.0 Flash inside' },
+    { icon: Lock,   label: '0',      hint: 'Required Setup' },
+    { icon: Zap,    label: 'Gemini', hint: '2.0 Flash Engine' },
   ];
 
   return (
-    <section className="py-8">
+    <section className="py-12 border-y border-white/[0.05] bg-white/[0.01] relative z-10 mt-20">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="grid grid-cols-2 divide-y divide-white/[0.05] overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.02] sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-0 divide-y md:divide-y-0 md:divide-x divide-white/[0.05]">
           {facts.map((f, i) => (
             <motion.div
               key={f.label}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.06 }}
-              className="flex items-center gap-3 p-5"
+              viewport={{ once: true, margin: "-50px" }}
+              transition={{ delay: i * 0.1, duration: 0.5 }}
+              className="flex items-center justify-center gap-4 py-4 md:py-0"
             >
-              <f.icon className="h-4 w-4 shrink-0 text-mint-400" />
-              <div>
-                <div className="mono text-[18px] font-semibold leading-tight tracking-tight text-white">{f.label}</div>
-                <div className="mt-0.5 text-[11.5px] text-white/45">{f.hint}</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-mint-500/10 border border-mint-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                 <f.icon className="h-5 w-5 text-mint-400" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-2xl font-mono font-bold text-white">{f.label}</span>
+                <span className="text-xs text-white/40 uppercase tracking-widest">{f.hint}</span>
               </div>
             </motion.div>
           ))}
@@ -292,254 +211,185 @@ function ProofStrip() {
     </section>
   );
 }
-
-// ————————————————————————————————————————————————————————————————
-// HowItWorks — big numerals, hairline cards
-// ————————————————————————————————————————————————————————————————
 
 function HowItWorks() {
   return (
-    <section className="py-24">
+    <section className="py-32 relative z-10">
       <div className="mx-auto max-w-6xl px-6">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: -20 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-          className="max-w-2xl"
+          viewport={{ once: true, margin: '-100px' }}
+          className="text-center mb-20"
         >
-          <div className="mono text-[11px] uppercase tracking-[0.18em] text-mint-400">How it works</div>
-          <h2 className="mt-3 text-4xl font-semibold leading-[1.05] tracking-[-0.025em] text-white md:text-5xl">
-            Three steps. <span className="text-white/40">Zero busywork.</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.08] mb-6">
+            <span className="h-2 w-2 rounded-full bg-mint-400 animate-pulse" />
+            <span className="text-xs font-mono tracking-widest uppercase text-white/60">Flow</span>
+          </div>
+          <h2 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
+            Three steps. <br/> <span className="text-white/30">Zero busywork.</span>
           </h2>
         </motion.div>
 
-        <div className="mt-14 grid gap-4 md:grid-cols-3">
+        <div className="grid md:grid-cols-3 gap-6 relative">
           {HOW_STEPS.map((s, i) => (
-            <motion.div
-              key={s.n}
-              initial={{ opacity: 0, y: 16 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.6, delay: i * 0.08 }}
-              className="group relative rounded-xl border border-white/[0.06] bg-white/[0.015] p-7 transition-colors duration-200 hover:border-white/[0.12] hover:bg-white/[0.03]"
-            >
-              <div className="mono text-[44px] font-semibold leading-none text-white/15 transition-colors duration-300 group-hover:text-mint-400/40">{s.n}</div>
-              <h3 className="mt-5 text-[17px] font-semibold tracking-tight text-white">{s.title}</h3>
-              <p className="mt-2 text-[14px] leading-relaxed text-white/55">{s.desc}</p>
-            </motion.div>
+            <TiltCard key={s.n} className="h-[300px]">
+              <div className="absolute -top-10 -right-10 text-[180px] font-bold text-white/[0.02] font-mono leading-none pointer-events-none select-none z-0">
+                {s.n}
+              </div>
+              <div className="relative z-10 flex flex-col h-full justify-end">
+                <h3 className="text-2xl font-bold text-white mb-3 tracking-tight">{s.title}</h3>
+                <p className="text-white/50 leading-relaxed text-sm">{s.desc}</p>
+              </div>
+            </TiltCard>
           ))}
         </div>
       </div>
     </section>
   );
 }
-
-// ————————————————————————————————————————————————————————————————
-// Features
-// ————————————————————————————————————————————————————————————————
 
 function Features() {
   return (
-    <section id="features" className="py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-          className="max-w-2xl"
-        >
-          <div className="mono text-[11px] uppercase tracking-[0.18em] text-mint-400">Capabilities</div>
-          <h2 className="mt-3 text-4xl font-semibold leading-[1.05] tracking-[-0.025em] text-white md:text-5xl">
-            One upload. <span className="text-white/40">Six outputs.</span>
-          </h2>
-          <p className="mt-4 max-w-lg text-white/60">
-            Zero busywork. Every feature designed for students who actually want to learn, not skim.
-          </p>
-        </motion.div>
-
-        <div className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {features.map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-60px' }}
-              transition={{ duration: 0.5, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
-              className="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] p-6 transition-colors duration-200 hover:border-white/[0.12] hover:bg-white/[0.035]"
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.03] transition-colors duration-200 group-hover:border-mint-500/40 group-hover:bg-mint-500/[0.08]">
-                <f.icon className="h-5 w-5 text-white/70 transition-colors duration-200 group-hover:text-mint-400" />
-              </div>
-              <h3 className="mt-5 text-[15.5px] font-semibold tracking-tight text-white">{f.title}</h3>
-              <p className="mt-2 text-[13.5px] leading-relaxed text-white/55">{f.desc}</p>
-            </motion.div>
-          ))}
+    <section id="features" className="py-32 relative z-10 bg-ink-900 border-t border-white/[0.05]">
+       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-mint-500/5 blur-[120px] rounded-full pointer-events-none" />
+      <div className="mx-auto max-w-6xl px-6 relative z-10">
+        <div className="grid md:grid-cols-2 gap-16 items-center mb-24">
+           <div>
+              <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-6">
+                 One PDF. <br className="hidden md:block"/>
+                 <span className="bg-gradient-to-r from-emerald-400 to-mint-400 bg-clip-text text-transparent">Complete Arsenal.</span>
+              </h2>
+              <p className="text-lg text-white/50 leading-relaxed max-w-md">
+                 Everything you need to master your material is extracted instantly. Stop highlighting. Start learning.
+              </p>
+           </div>
+           <div className="grid grid-cols-2 lg:grid-cols-2 gap-4">
+              {features.map((f, i) => (
+                 <motion.div
+                   key={f.title}
+                   initial={{ opacity: 0, scale: 0.95 }}
+                   whileInView={{ opacity: 1, scale: 1 }}
+                   viewport={{ once: true, margin: '-50px' }}
+                   transition={{ delay: i * 0.1, type: "spring", stiffness: 100 }}
+                   className="group relative flex flex-col p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] transition-colors"
+                 >
+                    <div className="mb-4 h-12 w-12 rounded-xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center group-hover:scale-110 group-hover:border-mint-500/30 group-hover:bg-mint-500/10 transition-all duration-300">
+                       <f.icon className="h-5 w-5 text-white/50 group-hover:text-mint-400 transition-colors" />
+                    </div>
+                    <h3 className="text-base font-semibold text-white mb-2">{f.title}</h3>
+                    <p className="text-xs text-white/40 leading-relaxed">{f.desc}</p>
+                 </motion.div>
+              ))}
+           </div>
         </div>
       </div>
     </section>
   );
 }
-
-// ————————————————————————————————————————————————————————————————
-// Pricing — compound-style cards, glass-top hairline
-// ————————————————————————————————————————————————————————————————
 
 function Pricing() {
-  const free = [
-    '10 PDF uploads / day',
-    'Markdown-structured notes',
-    'Flashcards & definitions',
-    'Quiz mode with explanations',
-    'Ask-AI chat per pack',
-    'Community support',
-  ];
-  const pro = [
-    'Unlimited uploads',
-    'Priority processing',
-    'Advanced exam questions',
-    'Flashcard CSV export',
-    'Priority AI models',
-    'Email support',
-  ];
+  const free = ['10 PDF uploads / day', 'Markdown notes', 'Flashcards & definitions', 'Basic Quiz mode'];
+  const pro = ['Unlimited PDF uploads', 'Priority fast processing', 'Advanced exam questions', 'Export to Anki CSV', 'Priority multi-model AI'];
 
   return (
-    <section id="pricing" className="py-24">
-      <div className="mx-auto max-w-6xl px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-          className="max-w-2xl"
-        >
-          <div className="mono text-[11px] uppercase tracking-[0.18em] text-mint-400">Pricing</div>
-          <h2 className="mt-3 text-4xl font-semibold leading-[1.05] tracking-[-0.025em] text-white md:text-5xl">
-            Start free. <span className="text-white/40">Upgrade when it clicks.</span>
+    <section id="pricing" className="py-32 relative z-10 overflow-hidden">
+      <div className="mx-auto max-w-5xl px-6 relative">
+        <div className="text-center mb-20">
+          <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-4">
+            Start Free. <span className="text-white/40">Scale up.</span>
           </h2>
-        </motion.div>
+          <p className="text-white/50">Generous limits forever. Superpowers when you need them.</p>
+        </div>
 
-        <div className="mt-12 grid max-w-4xl gap-4 md:grid-cols-2">
-          {/* Free */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02]"
-          >
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.15] to-transparent" />
-            <div className="p-8">
-              <div className="mono text-[11px] uppercase tracking-[0.15em] text-white/50">Free</div>
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-5xl font-semibold tracking-[-0.025em] text-white">$0</span>
-                <span className="text-sm text-white/40">/month</span>
-              </div>
-              <ul className="mt-8 space-y-3">
-                {free.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm text-white/70">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-white/50" /> {f}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/signup" className="mt-8 block">
-                <MotionButton variant="outline" className="w-full !rounded-[6px]">Get started</MotionButton>
-              </Link>
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto items-stretch">
+          
+          <TiltCard glowOpacity={0.05} className="h-full">
+            <div className="flex flex-col h-full">
+               <div className="text-xs font-mono uppercase tracking-widest text-white/40 mb-2">Student Tier</div>
+               <div className="flex items-end gap-2 mb-8">
+                  <span className="text-5xl font-bold text-white">$0</span>
+                  <span className="text-white/40 mb-1">/ month</span>
+               </div>
+               <ul className="space-y-4 mb-10 flex-1">
+                 {free.map(f => (
+                   <li key={f} className="flex items-center gap-3 text-sm text-white/60">
+                      <Check className="h-4 w-4 text-white/20" /> {f}
+                   </li>
+                 ))}
+               </ul>
+               <Link href="/signup">
+                  <MotionButton variant="outline" className="w-full h-12 rounded-xl border border-white/10 hover:bg-white/5 hover:border-white/20 text-white">Get Started</MotionButton>
+               </Link>
             </div>
-          </motion.div>
+          </TiltCard>
 
-          {/* Pro — glass-top mint gradient */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.08 }}
-            className="relative overflow-hidden rounded-xl border border-mint-500/25 bg-gradient-to-b from-mint-500/[0.05] via-mint-500/[0.015] to-transparent"
-          >
-            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-mint-400/60 to-transparent" />
-            <div className="absolute right-4 top-4 rounded-full border border-mint-500/30 bg-mint-500/[0.12] px-2 py-0.5 mono text-[10px] uppercase tracking-[0.12em] text-mint-300">
-              Recommended
+          <TiltCard glowOpacity={0.2} className="relative h-full ring-1 ring-mint-500/30">
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-b from-mint-500/[0.08] to-transparent pointer-events-none" />
+            <div className="absolute top-4 right-4 border border-mint-500/50 bg-mint-500/10 px-3 py-1 rounded-full text-[10px] font-mono tracking-widest text-mint-400 uppercase">
+              Pro
             </div>
-            <div className="p-8">
-              <div className="mono text-[11px] uppercase tracking-[0.15em] text-mint-400">Pro</div>
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-5xl font-semibold tracking-[-0.025em] text-white">$9</span>
-                <span className="text-sm text-white/40">/month</span>
-              </div>
-              <ul className="mt-8 space-y-3">
-                {pro.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm text-white/80">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-mint-400" /> {f}
-                  </li>
-                ))}
-              </ul>
-              <Link href="/signup" className="mt-8 block">
-                <MotionButton className="w-full !rounded-[6px]">Go Pro</MotionButton>
-              </Link>
+            <div className="flex flex-col h-full relative z-10">
+               <div className="text-xs font-mono uppercase tracking-widest text-mint-400 mb-2">Scholar Tier</div>
+               <div className="flex items-end gap-2 mb-8">
+                  <span className="text-5xl font-bold text-white">$9</span>
+                  <span className="text-white/40 mb-1">/ month</span>
+               </div>
+               <ul className="space-y-4 mb-10 flex-1">
+                 {pro.map(f => (
+                   <li key={f} className="flex items-center gap-3 text-sm text-white/80">
+                      <div className="flex h-5 w-5 rounded-full items-center justify-center bg-mint-500/20">
+                         <Check className="h-3 w-3 text-mint-400" />
+                      </div>
+                      {f}
+                   </li>
+                 ))}
+               </ul>
+               <Link href="/signup">
+                  <MotionButton className="w-full h-12 rounded-xl shadow-[0_0_30px_-5px_rgba(16,185,129,0.4)]">Go Pro</MotionButton>
+               </Link>
             </div>
-          </motion.div>
+          </TiltCard>
+
         </div>
       </div>
     </section>
   );
 }
-
-// ————————————————————————————————————————————————————————————————
-// FinalCTA — single Glow halo, echo of hero signature
-// ————————————————————————————————————————————————————————————————
 
 function FinalCTA() {
   return (
-    <section className="py-24">
-      <div className="mx-auto max-w-4xl px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-          className="relative overflow-hidden rounded-2xl border border-white/[0.06] bg-white/[0.015] p-10 text-center md:p-14"
-        >
-          <Glow className="-top-24" />
-          <div className="relative">
-            <div className="mono text-[11px] uppercase tracking-[0.18em] text-mint-400">Stop highlighting. Start learning.</div>
-            <h2 className="mt-4 text-4xl font-semibold leading-[1.05] tracking-[-0.025em] text-white md:text-5xl">
-              Your next exam<br />
-              <span className="bg-gradient-to-r from-mint-300 to-emerald-400 bg-clip-text text-transparent">
-                starts with one upload.
-              </span>
+    <section className="py-32 relative z-10 flex justify-center">
+      <TiltCard className="max-w-4xl w-full text-center p-12 md:p-20 relative overflow-hidden" glowOpacity={0.3}>
+         <div className="absolute inset-0 bg-gradient-to-tr from-mint-500/10 via-transparent to-emerald-500/10" />
+         <div className="relative z-10">
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-white mb-6">
+              A smarter way to study <br/> is one click away.
             </h2>
-            <p className="mx-auto mt-5 max-w-xl text-[15px] leading-relaxed text-white/65 md:text-base">
-              No credit card. 10 free PDFs every day. Generate your first study pack in under a minute.
+            <p className="text-lg text-white/60 mb-10 max-w-xl mx-auto">
+              Stop re-reading and start testing yourself. 10 free uploads a day, every day.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link href="/signup">
-                <MotionButton size="lg" className="!rounded-[6px]">
-                  Get started free <ArrowRight className="h-4 w-4" />
-                </MotionButton>
-              </Link>
-              <Link href="/login">
-                <MotionButton size="lg" variant="outline" className="!rounded-[6px]">
-                  Log in
-                </MotionButton>
-              </Link>
-            </div>
-          </div>
-        </motion.div>
-      </div>
+            <Link href="/signup">
+               <MotionButton size="lg" className="rounded-full px-10 py-6 text-lg hover:scale-105 transition-transform">
+                  Upload your first PDF
+               </MotionButton>
+            </Link>
+         </div>
+      </TiltCard>
     </section>
   );
 }
 
 export default function LandingPage() {
   return (
-    <>
+    <div className="min-h-screen bg-ink-950 font-sans selection:bg-mint-500/30">
+      <MouseGlow />
       <Hero />
       <ProofStrip />
       <HowItWorks />
       <Features />
       <Pricing />
       <FinalCTA />
-    </>
+    </div>
   );
 }

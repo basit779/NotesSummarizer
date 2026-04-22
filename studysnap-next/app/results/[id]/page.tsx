@@ -19,6 +19,7 @@ import { MarkdownView } from '@/components/ui/MarkdownView';
 import { Flashcard } from '@/components/Flashcard';
 import { Chat } from '@/components/Chat';
 import { cn } from '@/lib/utils';
+import { MouseGlow } from '@/components/ui/MouseGlow';
 
 interface ExamQ {
   question: string;
@@ -235,7 +236,10 @@ function ResultsInner() {
   }
 
   return (
-    <div className="mx-auto max-w-[1600px] px-4 md:px-6 py-6 md:py-8">
+    <div className="min-h-screen relative overflow-hidden bg-ink-950 font-sans">
+      <MouseGlow />
+      <div className="absolute top-0 right-1/4 w-[600px] h-[500px] bg-mint-500/10 blur-[150px] rounded-full pointer-events-none" />
+      <div className="mx-auto max-w-[1600px] px-4 md:px-6 py-6 md:py-8 relative z-10 pt-[100px]">
       {/* Breadcrumb */}
       <Link
         href="/history"
@@ -630,6 +634,7 @@ function ResultsInner() {
             <span className="text-sm font-medium">Ask AI</span>
           </button>
         )}
+      </div>
       </div>
     </div>
   );
