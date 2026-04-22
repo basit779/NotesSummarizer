@@ -76,7 +76,10 @@ const TIER_COUNTS: Record<Tier, Counts> = {
 export function selectTier(chars: number, pages: number | undefined): Tier {
   const p = pages ?? 0;
   if (p >= 45 || chars >= 60000) return 'xl';
-  if (p >= 30 || chars >= 40000) return 'long';
+  // 25-page threshold for LONG (was 30): 25-29 page docs were landing in
+  // MEDIUM tier, producing too few items for the source density. Dense
+  // slide decks at 25+ pages clearly deserve LONG counts.
+  if (p >= 25 || chars >= 40000) return 'long';
   if (p >= 15 || chars >= 15000) return 'medium';
   if (p >= 8  || chars >= 5000)  return 'medium'; // slide decks at 8-14 pages still MEDIUM on page signal
   return 'short';

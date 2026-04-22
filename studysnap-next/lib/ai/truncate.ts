@@ -31,7 +31,10 @@ const TOKEN_BUDGETS: Record<string, TierBudget> = {
   'gemini-2.5-flash':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
   'gemini-2.5-flash-lite': { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
   'gemini-2.0-flash':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
-  'groq-llama-3.3-70b':  { short:  3_500, medium:  4_500, long:  5_500, xl:  4_500 },
+  // Rebalanced to pair with 6500-token output cap: budget = 12K TPM − 6.5K out
+  // − 1.1K overhead ≈ 4.4K tokens remaining for input. Keeps comfortable
+  // headroom on every tier so a single call never 429s mid-request.
+  'groq-llama-3.3-70b':  { short:  2_800, medium:  3_500, long:  4_000, xl:  3_500 },
   'groq-llama-3.1-8b':   { short:  1_800, medium:  2_200, long:  2_500, xl:  1_600 },
   'openrouter-free':     { short: 10_000, medium: 10_000, long: 10_000, xl: 10_000 },
   'mistral-small':       { short:  8_000, medium:  8_000, long:  8_000, xl:  8_000 },

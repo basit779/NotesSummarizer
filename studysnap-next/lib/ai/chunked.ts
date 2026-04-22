@@ -89,7 +89,7 @@ export async function analyzeChunked(
     } else {
       // record the chunk failure in attempted so process route can surface it
       const msg = (s.reason as { message?: string })?.message ?? String(s.reason);
-      allAttempted.push({ id: 'gemini-2.0-flash' as ModelId, error: `chunk failed: ${msg}` });
+      allAttempted.push({ id: 'gemini-2.5-flash' as ModelId, error: `chunk failed: ${msg}` });
     }
   }
 

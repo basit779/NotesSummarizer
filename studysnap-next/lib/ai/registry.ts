@@ -30,7 +30,12 @@ export interface ModelSpec {
  * under that, or a single request 429s.
  */
 const OUTPUT_CAPS: Record<string, number> = {
-  'groq-llama-3.3-70b': 4096,
+  // Groq 70B: max completion is 32K, but 12K TPM free tier is the binding
+  // constraint. With input budget dropped below to ~3.5K tokens + ~1.1K
+  // overhead, 6500 output still fits 12K TPM comfortably (3.5 + 6.5 + 1.1 ≈ 11.1K).
+  // Was 4096 — too tight for MEDIUM/LONG schemas; caused truncated JSON
+  // (5 cards / 3 MCQs) when Gemini fell to Llama on a 28-page doc.
+  'groq-llama-3.3-70b': 6500,
   'groq-llama-3.1-8b': 2500,
   'openrouter-free': 4096,
   'mistral-small': 7500,
