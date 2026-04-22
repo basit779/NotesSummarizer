@@ -20,6 +20,8 @@ export interface StudyMaterial {
 
 export type ModelId =
   | 'gemini-2.5-pro'
+  | 'gemini-2.5-flash'
+  | 'gemini-2.5-flash-lite'
   | 'gemini-2.0-flash'
   | 'groq-llama-3.3-70b'
   | 'groq-llama-3.1-8b'
@@ -68,6 +70,8 @@ export class PermanentAIError extends Error {
 
 export const MODEL_IDS: ModelId[] = [
   'gemini-2.5-pro',
+  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
   'groq-llama-3.3-70b',
   'groq-llama-3.1-8b',

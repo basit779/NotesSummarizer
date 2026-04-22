@@ -27,8 +27,10 @@ import { type Tier } from '../prompts';
 type TierBudget = Record<Tier, number>;
 
 const TOKEN_BUDGETS: Record<string, TierBudget> = {
-  'gemini-2.5-pro':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
-  'gemini-2.0-flash':    { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
+  'gemini-2.5-pro':       { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
+  'gemini-2.5-flash':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
+  'gemini-2.5-flash-lite': { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
+  'gemini-2.0-flash':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
   'groq-llama-3.3-70b':  { short:  3_500, medium:  4_500, long:  5_500, xl:  4_500 },
   'groq-llama-3.1-8b':   { short:  1_800, medium:  2_200, long:  2_500, xl:  1_600 },
   'openrouter-free':     { short: 10_000, medium: 10_000, long: 10_000, xl: 10_000 },

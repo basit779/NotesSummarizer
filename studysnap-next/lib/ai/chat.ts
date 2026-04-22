@@ -5,7 +5,7 @@ import { HttpError } from '../httpError';
 
 export interface ChatMsg { role: 'user' | 'assistant' | 'system'; content: string; }
 
-const MAX_CHAT_ATTEMPTS = 3;
+const MAX_CHAT_ATTEMPTS = 4;
 const RATE_LIMIT_WAIT_MS = 7_000;
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
@@ -104,7 +104,9 @@ async function runChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: str
 }
 
 async function geminiChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: string; model: string; tokensUsed: number }> {
-  const modelName = id === 'gemini-2.5-pro' ? 'gemini-2.5-pro' : 'gemini-2.0-flash';
+  // Map ModelId → actual Gemini API model name. Default falls back to 2.0-flash
+  // so an unknown future Gemini id never breaks chat.
+  const modelName = id.startsWith('gemini-') ? id : 'gemini-2.0-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${env.googleApiKey}`;
   const sys = messages.find((m) => m.role === 'system')?.content;
   const contents = messages

@@ -53,6 +53,9 @@ const PROVIDER_LABELS: Record<string, string> = {
   'github-gpt-4o-mini': 'GPT-4o mini',
   'github-llama-3.3-70b': 'Llama 70B (GitHub)',
   'gemini-2.5-pro': 'Gemini 2.5 Pro',
+  'gemini-2.5-flash': 'Gemini 2.5 Flash',
+  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite',
+  'gemini-2.0-flash': 'Gemini 2.0 Flash',
 };
 function labelForProvider(id: string): string {
   return PROVIDER_LABELS[id] ?? id;

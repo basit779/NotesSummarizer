@@ -52,6 +52,16 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     run: (text, plan, opts) => geminiProvider('gemini-2.5-pro', truncateForModel(text, 'gemini-2.5-pro', selectTier(text.length, opts?.pages)), plan, opts),
     isConfigured: () => Boolean(env.googleApiKey),
   },
+  'gemini-2.5-flash': {
+    id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'google',
+    run: (text, plan, opts) => geminiProvider('gemini-2.5-flash', truncateForModel(text, 'gemini-2.5-flash', selectTier(text.length, opts?.pages)), plan, opts),
+    isConfigured: () => Boolean(env.googleApiKey),
+  },
+  'gemini-2.5-flash-lite': {
+    id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', provider: 'google',
+    run: (text, plan, opts) => geminiProvider('gemini-2.5-flash-lite', truncateForModel(text, 'gemini-2.5-flash-lite', selectTier(text.length, opts?.pages)), plan, opts),
+    isConfigured: () => Boolean(env.googleApiKey),
+  },
   'gemini-2.0-flash': {
     id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'google',
     run: (text, plan, opts) => geminiProvider('gemini-2.0-flash', truncateForModel(text, 'gemini-2.0-flash', selectTier(text.length, opts?.pages)), plan, opts),
@@ -161,23 +171,26 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
- * Ordered so consecutive attempts hit DIFFERENT organizations — Groq's
- * free-tier TPM is a single org-wide bucket shared across all its models,
- * so putting two Groq models back-to-back doubles-up the rate-limit risk.
  *
- * runWithFallback filters by isConfigured() and caps at MAX_ATTEMPTS=3,
- * so users with only GOOGLE_API_KEY + GROQ_API_KEY still get a sane chain.
+ * Gemini-first stacking: 2.5-flash → 2.0-flash → 2.5-flash-lite share the
+ * same GOOGLE_API_KEY but have INDEPENDENT per-model daily quotas, so when
+ * one blows, the next still works. Only after all three Google variants
+ * are exhausted do we drop to Groq (different quality profile).
  *
- *   1. gemini-2.0-flash      — Google. 1M ctx, 8k output. 15 RPM / 1M TPM / 1500 RPD free.
- *   2. groq-llama-3.3-70b    — Groq. 128k ctx, 8k output. 30 RPM / 12k TPM.
- *   3. openrouter-free       — OpenRouter auto-router over free variants. Different org from Groq; separate TPM bucket.
- *   4. mistral-small         — Mistral. Yet another org. Final safety net.
- *   5. groq-llama-3.1-8b     — Only tried if nothing else is configured (same-org risk).
+ *   1. gemini-2.5-flash      — Best quality on free tier. ~250 RPD.
+ *   2. gemini-2.0-flash      — Highest daily ceiling (~1500 RPD). Reliable safety net.
+ *   3. gemini-2.5-flash-lite — Third Gemini bucket (~1000 RPD).
+ *   4. groq-llama-3.3-70b    — Non-Google safety net. 30 RPM / 12k TPM.
+ *   5. openrouter-free       — OpenRouter auto-router, different org from Groq.
+ *   6. mistral-small         — Mistral. Final non-Google safety net.
+ *   7. groq-llama-3.1-8b     — Only tried if nothing else is configured.
  *
  * github-gpt-4o-mini is excluded: its 8k TOTAL context cap 413s on realistic inputs.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-2.5-flash-lite',
   'groq-llama-3.3-70b',
   'openrouter-free',
   'mistral-small',
@@ -194,7 +207,9 @@ export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
  * primary; Groq still before GitHub-gated providers as a safety net.
  */
 const XL_FALLBACK_ORDER: ModelId[] = [
+  'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-2.5-flash-lite',
   'mistral-small',
   'openrouter-free',
   'groq-llama-3.3-70b',

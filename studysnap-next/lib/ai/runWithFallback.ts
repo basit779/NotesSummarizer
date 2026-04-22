@@ -4,8 +4,11 @@ import { HttpError } from '../httpError';
 import { logProviderEvent } from './telemetry';
 import { selectTier } from '../prompts';
 
-/** Hard cap on how many providers we try per request. Protects quotas. */
-const MAX_ATTEMPTS = 3;
+/** Hard cap on how many providers we try per request. Protects quotas.
+ *  Bumped to 4 so the chain can burn through all three Gemini variants
+ *  (2.5-flash → 2.0-flash → 2.5-flash-lite) and still reach one non-Google
+ *  safety net (Groq/OpenRouter/Mistral) when every Gemini quota is dry. */
+const MAX_ATTEMPTS = 4;
 
 /** Error codes caused by prompt producing too much output — retry same provider with smaller prompt. */
 const BAD_OUTPUT_CODES = new Set(['BAD_JSON', 'BAD_RESPONSE']);
@@ -15,8 +18,15 @@ const RATE_LIMIT_WAIT_MS = 7_000;
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
-/** Primary provider — any other winning provider marks the result as fallback. */
-const PRIMARY_PROVIDER: ModelId = 'gemini-2.0-flash';
+/** Primary provider — the best-quality model we try first. */
+const PRIMARY_PROVIDER: ModelId = 'gemini-2.5-flash';
+
+/** Treat any Gemini variant as "not a fallback" — the "Fast mode" banner is
+ *  meant to warn users about a quality drop (Gemini → Llama etc.), not about
+ *  within-family switches between Gemini models. */
+function isPrimaryFamily(id: ModelId): boolean {
+  return id.startsWith('gemini-');
+}
 
 export async function runWithFallback(
   text: string,
@@ -62,7 +72,7 @@ export async function runWithFallback(
       console.log(`[AI][${reqId}] ✓ ${id} succeeded in ${elapsed}ms (${result.tokensUsed} tokens) — TOTAL API CALLS: ${i + 1}`);
       logProviderEvent({ reqId, providerId: id, outcome: 'success', elapsedMs: elapsed, tokensUsed: result.tokensUsed });
       attempted.push({ id });
-      return { ...result, attempted, fallbackUsed: id === PRIMARY_PROVIDER ? null : id };
+      return { ...result, attempted, fallbackUsed: isPrimaryFamily(id) ? null : id };
     } catch (err: any) {
       const elapsed = Date.now() - t0;
       if (err instanceof PermanentAIError) {
@@ -98,7 +108,7 @@ export async function runWithFallback(
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} wait-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered after ${RATE_LIMIT_WAIT_MS}ms wait` });
-          return { ...result, attempted, fallbackUsed: id === PRIMARY_PROVIDER ? null : id };
+          return { ...result, attempted, fallbackUsed: isPrimaryFamily(id) ? null : id };
         } catch (err2: any) {
           const elapsed2 = Date.now() - t1;
           const code2 = err2 instanceof TransientAIError ? err2.code : 'ERROR';
@@ -122,7 +132,7 @@ export async function runWithFallback(
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} minimal-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered via minimal retry` });
-          return { ...result, attempted, fallbackUsed: id === PRIMARY_PROVIDER ? null : id };
+          return { ...result, attempted, fallbackUsed: isPrimaryFamily(id) ? null : id };
         } catch (err2: any) {
           const elapsed2 = Date.now() - t1;
           const msg2 = err2 instanceof TransientAIError ? `${err2.code}: ${err2.message}` : String(err2?.message ?? err2);
