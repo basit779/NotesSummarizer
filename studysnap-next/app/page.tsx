@@ -19,9 +19,16 @@ import { MouseGlow } from '@/components/ui/MouseGlow';
 
 function Glow() {
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 w-full flex justify-center">
-      <div className="absolute top-[-20%] w-[1000px] h-[600px] rounded-[100%] bg-[radial-gradient(ellipse_at_center,rgba(52,211,153,0.15)_0%,transparent_70%)] mix-blend-screen blur-[100px] animate-pulse" />
-      <div className="absolute top-0 w-[500px] h-[300px] rounded-[100%] bg-[radial-gradient(ellipse_at_center,rgba(16,185,129,0.25)_0%,transparent_60%)] mix-blend-screen blur-[60px]" />
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+      {/* Performant Aurora using soft radial gradients and transform-gpu */}
+      <div className="absolute inset-[-50%] mix-blend-screen animate-aurora transform-gpu"
+           style={{
+             backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(52, 211, 153, 0.05) 0%, transparent 40%), radial-gradient(circle at 20% 80%, rgba(4, 120, 87, 0.1) 0%, transparent 50%)',
+             backgroundSize: '150% 150%',
+           }}
+      />
+      {/* Ambient top light */}
+      <div className="absolute top-0 inset-x-0 h-[60vh] bg-gradient-to-b from-mint-500/[0.04] via-mint-500/[0.01] to-transparent" />
     </div>
   );
 }
@@ -33,7 +40,7 @@ function MockupFrame({ children }: { children: ReactNode }) {
         initial={{ rotateX: 15, scale: 0.95, opacity: 0, y: 50 }}
         animate={{ rotateX: 0, scale: 1, opacity: 1, y: 0 }}
         transition={{ type: "spring", damping: 30, stiffness: 100, delay: 0.2 }}
-        className="relative overflow-hidden rounded-2xl bg-white/[0.02] p-1 backdrop-blur-3xl shadow-[0_40px_100px_-20px_rgba(0,0,0,1)] ring-1 ring-white/[0.08]"
+        className="relative overflow-hidden rounded-2xl bg-white/[0.02] p-1 backdrop-blur-3xl shadow-[0_40px_100px_-20px_rgba(0,0,0,1),inset_0_1px_0_rgba(255,255,255,0.1)] border border-white/[0.05] border-t-white/[0.15]"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-mint-500/10 via-transparent to-transparent opacity-50" />
         <div className="relative z-10 overflow-hidden rounded-xl bg-ink-950/90 shadow-2xl ring-1 ring-white/[0.05]">
@@ -103,9 +110,9 @@ function Hero() {
           </Link>
         </motion.div>
 
-        <motion.h1 variants={item} className="mx-auto max-w-4xl text-6xl md:text-8xl font-bold tracking-tighter text-white drop-shadow-2xl">
+        <motion.h1 variants={item} className="mx-auto max-w-4xl text-6xl md:text-8xl font-bold tracking-tighter text-white" style={{ textShadow: '0 4px 40px rgba(255,255,255,0.1)' }}>
           Study at the speed <br className="hidden md:block"/>
-          <span className="inline-block bg-gradient-to-r from-mint-300 via-mint-400 to-emerald-500 bg-clip-text text-transparent transform md:-rotate-1">
+          <span className="inline-block bg-gradient-to-r from-mint-300 via-mint-400 to-emerald-500 bg-clip-text text-transparent transform md:-rotate-1" style={{ filter: 'drop-shadow(0 0 40px rgba(16,185,129,0.25))' }}>
             of thought.
           </span>
         </motion.h1>

@@ -64,7 +64,7 @@ export function TiltCard({ children, className, glowClassName, glowOpacity = 0.1
           ),
         }}
       />
-      <div className="relative h-full w-full rounded-xl bg-ink-950/80 backdrop-blur-xl border border-white/[0.06] overflow-hidden z-10 p-6 flex flex-col">
+      <div className="relative h-full w-full rounded-xl bg-ink-950/80 backdrop-blur-xl border border-white/[0.05] border-t-white/[0.15] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] overflow-hidden z-10 p-6 flex flex-col">
         {children}
       </div>
     </motion.div>

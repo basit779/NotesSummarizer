@@ -18,7 +18,7 @@ module.exports = {
         destructive: { DEFAULT: 'hsl(var(--destructive))', foreground: 'hsl(var(--destructive-foreground))' },
         card: { DEFAULT: 'hsl(var(--card))', foreground: 'hsl(var(--card-foreground))' },
         mint: { 50: '#ecfdf5', 200: '#a7f3d0', 400: '#34d399', 500: '#10b981', 600: '#059669', 700: '#047857' },
-        ink: { 950: '#09090b', 900: '#0c0c10', 800: '#121218', 700: '#1a1a22', 600: '#24242e' },
+        ink: { 950: '#02040a', 900: '#080c16', 800: '#0f172a', 700: '#1e293b', 600: '#334155' },
       },
       fontFamily: {
         sans: ['Geist', 'Satoshi', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
