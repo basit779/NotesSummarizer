@@ -53,10 +53,14 @@ export type ProviderFn = (text: string, plan: 'FREE' | 'PRO', opts?: ProviderRun
 export class TransientAIError extends Error {
   readonly code: string;
   readonly status?: number;
-  constructor(code: string, message: string, status?: number) {
+  /** Seconds the upstream told us to wait before retrying (from Retry-After
+   *  header or Google RetryInfo body). Undefined = no hint was provided. */
+  readonly retryAfterSeconds?: number;
+  constructor(code: string, message: string, status?: number, retryAfterSeconds?: number) {
     super(message);
     this.code = code;
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 

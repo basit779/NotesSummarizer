@@ -13,8 +13,20 @@ const MAX_ATTEMPTS = 4;
 /** Error codes caused by prompt producing too much output — retry same provider with smaller prompt. */
 const BAD_OUTPUT_CODES = new Set(['BAD_JSON', 'BAD_RESPONSE']);
 
-/** How long to wait before retrying after a rate-limit error. Free-tier RPM/TPM buckets clear within ~60s. */
-const RATE_LIMIT_WAIT_MS = 7_000;
+/** Cap on how long we'll wait before retrying the same provider after a 429.
+ *  Longer waits eat into the 60s route budget and we'd rather advance to the
+ *  next provider than block. */
+const MAX_RATE_LIMIT_WAIT_MS = 8_000;
+
+/** Floor on rate-limit wait — upstream sometimes says "retry in 0s" which is
+ *  just asking to be hammered. Wait at least this long. */
+const MIN_RATE_LIMIT_WAIT_MS = 1_500;
+
+/** Default wait when a provider returns 429 without a Retry-After hint AND the
+ *  chain only has one remaining provider (i.e. the same one). Kept generous
+ *  enough for the per-minute bucket to partially refill. Only used in that
+ *  last-resort branch. */
+const FALLBACK_NO_HINT_WAIT_MS = 5_000;
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
@@ -26,6 +38,34 @@ const PRIMARY_PROVIDER: ModelId = 'gemini-2.5-flash';
  *  within-family switches between Gemini models. */
 function isPrimaryFamily(id: ModelId): boolean {
   return id.startsWith('gemini-');
+}
+
+// ——————————————————————————————————————————————————————————————
+// Per-process provider cooldown
+//
+// When a provider returns 429 with a Retry-After hint that's too long to wait
+// out (> MAX_RATE_LIMIT_WAIT_MS), mark it as cooling down in this Map. The
+// next request in the same Node process will skip the provider entirely while
+// it's still cooling.
+//
+// Empty across serverless cold-starts — only helps during warm invocations
+// and local dev bursts. That's exactly the scenario the user hit in testing.
+// ——————————————————————————————————————————————————————————————
+const providerCooldownUntil = new Map<ModelId, number>();
+
+function markProviderCooldown(id: ModelId, retryAfterSeconds: number) {
+  providerCooldownUntil.set(id, Date.now() + retryAfterSeconds * 1000);
+}
+
+function getCooldownSecondsLeft(id: ModelId): number {
+  const until = providerCooldownUntil.get(id);
+  if (!until) return 0;
+  const ms = until - Date.now();
+  if (ms <= 0) {
+    providerCooldownUntil.delete(id);
+    return 0;
+  }
+  return Math.ceil(ms / 1000);
 }
 
 export async function runWithFallback(
@@ -64,6 +104,16 @@ export async function runWithFallback(
   for (let i = 0; i < configured.length; i++) {
     const id = configured[i];
     const spec = MODEL_REGISTRY[id];
+
+    // Skip providers still in process-local cooldown from a recent 429.
+    const cooling = getCooldownSecondsLeft(id);
+    if (cooling > 0) {
+      console.log(`[AI][${reqId}] ⤵ skip ${id} — cooling ${cooling}s more (process-local)`);
+      // Keep "rate-limit" in the error so the final allRateLimited detection fires correctly.
+      attempted.push({ id, error: `RATE_LIMIT: skipped — rate-limit cooldown ${cooling}s` });
+      continue;
+    }
+
     const t0 = Date.now();
     try {
       console.log(`[AI][${reqId}] attempt ${i + 1}/${configured.length} — ${id}${pass ? ` pass=${pass}` : ''}`);
@@ -95,29 +145,74 @@ export async function runWithFallback(
         errorCode: code,
       });
 
-      // RATE_LIMIT: wait for the per-minute bucket to clear, then retry same provider ONCE.
-      // Only do this wait once per request (otherwise we'd exceed the 60s route timeout).
-      if (code === 'RATE_LIMIT' && rateLimitedCount === 0) {
+      // RATE_LIMIT: use the upstream Retry-After hint to decide whether to
+      // wait-and-retry or advance to the next provider. Old behavior was a
+      // hardcoded 7s wait regardless of hint — that burned latency when the
+      // real quota reset was 60s (so the retry failed anyway) and over-waited
+      // when the reset was <7s.
+      if (code === 'RATE_LIMIT') {
+        const retryAfter = err instanceof TransientAIError ? err.retryAfterSeconds : undefined;
+        const isLastProvider = i === configured.length - 1;
+
+        // Mark cooldown so subsequent requests in this same Node process skip
+        // this provider until its quota has refreshed.
+        if (retryAfter && retryAfter > 0) markProviderCooldown(id, retryAfter);
+
+        // Decide: wait here, or advance to next provider?
+        let waitMs: number | null = null;
+        if (retryAfter != null) {
+          const requestedMs = retryAfter * 1000;
+          if (requestedMs <= MAX_RATE_LIMIT_WAIT_MS) {
+            waitMs = Math.max(requestedMs, MIN_RATE_LIMIT_WAIT_MS);
+          } else {
+            // Quota won't refresh within our budget — advance instead of waiting.
+            console.log(`[AI][${reqId}] ⏭ ${id} rate-limited (retry-after ${retryAfter}s > ${Math.round(MAX_RATE_LIMIT_WAIT_MS / 1000)}s budget) — advancing to next provider`);
+            attempted.push({ id, error: `${msg} → retry-after ${retryAfter}s exceeds wait budget` });
+            lastError = err;
+            continue;
+          }
+        } else if (isLastProvider && rateLimitedCount === 0) {
+          // No hint AND nothing else to try — take one shot at a short blind wait.
+          waitMs = FALLBACK_NO_HINT_WAIT_MS;
+        }
+
+        if (waitMs == null) {
+          // No hint and we still have other providers to try — advance.
+          console.log(`[AI][${reqId}] ⏭ ${id} rate-limited (no Retry-After hint) — advancing to next provider`);
+          attempted.push({ id, error: msg });
+          lastError = err;
+          continue;
+        }
+
+        if (rateLimitedCount >= 1) {
+          // Already spent one wait on this request — don't burn the 60s route budget further.
+          console.log(`[AI][${reqId}] ⏭ ${id} rate-limited — already spent one wait on this request, advancing`);
+          attempted.push({ id, error: msg });
+          lastError = err;
+          continue;
+        }
+
         rateLimitedCount++;
-        console.log(`[AI][${reqId}] ⏱ ${id} rate-limited — waiting ${RATE_LIMIT_WAIT_MS}ms then retrying same provider`);
-        await sleep(RATE_LIMIT_WAIT_MS);
+        console.log(`[AI][${reqId}] ⏱ ${id} rate-limited — ${retryAfter != null ? `upstream asked for ${retryAfter}s` : 'no hint'}, waiting ${waitMs}ms then retrying`);
+        await sleep(waitMs);
         const t1 = Date.now();
         try {
           console.log(`[AI][${reqId}] ↻ ${id} wait-retry`);
           const result = await spec.run(text, plan, { pages, pass });
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} wait-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
-          attempted.push({ id, error: `${msg} → recovered after ${RATE_LIMIT_WAIT_MS}ms wait` });
+          providerCooldownUntil.delete(id);  // clear cooldown on success
+          attempted.push({ id, error: `${msg} → recovered after ${waitMs}ms wait` });
           return { ...result, attempted, fallbackUsed: isPrimaryFamily(id) ? null : id };
         } catch (err2: any) {
           const elapsed2 = Date.now() - t1;
-          const code2 = err2 instanceof TransientAIError ? err2.code : 'ERROR';
           const msg2 = err2 instanceof TransientAIError ? `${err2.code}: ${err2.message}` : String(err2?.message ?? err2);
+          // Record updated cooldown if the retry gave a fresher hint.
+          const retryAfter2 = err2 instanceof TransientAIError ? err2.retryAfterSeconds : undefined;
+          if (retryAfter2 && retryAfter2 > 0) markProviderCooldown(id, retryAfter2);
           console.log(`[AI][${reqId}] ✗ ${id} wait-retry failed in ${elapsed2}ms: ${msg2}`);
           attempted.push({ id, error: `${msg} | wait-retry: ${msg2}` });
           lastError = err2;
-          // Fall through to next provider — if same provider still rate-limited,
-          // the next one in the chain may use a different org (diversified below).
           continue;
         }
       }

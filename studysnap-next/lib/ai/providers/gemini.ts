@@ -10,6 +10,40 @@ import {
 } from '../schema';
 import { ProviderResult, TransientAIError } from '../types';
 
+/**
+ * Parse retry hint from a 429 response. Tries (in order):
+ *   1. Standard HTTP `Retry-After` header — integer seconds or HTTP-date.
+ *   2. Google's `RetryInfo` detail in the JSON body:
+ *      `{ error: { details: [{ "@type": "...RetryInfo", retryDelay: "60s" }] } }`
+ *
+ * Returns seconds to wait, or `undefined` if no hint was provided.
+ */
+async function parseGeminiRetryAfter(res: Response): Promise<number | undefined> {
+  const header = res.headers.get('retry-after');
+  if (header) {
+    const asNum = Number(header);
+    if (Number.isFinite(asNum) && asNum > 0) return Math.ceil(asNum);
+    const asDate = Date.parse(header);
+    if (Number.isFinite(asDate)) {
+      const diff = Math.ceil((asDate - Date.now()) / 1000);
+      if (diff > 0) return diff;
+    }
+  }
+  try {
+    const body = await res.clone().json();
+    const details: any[] = body?.error?.details ?? [];
+    const retryInfo = details.find((d) => typeof d?.['@type'] === 'string' && d['@type'].includes('RetryInfo'));
+    const delayStr = retryInfo?.retryDelay;
+    if (typeof delayStr === 'string') {
+      const m = delayStr.match(/^(\d+(?:\.\d+)?)s$/);
+      if (m) return Math.ceil(parseFloat(m[1]));
+    }
+  } catch {
+    // body may not be JSON — swallow
+  }
+  return undefined;
+}
+
 function toGeminiSchema(s: any): any {
   if (Array.isArray(s)) return s.map(toGeminiSchema);
   if (s && typeof s === 'object') {
@@ -63,7 +97,10 @@ export async function geminiProvider(
     body: JSON.stringify(body),
   });
 
-  if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `Gemini ${modelName} rate-limited`, 429);
+  if (res.status === 429) {
+    const retryAfterSeconds = await parseGeminiRetryAfter(res);
+    throw new TransientAIError('RATE_LIMIT', `Gemini ${modelName} rate-limited`, 429, retryAfterSeconds);
+  }
   if (res.status >= 500) throw new TransientAIError('UPSTREAM', `Gemini ${modelName} ${res.status}`, res.status);
   if (!res.ok) {
     const errText = await res.text().catch(() => '');

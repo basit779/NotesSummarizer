@@ -9,6 +9,21 @@ import {
 } from '../schema';
 import { ProviderResult, TransientAIError } from '../types';
 
+/** Parse the standard HTTP `Retry-After` header. Groq / OpenRouter / Mistral /
+ *  GitHub all set it on 429s. Returns seconds to wait, or undefined. */
+function parseRetryAfterHeader(res: Response): number | undefined {
+  const header = res.headers.get('retry-after');
+  if (!header) return undefined;
+  const asNum = Number(header);
+  if (Number.isFinite(asNum) && asNum > 0) return Math.ceil(asNum);
+  const asDate = Date.parse(header);
+  if (Number.isFinite(asDate)) {
+    const diff = Math.ceil((asDate - Date.now()) / 1000);
+    if (diff > 0) return diff;
+  }
+  return undefined;
+}
+
 export async function openaiCompat(args: {
   baseUrl: string;
   apiKey: string | undefined;
@@ -70,7 +85,7 @@ ${JSON.stringify(effectiveSchema)}`;
     body: JSON.stringify(body),
   });
 
-  if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `${displayName} rate-limited`, 429);
+  if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `${displayName} rate-limited`, 429, parseRetryAfterHeader(res));
   if (res.status >= 500) throw new TransientAIError('UPSTREAM', `${displayName} ${res.status}`, res.status);
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
