@@ -13,6 +13,7 @@ export type ProviderOutcome =
   | 'rate_limit'
   | 'bad_json'
   | 'bad_response'
+  | 'max_tokens'
   | 'upstream_error'
   | 'no_key'
   | 'transient_error'

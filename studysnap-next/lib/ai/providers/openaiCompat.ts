@@ -109,11 +109,18 @@ ${JSON.stringify(effectiveSchema)}`;
 
   const cleaned = content.trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
 
+  // OpenAI-compat finish_reason for truncation is 'length'.
+  const wasTruncated = finishReason === 'length';
+
   let parsed: unknown;
   try { parsed = JSON.parse(cleaned); } catch {
     const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw new TransientAIError('BAD_JSON', `${displayName} returned invalid JSON (finish=${finishReason})`);
+    if (!match) {
+      if (wasTruncated) throw new TransientAIError('MAX_TOKENS', `${displayName} output truncated (finish=length)`);
+      throw new TransientAIError('BAD_JSON', `${displayName} returned invalid JSON (finish=${finishReason})`);
+    }
     try { parsed = JSON.parse(match[0]); } catch {
+      if (wasTruncated) throw new TransientAIError('MAX_TOKENS', `${displayName} output truncated (finish=length)`);
       throw new TransientAIError('BAD_JSON', `${displayName} returned invalid JSON (finish=${finishReason})`);
     }
   }

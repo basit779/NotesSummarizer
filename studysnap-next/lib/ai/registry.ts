@@ -31,11 +31,11 @@ export interface ModelSpec {
  */
 const OUTPUT_CAPS: Record<string, number> = {
   // Groq 70B: max completion is 32K, but 12K TPM free tier is the binding
-  // constraint. With input budget dropped below to ~3.5K tokens + ~1.1K
-  // overhead, 6500 output still fits 12K TPM comfortably (3.5 + 6.5 + 1.1 ≈ 11.1K).
-  // Was 4096 — too tight for MEDIUM/LONG schemas; caused truncated JSON
-  // (5 cards / 3 MCQs) when Gemini fell to Llama on a 28-page doc.
-  'groq-llama-3.3-70b': 6500,
+  // constraint. Real overhead (schema JSON + system prompt + scaffolding) is
+  // larger than the original 1.1K estimate — observed 413s at 6500 output
+  // cap. Dropped to 5000: 3.5K input + 5.0K output + ~2.5K overhead = 11K,
+  // leaves slack inside the 12K TPM rolling window.
+  'groq-llama-3.3-70b': 5000,
   'groq-llama-3.1-8b': 2500,
   'openrouter-free': 4096,
   'mistral-small': 7500,
@@ -196,9 +196,14 @@ export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.5-flash',
   'gemini-2.0-flash',
   'gemini-2.5-flash-lite',
-  'groq-llama-3.3-70b',
-  'openrouter-free',
+  // Mirror the XL ordering: demote Groq 70B past Mistral + OpenRouter.
+  // Reason: Groq's 12K TPM cap 413s on realistic inputs (prompt + schema
+  // overhead inflates the "effective" input well past our truncation
+  // budget), so even for MEDIUM docs it's a weaker safety net than
+  // Mistral Small (500K TPM) or OpenRouter Free (generous TPM).
   'mistral-small',
+  'openrouter-free',
+  'groq-llama-3.3-70b',
   'groq-llama-3.1-8b',
 ];
 

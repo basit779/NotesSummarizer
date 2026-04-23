@@ -122,6 +122,13 @@ export async function geminiProvider(
 
   let parsed: unknown;
   try { parsed = JSON.parse(raw); } catch {
+    // Distinguish genuine JSON parse errors from truncation at the 8192
+    // output-token ceiling. MAX_TOKENS bubbles up as its own code so the
+    // fallback runner can skip minimal-retry (which never helps — the
+    // schema is what's too big, not the prompt).
+    if (finishReason === 'MAX_TOKENS') {
+      throw new TransientAIError('MAX_TOKENS', `Gemini ${modelName} output truncated at 8192 tokens (finish=MAX_TOKENS)`);
+    }
     throw new TransientAIError('BAD_JSON', `Gemini ${modelName} returned invalid JSON (finish=${finishReason})`);
   }
 

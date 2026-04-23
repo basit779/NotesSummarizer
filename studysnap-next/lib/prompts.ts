@@ -75,11 +75,11 @@ const TIER_COUNTS: Record<Tier, Counts> = {
  */
 export function selectTier(chars: number, pages: number | undefined): Tier {
   const p = pages ?? 0;
-  if (p >= 45 || chars >= 60000) return 'xl';
-  // 25-page threshold for LONG (was 30): 25-29 page docs were landing in
-  // MEDIUM tier, producing too few items for the source density. Dense
-  // slide decks at 25+ pages clearly deserve LONG counts.
-  if (p >= 25 || chars >= 40000) return 'long';
+  // XL threshold lowered from 45p/60k → 20p/20k. Reason: MEDIUM single-pass
+  // was hitting finish=MAX_TOKENS on 20+ page docs (output ≥ 8k tokens for
+  // rich content, but Gemini's 8192 completion cap truncates mid-JSON).
+  // 2-pass XL mode splits the schema so each pass fits comfortably.
+  if (p >= 20 || chars >= 20000) return 'xl';
   if (p >= 15 || chars >= 15000) return 'medium';
   if (p >= 8  || chars >= 5000)  return 'medium'; // slide decks at 8-14 pages still MEDIUM on page signal
   return 'short';

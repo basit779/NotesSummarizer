@@ -138,6 +138,7 @@ export async function runWithFallback(
         outcome: code === 'RATE_LIMIT' ? 'rate_limit'
           : code === 'BAD_JSON' ? 'bad_json'
           : code === 'BAD_RESPONSE' ? 'bad_response'
+          : code === 'MAX_TOKENS' ? 'max_tokens'
           : code === 'UPSTREAM' ? 'upstream_error'
           : code === 'NO_KEY' ? 'no_key'
           : 'transient_error',
@@ -145,18 +146,34 @@ export async function runWithFallback(
         errorCode: code,
       });
 
+      // MAX_TOKENS: model truncated output at the completion cap. Minimal-retry
+      // is useless here — the schema is what demands the output volume, not the
+      // prompt. Skip retry, advance to next provider immediately.
+      if (code === 'MAX_TOKENS') {
+        console.log(`[AI][${reqId}] ⏭ ${id} hit MAX_TOKENS — schema output exceeds 8k cap, advancing to next provider`);
+        attempted.push({ id, error: msg });
+        lastError = err;
+        continue;
+      }
+
       // RATE_LIMIT: use the upstream Retry-After hint to decide whether to
       // wait-and-retry or advance to the next provider. Old behavior was a
       // hardcoded 7s wait regardless of hint — that burned latency when the
       // real quota reset was 60s (so the retry failed anyway) and over-waited
       // when the reset was <7s.
       if (code === 'RATE_LIMIT') {
-        const retryAfter = err instanceof TransientAIError ? err.retryAfterSeconds : undefined;
+        const rawRetryAfter = err instanceof TransientAIError ? err.retryAfterSeconds : undefined;
+        // Google quirk: sometimes returns retry-after=0 when the real cause
+        // is a per-minute bucket that resets on minute boundary. Treat 0 as
+        // "unknown" so we apply the no-hint rules below.
+        const retryAfter = rawRetryAfter && rawRetryAfter > 0 ? rawRetryAfter : undefined;
         const isLastProvider = i === configured.length - 1;
 
         // Mark cooldown so subsequent requests in this same Node process skip
-        // this provider until its quota has refreshed.
-        if (retryAfter && retryAfter > 0) markProviderCooldown(id, retryAfter);
+        // this provider until its quota has refreshed. If hint was 0 or
+        // missing, assume a conservative 30s cooldown (minute-boundary reset).
+        const cooldownSec = retryAfter ?? 30;
+        markProviderCooldown(id, cooldownSec);
 
         // Decide: wait here, or advance to next provider?
         let waitMs: number | null = null;
