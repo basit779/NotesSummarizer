@@ -80,13 +80,18 @@ export async function geminiProvider(
     : opts.pass === 2 ? PASS2_SCHEMA
     : STUDY_MATERIAL_SCHEMA;
 
+  // Pass 2 only generates flashcards + MCQs + tips + connections — well
+  // under 4K tokens at the reduced XL counts. Capping at 4096 stops 2.5-flash
+  // from drifting into MAX_TOKENS truncation and cascading to flash-lite.
+  const maxOutputTokens = opts.pass === 2 ? 4096 : 8192;
+
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents: [{ role: 'user', parts: [{ text: userPromptText }] }],
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: toGeminiSchema(responseSchema),
-      maxOutputTokens: 8192,
+      maxOutputTokens,
       temperature: 0.4,
     },
   };

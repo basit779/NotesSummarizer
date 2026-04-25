@@ -89,6 +89,11 @@ const TIER_COUNTS: Record<Tier, Counts> = {
  */
 export function selectTier(chars: number, pages: number | undefined): Tier {
   const p = pages ?? 0;
+  // Sparse slide decks (high page count, very low char density) shouldn't
+  // trigger 2-pass XL — a 26-page deck with ~1700 chars is closer to a tight
+  // medium doc that just happens to span many slides. The 2-pass machinery
+  // adds latency + complexity for content that comfortably fits single-pass.
+  if (p >= 20 && chars < 5000) return 'medium';
   // XL threshold lowered from 45p/60k → 20p/20k. Reason: MEDIUM single-pass
   // was hitting finish=MAX_TOKENS on 20+ page docs (output ≥ 8k tokens for
   // rich content, but Gemini's 8192 completion cap truncates mid-JSON).

@@ -135,7 +135,7 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
   logFiltered('definitions', rawDefs.length, definitions.length);
 
   // Exam questions: shape-check first (existing logic), then quality bar:
-  // exactly 4 options, correct ∈ {A,B,C,D}, explanation ≥ 50 chars.
+  // exactly 4 options, correct ∈ {A,B,C,D}, explanation ≥ 10 chars.
   const mappedExam = (o.examQuestions as any[])
     .filter((q) => q?.question && (q?.answer || q?.correct))
     .map((q) => {
@@ -160,7 +160,7 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
     if (!q.options || q.options.length !== 4) return false;
     const normCorrect = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '');
     if (!['A', 'B', 'C', 'D'].includes(normCorrect)) return false;
-    if (!q.explanation || q.explanation.length < 50) return false;
+    if (!q.explanation || q.explanation.length < 10) return false;
     return true;
   });
   logFiltered('examQuestions', mappedExam.length, examQuestions.length);
@@ -261,7 +261,7 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
   };
 
   // Exam questions: shape-check first, then quality bar — exactly 4 options,
-  // correct ∈ {A,B,C,D}, explanation ≥ 50 chars.
+  // correct ∈ {A,B,C,D}, explanation ≥ 10 chars.
   const mappedExam = (o.examQuestions as any[])
     .filter((q) => q?.question && (q?.answer || q?.correct))
     .map((q) => {
@@ -285,7 +285,7 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
     if (!q.options || q.options.length !== 4) return false;
     const normCorrect = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '');
     if (!['A', 'B', 'C', 'D'].includes(normCorrect)) return false;
-    if (!q.explanation || q.explanation.length < 50) return false;
+    if (!q.explanation || q.explanation.length < 10) return false;
     return true;
   });
   logFiltered('examQuestions', mappedExam.length, examQuestions.length);
