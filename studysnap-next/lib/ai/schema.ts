@@ -96,7 +96,17 @@ export const PASS2_SCHEMA = {
   required: ['examQuestions', 'flashcards'],
 } as const;
 
-export function validateStudyMaterial(obj: unknown): StudyMaterial {
+/**
+ * Validate + apply a minimum quality bar to the model's output. Items that
+ * fail the bar are dropped silently (with a console.warn) rather than
+ * throwing — a sparse-but-clean pack beats a fail-and-fallback cascade
+ * that costs another provider call. Below-threshold counts also log but
+ * do NOT throw: degrade gracefully.
+ *
+ * `modelId` is optional and only used for log labelling so we can tell
+ * which provider produced low-quality output.
+ */
+export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMaterial {
   if (!obj || typeof obj !== 'object') throw new Error('Not an object');
   const o = obj as Record<string, unknown>;
   if (typeof o.summary !== 'string') throw new Error('summary missing');
@@ -104,32 +114,87 @@ export function validateStudyMaterial(obj: unknown): StudyMaterial {
   if (!Array.isArray(o.definitions)) throw new Error('definitions missing');
   if (!Array.isArray(o.examQuestions)) throw new Error('examQuestions missing');
   if (!Array.isArray(o.flashcards)) throw new Error('flashcards missing');
+
+  const modelLabel = modelId ? ` [${modelId}]` : '';
+  const logFiltered = (kind: string, original: number, kept: number) => {
+    if (kept !== original) {
+      // eslint-disable-next-line no-console
+      console.warn(`[schema]${modelLabel} ${kind}: ${kept}/${original} survived quality bar`);
+    }
+  };
+
+  // Definitions: term ≥ 2 chars, definition ≥ 20 chars.
+  const rawDefs = (o.definitions as any[]).filter((d) => d?.term && d?.definition);
+  const definitions = rawDefs.filter(
+    (d) =>
+      typeof d.term === 'string' &&
+      d.term.length >= 2 &&
+      typeof d.definition === 'string' &&
+      d.definition.length >= 20,
+  );
+  logFiltered('definitions', rawDefs.length, definitions.length);
+
+  // Exam questions: shape-check first (existing logic), then quality bar:
+  // exactly 4 options, correct ∈ {A,B,C,D}, explanation ≥ 50 chars.
+  const mappedExam = (o.examQuestions as any[])
+    .filter((q) => q?.question && (q?.answer || q?.correct))
+    .map((q) => {
+      const options = Array.isArray(q.options) ? q.options.filter((x: any) => typeof x === 'string') : undefined;
+      const correct = typeof q.correct === 'string' ? q.correct : undefined;
+      // Derive the plain answer text from options + correct letter if needed
+      let answer = typeof q.answer === 'string' ? q.answer : '';
+      if (!answer && options && correct) {
+        const idx = ['A', 'B', 'C', 'D'].indexOf(correct.toUpperCase().trim().replace(/[).]/g, ''));
+        if (idx >= 0 && options[idx]) answer = options[idx].replace(/^[A-D][).]\s*/i, '');
+      }
+      return {
+        question: q.question,
+        options,
+        correct,
+        explanation: typeof q.explanation === 'string' ? q.explanation : undefined,
+        answer,
+        difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
+      };
+    });
+  const examQuestions = mappedExam.filter((q) => {
+    if (!q.options || q.options.length !== 4) return false;
+    const normCorrect = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '');
+    if (!['A', 'B', 'C', 'D'].includes(normCorrect)) return false;
+    if (!q.explanation || q.explanation.length < 50) return false;
+    return true;
+  });
+  logFiltered('examQuestions', mappedExam.length, examQuestions.length);
+  if (examQuestions.length < 3) {
+    // eslint-disable-next-line no-console
+    console.warn(`[schema]${modelLabel} examQuestions: only ${examQuestions.length} after quality bar — pack will be sparse`);
+  }
+
+  // Flashcards: front ≥ 20, back ≥ 40, and reject trivial "What is X?" /
+  // "X is Y" definition cards. The system prompt already bans these but
+  // we enforce it here as a backstop for non-Gemini providers without
+  // schema-side enforcement.
+  const rawCards = (o.flashcards as any[]).filter((f) => f?.front && f?.back);
+  const flashcards = rawCards.filter((f) => {
+    const front: string = typeof f.front === 'string' ? f.front : '';
+    const back: string = typeof f.back === 'string' ? f.back : '';
+    if (front.length < 20) return false;
+    if (back.length < 40) return false;
+    if (front.startsWith('What is ') && back.slice(0, 30).includes(' is ')) return false;
+    return true;
+  });
+  logFiltered('flashcards', rawCards.length, flashcards.length);
+  if (flashcards.length < 5) {
+    // eslint-disable-next-line no-console
+    console.warn(`[schema]${modelLabel} flashcards: only ${flashcards.length} after quality bar — pack will be sparse`);
+  }
+
   return {
     title: typeof o.title === 'string' ? o.title : undefined,
     summary: o.summary,
     keyPoints: (o.keyPoints as string[]).filter((x) => typeof x === 'string'),
-    definitions: (o.definitions as any[]).filter((d) => d?.term && d?.definition),
-    examQuestions: (o.examQuestions as any[])
-      .filter((q) => q?.question && (q?.answer || q?.correct))
-      .map((q) => {
-        const options = Array.isArray(q.options) ? q.options.filter((x: any) => typeof x === 'string') : undefined;
-        const correct = typeof q.correct === 'string' ? q.correct : undefined;
-        // Derive the plain answer text from options + correct letter if needed
-        let answer = typeof q.answer === 'string' ? q.answer : '';
-        if (!answer && options && correct) {
-          const idx = ['A', 'B', 'C', 'D'].indexOf(correct.toUpperCase().trim().replace(/[).]/g, ''));
-          if (idx >= 0 && options[idx]) answer = options[idx].replace(/^[A-D][).]\s*/i, '');
-        }
-        return {
-          question: q.question,
-          options,
-          correct,
-          explanation: typeof q.explanation === 'string' ? q.explanation : undefined,
-          answer,
-          difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
-        };
-      }),
-    flashcards: (o.flashcards as any[]).filter((f) => f?.front && f?.back),
+    definitions,
+    examQuestions,
+    flashcards,
     topicConnections: Array.isArray(o.topicConnections)
       ? (o.topicConnections as any[]).filter((x) => typeof x === 'string')
       : undefined,
