@@ -17,6 +17,12 @@ enum UsageAction {
   PROCESS
 }
 
+enum FileStatus {
+  PROCESSING
+  DONE
+  ERROR
+}
+
 model User {
   id               String         @id @default(cuid())
   email            String         @unique
@@ -57,6 +63,8 @@ model UploadedFile {
   pageCount      Int?
   contentHash    String?  // sha256 of uploaded bytes — used to dedup re-uploads of the same PDF and reuse cached ProcessingResult
   processingAt   DateTime? // set when /process starts; cleared on success/fail. Idempotency lock.
+  status         FileStatus @default(PROCESSING) // async pipeline state. PROCESSING set on POST, DONE/ERROR set by background worker.
+  errorMessage   String?  @db.Text // populated when status = ERROR. Null otherwise.
   createdAt      DateTime @default(now())
 
   result         ProcessingResult?

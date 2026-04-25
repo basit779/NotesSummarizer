@@ -18,6 +18,29 @@ type Stage = 'idle' | 'uploading' | 'processing';
 
 const MAX_FILES = 3;
 
+/** Poll cadence + timeout. 3s × 60 = 3 min hard ceiling — generous against
+ *  the 60s function cap + ~20s of pre-flight, with headroom for cold starts.
+ *  After this, we surface an error rather than spinning forever. */
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_ATTEMPTS = 60;
+
+async function pollUntilDone(fileId: string): Promise<{ id: string }> {
+  for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    const res = await api.get(`/process/${fileId}/status`);
+    if (res.status === 'done') return res.result;
+    if (res.status === 'error') {
+      const err: any = new Error(res.errorMessage || 'Generation failed');
+      err.code = 'PROCESS_FAILED';
+      throw err;
+    }
+    // status === 'processing' — keep polling
+  }
+  const timeoutErr: any = new Error('Generation took too long. Try again with a smaller document.');
+  timeoutErr.code = 'POLL_TIMEOUT';
+  throw timeoutErr;
+}
+
 const BENEFITS = [
   { icon: Brain,    label: 'Structured notes', hint: 'Markdown with headings, bullets, examples.' },
   { icon: Sparkles, label: 'Flashcards',       hint: '22–40 cards. CSV export on Pro.' },
@@ -85,17 +108,15 @@ function UploadInner() {
         setStage('processing');
         toast.info(files.length > 1 ? `Analyzing ${files.length} PDFs — ~20-40s` : 'Analyzing with AI — ~15-30s');
       }
-      const processed = await api.post(`/process/${uploaded.file.id}`, {});
-      if (processed.chunks && processed.chunks > 1) {
-        toast.info(`Big document — processed in ${processed.chunks} parallel chunks for full coverage.`);
-      } else if (processed.truncated) {
-        toast.info('Large PDF detected — we analyzed the key sections for best coverage.');
-      }
-      if (processed.degraded) {
-        toast.warning('Notes ready. Flashcards, quiz, study tips, and connections took too long — refresh to retry.', { duration: 8000 });
-      }
+      // Kick off processing — returns 202 immediately with status='processing',
+      // OR 200 with status='done' + result if it was a cache hit. The pipeline
+      // runs detached on the server via waitUntil; we poll for completion.
+      const kickoff = await api.post(`/process/${uploaded.file.id}`, {});
+      const result = kickoff.status === 'done'
+        ? kickoff.result
+        : await pollUntilDone(uploaded.file.id);
       toast.success('Study pack ready');
-      router.push(`/results/${processed.result.id}`);
+      router.push(`/results/${result.id}`);
     } catch (err: any) {
       const retryAfter = err?.details?.retryAfterSeconds as number | undefined;
       if (err?.code === 'FREE_LIMIT_REACHED') {
