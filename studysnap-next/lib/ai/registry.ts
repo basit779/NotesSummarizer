@@ -177,30 +177,33 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * Gemini-first stacking: 2.5-flash → 2.0-flash → 2.5-flash-lite share the
- * same GOOGLE_API_KEY but have INDEPENDENT per-model daily quotas, so when
- * one blows, the next still works. Only after all three Google variants
- * are exhausted do we drop to Groq (different quality profile).
+ * Goal: exhaust ALL Google free-tier options before touching Mistral/Groq.
+ * Each Gemini variant has an INDEPENDENT per-model daily quota on the same
+ * GOOGLE_API_KEY, so chaining them stretches the free tier ~4x before any
+ * paid/non-Google provider gets called.
  *
- *   1. gemini-2.5-flash      — Best quality on free tier. ~250 RPD.
- *   2. gemini-2.0-flash      — Highest daily ceiling (~1500 RPD). Reliable safety net.
+ * Add GOOGLE_API_KEY_2 to .env and register a second Google provider
+ * instance to extend free quota before Mistral fallback. (Current code
+ * uses a single env.googleApiKey; multi-key support would require env.ts
+ * exposing a second key, a Gemini provider variant accepting an explicit
+ * key, and a new ModelId entry — kept out of scope here.)
+ *
+ *   1. gemini-2.0-flash      — Highest daily ceiling (~1500 RPD). Lead with bulk quota.
+ *   2. gemini-2.5-flash      — Best flash quality. ~250 RPD.
  *   3. gemini-2.5-flash-lite — Third Gemini bucket (~1000 RPD).
- *   4. groq-llama-3.3-70b    — Non-Google safety net. 30 RPM / 12k TPM.
- *   5. openrouter-free       — OpenRouter auto-router, different org from Groq.
- *   6. mistral-small         — Mistral. Final non-Google safety net.
- *   7. groq-llama-3.1-8b     — Only tried if nothing else is configured.
+ *   4. gemini-2.5-pro        — Final Google bucket. Tight free tier but still free.
+ *   5. mistral-small         — First non-Google fallback (500K TPM, 8K input budget).
+ *   6. openrouter-free       — OpenRouter auto-router, different org from Groq.
+ *   7. groq-llama-3.3-70b    — Non-Google safety net. 30 RPM / 12k TPM.
+ *   8. groq-llama-3.1-8b     — Last resort. Weakest model in the chain.
  *
  * github-gpt-4o-mini is excluded: its 8k TOTAL context cap 413s on realistic inputs.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
-  // Mirror the XL ordering: demote Groq 70B past Mistral + OpenRouter.
-  // Reason: Groq's 12K TPM cap 413s on realistic inputs (prompt + schema
-  // overhead inflates the "effective" input well past our truncation
-  // budget), so even for MEDIUM docs it's a weaker safety net than
-  // Mistral Small (500K TPM) or OpenRouter Free (generous TPM).
+  'gemini-2.5-pro',
   'mistral-small',
   'openrouter-free',
   'groq-llama-3.3-70b',
@@ -208,18 +211,18 @@ export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
 ];
 
 /**
- * XL fallback order — Groq 70B demoted to 4th because its free-tier TPM
- * (12K/min rolling, enforced per-request) caps single-call input at ~6K
- * tokens = ~24K chars = 45% of a typical XL doc. Mistral (500K TPM, 8K
- * input budget = 32K chars = 60% coverage) and OpenRouter Free auto-router
- * (generous TPM, 10K budget = 40K chars = 75% coverage) serve XL
- * fallback meaningfully better than Groq single-call. Gemini still
- * primary; Groq still before GitHub-gated providers as a safety net.
+ * XL fallback order — same shape as DEFAULT. Exhaust all Google variants
+ * first, then Mistral (500K TPM, 8K input budget = 32K chars = 60% XL
+ * coverage), then OpenRouter Free (generous TPM, 10K budget = 75%), then
+ * Groq 70B (12K TPM rolling caps single-call input at ~24K chars = 45%
+ * coverage on XL — weakest non-Google option). Groq 8B last as final
+ * safety net.
  */
 const XL_FALLBACK_ORDER: ModelId[] = [
-  'gemini-2.5-flash',
   'gemini-2.0-flash',
+  'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
+  'gemini-2.5-pro',
   'mistral-small',
   'openrouter-free',
   'groq-llama-3.3-70b',
