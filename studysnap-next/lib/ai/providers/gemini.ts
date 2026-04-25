@@ -132,8 +132,8 @@ export async function geminiProvider(
     throw new TransientAIError('BAD_JSON', `Gemini ${modelName} returned invalid JSON (finish=${finishReason})`);
   }
 
-  const material = opts.pass === 1 ? validatePass1(parsed)
-    : opts.pass === 2 ? validatePass2(parsed)
-    : validateStudyMaterial(parsed);
+  const material = opts.pass === 1 ? validatePass1(parsed, modelName)
+    : opts.pass === 2 ? validatePass2(parsed, modelName)
+    : validateStudyMaterial(parsed, modelName);
   return { material, model: modelName, tokensUsed: promptTok + completionTok };
 }

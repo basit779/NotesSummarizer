@@ -125,8 +125,8 @@ ${JSON.stringify(effectiveSchema)}`;
     }
   }
 
-  const material = pass === 1 ? validatePass1(parsed)
-    : pass === 2 ? validatePass2(parsed)
-    : validateStudyMaterial(parsed);
+  const material = pass === 1 ? validatePass1(parsed, displayName)
+    : pass === 2 ? validatePass2(parsed, displayName)
+    : validateStudyMaterial(parsed, displayName);
   return { material, model: modelName, tokensUsed: promptTok + completionTok };
 }
