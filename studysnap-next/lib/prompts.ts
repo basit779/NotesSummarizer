@@ -171,15 +171,15 @@ interface Pass2Counts {
   connections: string;
 }
 const XL_PASS1_COUNTS: Pass1Counts = {
-  summaryWords: '400-600',
-  key: '22-26',
-  defs: '20-24',
+  summaryWords: '300-450',
+  key: '16-20',
+  defs: '14-17',
 };
 const XL_PASS2_COUNTS: Pass2Counts = {
-  cards: '32-38',
-  exam: '16-20',
-  tips: '4-6',
-  connections: '4-6',
+  cards: '20-24',
+  exam: '10-12',
+  tips: '3-4',
+  connections: '3-4',
 };
 
 function scalePass1(c: Pass1Counts, factor: number): Pass1Counts {

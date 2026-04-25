@@ -42,7 +42,7 @@ export interface TwoPassResult extends ProviderResult {
   fallbackUsed: string | null;
 }
 
-const PASS2_TIMEOUT_MS = 40_000;
+const PASS2_TIMEOUT_MS = 55_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
