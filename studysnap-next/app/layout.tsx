@@ -7,6 +7,7 @@ import { GridBackground } from '@/components/fx/GridBackground';
 import { AuthInit } from '@/components/AuthInit';
 import { KeepAlive } from '@/components/KeepAlive';
 import { RouteProgress } from '@/components/RouteProgress';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 const OG_TITLE = 'StudySnap — AI study packs from any PDF';
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }}
           />
         </div>
+        <SpeedInsights />
       </body>
     </html>
   );
