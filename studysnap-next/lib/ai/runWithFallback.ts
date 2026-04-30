@@ -16,8 +16,16 @@ import { selectTier } from '../prompts';
  *  there's no duplicate retry. */
 const MAX_ATTEMPTS = 8;
 
-/** Error codes caused by prompt producing too much output — retry same provider with smaller prompt. */
-const BAD_OUTPUT_CODES = new Set(['BAD_JSON', 'BAD_RESPONSE']);
+/** Error codes recoverable by retrying the same provider with `minimal=true`,
+ *  which scales the prompt's requested item counts by ~0.7. Smaller counts =
+ *  smaller output = fits the 8K completion cap, parses cleanly, and stays
+ *  within rolling TPM budgets.
+ *
+ *  MAX_TOKENS is included: counter-intuitive at first (the schema is the
+ *  schema), but the prompt's COUNTS field is what tells the model how many
+ *  flashcards/MCQs to generate. Reducing counts directly cuts output volume
+ *  and is exactly the right recovery for an 8K-cap truncation. */
+const BAD_OUTPUT_CODES = new Set(['BAD_JSON', 'BAD_RESPONSE', 'MAX_TOKENS']);
 
 /** Cap on how long we'll wait before retrying the same provider after a 429.
  *  Longer waits eat into the 60s route budget and we'd rather advance to the
@@ -151,16 +159,6 @@ export async function runWithFallback(
         elapsedMs: elapsed,
         errorCode: code,
       });
-
-      // MAX_TOKENS: model truncated output at the completion cap. Minimal-retry
-      // is useless here — the schema is what demands the output volume, not the
-      // prompt. Skip retry, advance to next provider immediately.
-      if (code === 'MAX_TOKENS') {
-        console.log(`[AI][${reqId}] ⏭ ${id} hit MAX_TOKENS — schema output exceeds 8k cap, advancing to next provider`);
-        attempted.push({ id, error: msg });
-        lastError = err;
-        continue;
-      }
 
       // RATE_LIMIT: use the upstream Retry-After hint to decide whether to
       // wait-and-retry or advance to the next provider. Old behavior was a
