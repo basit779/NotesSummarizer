@@ -18,6 +18,18 @@ type Stage = 'idle' | 'uploading' | 'processing';
 
 const MAX_FILES = 1;
 
+/** Map a File's extension to a display label. Used so loading copy reads
+ *  "Reading your DOCX" instead of always "Reading your PDF". */
+function fileTypeLabel(file: File | undefined): string {
+  if (!file) return 'document';
+  const lower = file.name.toLowerCase();
+  if (lower.endsWith('.pdf')) return 'PDF';
+  if (lower.endsWith('.docx')) return 'DOCX';
+  if (lower.endsWith('.pptx')) return 'PPTX';
+  if (lower.endsWith('.xlsx')) return 'XLSX';
+  return 'document';
+}
+
 /** Poll cadence + timeout. 3s × 60 = 3 min hard ceiling — generous against
  *  the 60s function cap + ~20s of pre-flight, with headroom for cold starts.
  *  After this, we surface an error rather than spinning forever. */
@@ -161,7 +173,7 @@ function UploadInner() {
         </BlurFade>
         <BlurFade delay={0.08}>
           <h1 className="mt-4 text-[36px] md:text-[46px] leading-[1.02] font-semibold tracking-[-0.025em] text-white">
-            Drop PDFs.
+            Drop a file.
             <span className="block text-white/35">Get notes.</span>
           </h1>
         </BlurFade>
@@ -328,7 +340,7 @@ function UploadInner() {
               : stage === 'idle'
                 ? (files.length === 0
                   ? <>Generate study pack <ArrowRight className="h-4 w-4" /></>
-                  : <>Generate from {files.length} PDF{files.length > 1 ? 's' : ''} <ArrowRight className="h-4 w-4" /></>)
+                  : <>Generate from {fileTypeLabel(files[0])} <ArrowRight className="h-4 w-4" /></>)
                 : stage === 'uploading'
                   ? <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
                   : <><Loader2 className="h-4 w-4 animate-spin" /> Analyzing with AI…</>}
@@ -348,7 +360,7 @@ function UploadInner() {
               <div className="flex items-center justify-between mono text-[10.5px] text-white/55 tracking-[0.16em] uppercase">
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-3 w-3 text-mint-400" />
-                  <span>{files.length > 1 ? `// Reading ${files.length} PDFs in parallel` : '// Reading your PDF'}</span>
+                  <span>{`// Reading your ${fileTypeLabel(files[0])}`}</span>
                 </div>
                 <span className="text-white/30 tracking-[0.1em]">~15–40s</span>
               </div>
