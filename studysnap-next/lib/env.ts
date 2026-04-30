@@ -80,7 +80,7 @@ export const env = {
   stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
   stripePriceIdPro: process.env.STRIPE_PRICE_ID_PRO ?? '',
 
-  freeDailyUploadLimit: Number(process.env.FREE_DAILY_UPLOAD_LIMIT ?? 10),
+  freeDailyUploadLimit: Number(process.env.FREE_DAILY_UPLOAD_LIMIT ?? 5),
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB ?? 15),
 
   // Allowlist of emails that may bypass PdfCache / user-dedup on upload by
