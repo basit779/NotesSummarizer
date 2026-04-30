@@ -8,6 +8,7 @@ import {
   validatePass2,
 } from '../schema';
 import { ProviderResult, TransientAIError } from '../types';
+import { isInputTooLargeBody } from '../errorClassify';
 
 /** Parse the standard HTTP `Retry-After` header. Groq / OpenRouter / Mistral /
  *  GitHub all set it on 429s. Returns seconds to wait, or undefined. */
@@ -89,6 +90,11 @@ ${JSON.stringify(effectiveSchema)}`;
   if (res.status >= 500) throw new TransientAIError('UPSTREAM', `${displayName} ${res.status}`, res.status);
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
+    if (isInputTooLargeBody(errText)) {
+      // eslint-disable-next-line no-console
+      console.warn(`[AI][${displayName}] INPUT_TOO_LARGE — raw body: ${errText.slice(0, 500)}`);
+      throw new TransientAIError('INPUT_TOO_LARGE', `${displayName} rejected input as too large: ${errText.slice(0, 200)}`, res.status);
+    }
     throw new TransientAIError('ERROR', `${displayName} failed: ${res.status} ${errText.slice(0, 200)}`, res.status);
   }
 

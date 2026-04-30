@@ -280,6 +280,22 @@ export async function runWithFallback(
     );
   }
 
+  // If every provider rejected the input as too large, no amount of fallback
+  // will help — surface a clear "doc too long" error to the user instead of
+  // a generic "all providers failed".
+  const anyInputTooLarge = attempted.some((a) => a.error?.includes('INPUT_TOO_LARGE'));
+  const allInputTooLarge = anyInputTooLarge && attempted.every((a) => {
+    if (!a.error) return false;
+    return a.error.includes('INPUT_TOO_LARGE');
+  });
+  if (allInputTooLarge) {
+    throw new HttpError(
+      413,
+      'DOC_TOO_LARGE',
+      'This document is too long for our free-tier AI providers to process. Try a shorter document or split it into sections.',
+    );
+  }
+
   throw new HttpError(
     502,
     'ALL_PROVIDERS_FAILED',

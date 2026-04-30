@@ -9,6 +9,7 @@ import {
   validatePass2,
 } from '../schema';
 import { ProviderResult, TransientAIError } from '../types';
+import { isInputTooLargeBody } from '../errorClassify';
 
 /**
  * Parse retry hint from a 429 response. Tries (in order):
@@ -109,6 +110,13 @@ export async function geminiProvider(
   if (res.status >= 500) throw new TransientAIError('UPSTREAM', `Gemini ${modelName} ${res.status}`, res.status);
   if (!res.ok) {
     const errText = await res.text().catch(() => '');
+    if (isInputTooLargeBody(errText)) {
+      // Log the RAW body so we can see if a provider's wording drifts (the
+      // matcher in errorClassify.ts is substring-based and may need updating).
+      // eslint-disable-next-line no-console
+      console.warn(`[AI][gemini] ${modelName} INPUT_TOO_LARGE — raw body: ${errText.slice(0, 500)}`);
+      throw new TransientAIError('INPUT_TOO_LARGE', `Gemini ${modelName} rejected input as too large: ${errText.slice(0, 200)}`, res.status);
+    }
     throw new TransientAIError('ERROR', `Gemini ${modelName} failed: ${res.status} ${errText.slice(0, 200)}`, res.status);
   }
 
