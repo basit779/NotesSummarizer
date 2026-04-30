@@ -16,7 +16,7 @@ import { MouseGlow } from '@/components/ui/MouseGlow';
 
 type Stage = 'idle' | 'uploading' | 'processing';
 
-const MAX_FILES = 3;
+const MAX_FILES = 1;
 
 /** Poll cadence + timeout. 3s × 60 = 3 min hard ceiling — generous against
  *  the 60s function cap + ~20s of pre-flight, with headroom for cold starts.
@@ -162,7 +162,7 @@ function UploadInner() {
         </BlurFade>
         <BlurFade delay={0.16}>
           <p className="mt-4 text-[14.5px] text-white/55 leading-relaxed max-w-md">
-            Up to {MAX_FILES} PDFs per pack · structured notes, flashcards, quiz, chat tutor.
+            1 PDF at a time · structured notes, flashcards, quiz, chat tutor.
           </p>
         </BlurFade>
       </div>
@@ -239,14 +239,10 @@ function UploadInner() {
                 <h3 className="text-[15px] font-medium text-white">
                   {isDragActive
                     ? 'Release to upload'
-                    : files.length === 0
-                      ? 'Drop PDFs here, or click to browse'
-                      : 'Add another PDF'}
+                    : 'Drop a PDF here, or click to browse'}
                 </h3>
                 <p className="mono text-[10.5px] text-white/40 tracking-[0.18em] uppercase">
-                  {files.length === 0
-                    ? `PDF · max 15 MB · up to ${MAX_FILES}`
-                    : `${files.length}/${MAX_FILES} · mixed into one pack`}
+                  PDF · max 15 MB
                 </p>
               </div>
             </div>

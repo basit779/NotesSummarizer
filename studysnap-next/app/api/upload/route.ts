@@ -16,7 +16,7 @@ export const maxDuration = 60;
 const UPLOAD_COOLDOWN_SECONDS = 15;
 /** Legacy pending-upload window — if a recent upload has no result yet, surface its id. */
 const PENDING_COOLDOWN_MS = 30_000;
-const MAX_FILES = 3;
+const MAX_FILES = 1;
 
 /**
  * Upload route — accepts 1-3 PDFs. Single-file: stored as raw PDF bytes
@@ -66,7 +66,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     throw new HttpError(400, 'NO_FILE', 'No file uploaded');
   }
   if (rawFiles.length > MAX_FILES) {
-    throw new HttpError(400, 'TOO_MANY_FILES', `Max ${MAX_FILES} PDFs per upload`);
+    throw new HttpError(400, 'TOO_MANY_FILES', 'Only 1 PDF per upload');
   }
 
   // Validate each file
