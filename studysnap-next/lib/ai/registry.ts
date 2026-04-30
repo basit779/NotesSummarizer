@@ -179,8 +179,13 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  *
  * Goal: exhaust ALL Google free-tier options before touching Mistral/Groq.
  * Each Gemini variant has an INDEPENDENT per-model daily quota on the same
- * GOOGLE_API_KEY, so chaining them stretches the free tier ~4x before any
+ * GOOGLE_API_KEY, so chaining them stretches the free tier ~3x before any
  * paid/non-Google provider gets called.
+ *
+ * gemini-2.5-pro was REMOVED: free-tier limit is ~5 RPM / 25 RPD, so the
+ * slot was almost always burnt 429 on first hit, wasting one of MAX_ATTEMPTS.
+ * It's still configured in MODEL_REGISTRY so Pro-plan users can preferred-
+ * select it; just not in the default chain anymore.
  *
  * Add GOOGLE_API_KEY_2 to .env and register a second Google provider
  * instance to extend free quota before Mistral fallback. (Current code
@@ -191,11 +196,10 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  *   1. gemini-2.0-flash      — Highest daily ceiling (~1500 RPD). Lead with bulk quota.
  *   2. gemini-2.5-flash      — Best flash quality. ~250 RPD.
  *   3. gemini-2.5-flash-lite — Third Gemini bucket (~1000 RPD).
- *   4. gemini-2.5-pro        — Final Google bucket. Tight free tier but still free.
- *   5. mistral-small         — First non-Google fallback (500K TPM, 8K input budget).
- *   6. openrouter-free       — OpenRouter auto-router, different org from Groq.
- *   7. groq-llama-3.3-70b    — Non-Google safety net. 30 RPM / 12k TPM.
- *   8. groq-llama-3.1-8b     — Last resort. Weakest model in the chain.
+ *   4. mistral-small         — First non-Google fallback (500K TPM, 8K input budget).
+ *   5. openrouter-free       — OpenRouter auto-router, different org from Groq.
+ *   6. groq-llama-3.3-70b    — Non-Google safety net. 30 RPM / 12k TPM.
+ *   7. groq-llama-3.1-8b     — Last resort. Weakest model in the chain.
  *
  * github-gpt-4o-mini is excluded: its 8k TOTAL context cap 413s on realistic inputs.
  */
@@ -203,7 +207,6 @@ export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.0-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
-  'gemini-2.5-pro',
   'mistral-small',
   'openrouter-free',
   'groq-llama-3.3-70b',
@@ -222,7 +225,6 @@ const XL_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.0-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
-  'gemini-2.5-pro',
   'mistral-small',
   'openrouter-free',
   'groq-llama-3.3-70b',

@@ -4,11 +4,17 @@ import { HttpError } from '../httpError';
 import { logProviderEvent } from './telemetry';
 import { selectTier } from '../prompts';
 
-/** Hard cap on how many providers we try per request. Protects quotas.
- *  Bumped to 4 so the chain can burn through all three Gemini variants
- *  (2.5-flash → 2.0-flash → 2.5-flash-lite) and still reach one non-Google
- *  safety net (Groq/OpenRouter/Mistral) when every Gemini quota is dry. */
-const MAX_ATTEMPTS = 4;
+/** Hard cap on how many providers we try per request. Protects quotas while
+ *  still letting the entire fallback chain run when every Gemini variant is
+ *  rate-limited.
+ *
+ *  Was 4, which capped attempts at the first 4 entries — exactly the Gemini
+ *  block — meaning Mistral/OpenRouter/Groq were configured but unreachable
+ *  when Google quotas were exhausted. Bumped to 8 so all configured non-Google
+ *  fallbacks actually fire. The slice in `configured` operates on a unique
+ *  chain, so MAX_ATTEMPTS=8 against a 7-provider chain just runs all 7 once;
+ *  there's no duplicate retry. */
+const MAX_ATTEMPTS = 8;
 
 /** Error codes caused by prompt producing too much output — retry same provider with smaller prompt. */
 const BAD_OUTPUT_CODES = new Set(['BAD_JSON', 'BAD_RESPONSE']);
