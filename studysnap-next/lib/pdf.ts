@@ -1,13 +1,15 @@
 import pdfParse from 'pdf-parse';
 import mammoth from 'mammoth';
 import JSZip from 'jszip';
+import * as XLSX from 'xlsx';
 
 export const PDF_MIME = 'application/pdf';
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
 /** MIME types the upload + process pipeline can extract text from. */
-export const SUPPORTED_MIMES: ReadonlySet<string> = new Set([PDF_MIME, DOCX_MIME, PPTX_MIME]);
+export const SUPPORTED_MIMES: ReadonlySet<string> = new Set([PDF_MIME, DOCX_MIME, PPTX_MIME, XLSX_MIME]);
 
 /** Filename → MIME fallback for browsers that send blob.type empty. */
 export function inferMimeFromFilename(name: string): string {
@@ -15,6 +17,7 @@ export function inferMimeFromFilename(name: string): string {
   if (lower.endsWith('.pdf')) return PDF_MIME;
   if (lower.endsWith('.docx')) return DOCX_MIME;
   if (lower.endsWith('.pptx')) return PPTX_MIME;
+  if (lower.endsWith('.xlsx')) return XLSX_MIME;
   return '';
 }
 
@@ -80,6 +83,21 @@ async function extractTextFromPptxBuffer(buffer: Buffer): Promise<{ text: string
   return { text: clean(slides.join('\n\n')), pages: slideEntries.length };
 }
 
+/** XLSX → CSV-per-sheet, joined with sheet-name headers so the AI pipeline
+ *  knows where one sheet ends and the next begins. `pages` is 0 (sheets
+ *  aren't pages) and the tier selector keys off chars alone. */
+async function extractTextFromXlsxBuffer(buffer: Buffer): Promise<{ text: string; pages: number }> {
+  const wb = XLSX.read(buffer, { type: 'buffer' });
+  const parts: string[] = [];
+  for (const sheetName of wb.SheetNames) {
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) continue;
+    const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false }).trim();
+    if (csv) parts.push(`# Sheet: ${sheetName}\n\n${csv}`);
+  }
+  return { text: clean(parts.join('\n\n---\n\n')), pages: 0 };
+}
+
 /** Format-routing extractor. Throws on unsupported MIME. */
 export async function extractTextFromBuffer(
   buffer: Buffer,
@@ -88,5 +106,6 @@ export async function extractTextFromBuffer(
   if (mimeType === PDF_MIME) return extractTextFromPdfBuffer(buffer);
   if (mimeType === DOCX_MIME) return extractTextFromDocxBuffer(buffer);
   if (mimeType === PPTX_MIME) return extractTextFromPptxBuffer(buffer);
+  if (mimeType === XLSX_MIME) return extractTextFromXlsxBuffer(buffer);
   throw new Error(`Unsupported file type: ${mimeType || 'unknown'}`);
 }

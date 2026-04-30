@@ -77,7 +77,7 @@ export const POST = withErrorHandling(async (req: Request) => {
     const name = (blob as { name?: string }).name ?? 'upload';
     const mime = blob.type || inferMimeFromFilename(name);
     if (!SUPPORTED_MIMES.has(mime)) {
-      throw new HttpError(400, 'BAD_MIME', `${name}: only PDF, DOCX, and PPTX files are supported`);
+      throw new HttpError(400, 'BAD_MIME', `${name}: only PDF, DOCX, PPTX, and XLSX files are supported`);
     }
     if (blob.size > env.maxUploadMb * 1024 * 1024) {
       throw new HttpError(413, 'TOO_LARGE', `${name}: file exceeds ${env.maxUploadMb}MB limit`);
