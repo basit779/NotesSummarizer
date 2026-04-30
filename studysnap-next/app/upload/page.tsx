@@ -58,6 +58,7 @@ function UploadInner() {
     accept: {
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
     },
     maxFiles: MAX_FILES,
     maxSize: 15 * 1024 * 1024,
@@ -165,7 +166,7 @@ function UploadInner() {
         </BlurFade>
         <BlurFade delay={0.16}>
           <p className="mt-4 text-[14.5px] text-white/55 leading-relaxed max-w-md">
-            PDF or DOCX · 1 file at a time · structured notes, flashcards, quiz, chat tutor.
+            PDF, DOCX, or PPTX · 1 file at a time · structured notes, flashcards, quiz, chat tutor.
           </p>
         </BlurFade>
       </div>
@@ -242,10 +243,10 @@ function UploadInner() {
                 <h3 className="text-[15px] font-medium text-white">
                   {isDragActive
                     ? 'Release to upload'
-                    : 'Drop a PDF or DOCX here, or click to browse'}
+                    : 'Drop a PDF, DOCX, or PPTX here, or click to browse'}
                 </h3>
                 <p className="mono text-[10.5px] text-white/40 tracking-[0.18em] uppercase">
-                  PDF or DOCX · max 15 MB
+                  PDF, DOCX, PPTX · max 15 MB
                 </p>
               </div>
             </div>
