@@ -114,10 +114,22 @@ export async function runWithFallback(
   const attempted: { id: ModelId; error?: string }[] = [];
   let lastError: Error | undefined;
   let rateLimitedCount = 0;
+  // Tracks whether the immediately-prior attempt 429'd. When true we add a
+  // small jittered sleep before the next attempt so we don't hammer a chain
+  // of providers in <1s when the first one fast-fails. Skipped for slow
+  // failures (BAD_JSON / MAX_TOKENS) where the cycle is already 5-40s long.
+  let prevWasRateLimit = false;
 
   for (let i = 0; i < configured.length; i++) {
     const id = configured[i];
     const spec = MODEL_REGISTRY[id];
+
+    if (i > 0 && prevWasRateLimit) {
+      const jitterMs = 200 + Math.floor(Math.random() * 200);
+      console.log(`[AI][${reqId}] ⏳ jitter ${jitterMs}ms before attempt ${i + 1} (prev was rate-limit)`);
+      await sleep(jitterMs);
+    }
+    prevWasRateLimit = false;
 
     // Skip providers still in process-local cooldown from a recent 429.
     const cooling = getCooldownSecondsLeft(id);
@@ -145,6 +157,8 @@ export async function runWithFallback(
       }
       const code = err instanceof TransientAIError ? err.code : 'ERROR';
       const msg = err instanceof TransientAIError ? `${err.code}: ${err.message}` : String(err?.message ?? err);
+      // Set the jitter flag once here — covers every continue branch below.
+      prevWasRateLimit = code === 'RATE_LIMIT';
       console.log(`[AI][${reqId}] ✗ ${id} failed in ${elapsed}ms: ${msg}`);
       logProviderEvent({
         reqId,
