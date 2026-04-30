@@ -156,14 +156,37 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
         difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
       };
     });
+  // Diagnostic capture: record the FIRST MCQ that gets filtered + which check
+  // killed it. One sample is enough to diagnose systematic format mismatches
+  // (e.g. model returning correct="(A)" instead of "A") without log-spamming.
+  let firstMcqFilterReason: string | null = null;
   const examQuestions = mappedExam.filter((q) => {
-    if (!q.options || q.options.length !== 4) return false;
+    if (!q.options || q.options.length !== 4) {
+      if (!firstMcqFilterReason) {
+        firstMcqFilterReason = `options.length=${q.options?.length ?? 'missing'} (need 4) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 80), options: q.options }).slice(0, 240)}`;
+      }
+      return false;
+    }
     const normCorrect = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '');
-    if (!['A', 'B', 'C', 'D'].includes(normCorrect)) return false;
-    if (!q.explanation || q.explanation.length < 10) return false;
+    if (!['A', 'B', 'C', 'D'].includes(normCorrect)) {
+      if (!firstMcqFilterReason) {
+        firstMcqFilterReason = `correct=${JSON.stringify(q.correct)} normalized="${normCorrect}" (need A/B/C/D) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 60), correct: q.correct, options: q.options }).slice(0, 280)}`;
+      }
+      return false;
+    }
+    if (!q.explanation || q.explanation.length < 10) {
+      if (!firstMcqFilterReason) {
+        firstMcqFilterReason = `explanation.length=${q.explanation?.length ?? 0} (need ≥10) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 80), explanation: q.explanation }).slice(0, 240)}`;
+      }
+      return false;
+    }
     return true;
   });
   logFiltered('examQuestions', mappedExam.length, examQuestions.length);
+  if (firstMcqFilterReason) {
+    // eslint-disable-next-line no-console
+    console.warn(`[schema]${modelLabel} examQuestions first-filter: ${firstMcqFilterReason}`);
+  }
   if (examQuestions.length < 3) {
     // eslint-disable-next-line no-console
     console.warn(`[schema]${modelLabel} examQuestions: only ${examQuestions.length} after quality bar — pack will be sparse`);
@@ -173,16 +196,30 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
   // "X is Y" definition cards. The system prompt already bans these but
   // we enforce it here as a backstop for non-Gemini providers without
   // schema-side enforcement.
+  let firstCardFilterReason: string | null = null;
   const rawCards = (o.flashcards as any[]).filter((f) => f?.front && f?.back);
   const flashcards = rawCards.filter((f) => {
     const front: string = typeof f.front === 'string' ? f.front : '';
     const back: string = typeof f.back === 'string' ? f.back : '';
-    if (front.length < 20) return false;
-    if (back.length < 40) return false;
-    if (front.startsWith('What is ') && back.slice(0, 30).includes(' is ')) return false;
+    if (front.length < 20) {
+      if (!firstCardFilterReason) firstCardFilterReason = `front.length=${front.length} (need ≥20) | front="${front.slice(0, 80)}"`;
+      return false;
+    }
+    if (back.length < 40) {
+      if (!firstCardFilterReason) firstCardFilterReason = `back.length=${back.length} (need ≥40) | front="${front.slice(0, 60)}" back="${back.slice(0, 80)}"`;
+      return false;
+    }
+    if (front.startsWith('What is ') && back.slice(0, 30).includes(' is ')) {
+      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
+      return false;
+    }
     return true;
   });
   logFiltered('flashcards', rawCards.length, flashcards.length);
+  if (firstCardFilterReason) {
+    // eslint-disable-next-line no-console
+    console.warn(`[schema]${modelLabel} flashcards first-filter: ${firstCardFilterReason}`);
+  }
   if (flashcards.length < 5) {
     // eslint-disable-next-line no-console
     console.warn(`[schema]${modelLabel} flashcards: only ${flashcards.length} after quality bar — pack will be sparse`);
@@ -281,30 +318,65 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
         difficulty: ['easy', 'medium', 'hard'].includes(q.difficulty) ? q.difficulty : 'medium',
       };
     });
+  // Diagnostic capture (mirrors validateStudyMaterial — see comment there).
+  let firstMcqFilterReason: string | null = null;
   const examQuestions = mappedExam.filter((q) => {
-    if (!q.options || q.options.length !== 4) return false;
+    if (!q.options || q.options.length !== 4) {
+      if (!firstMcqFilterReason) {
+        firstMcqFilterReason = `options.length=${q.options?.length ?? 'missing'} (need 4) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 80), options: q.options }).slice(0, 240)}`;
+      }
+      return false;
+    }
     const normCorrect = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '');
-    if (!['A', 'B', 'C', 'D'].includes(normCorrect)) return false;
-    if (!q.explanation || q.explanation.length < 10) return false;
+    if (!['A', 'B', 'C', 'D'].includes(normCorrect)) {
+      if (!firstMcqFilterReason) {
+        firstMcqFilterReason = `correct=${JSON.stringify(q.correct)} normalized="${normCorrect}" (need A/B/C/D) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 60), correct: q.correct, options: q.options }).slice(0, 280)}`;
+      }
+      return false;
+    }
+    if (!q.explanation || q.explanation.length < 10) {
+      if (!firstMcqFilterReason) {
+        firstMcqFilterReason = `explanation.length=${q.explanation?.length ?? 0} (need ≥10) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 80), explanation: q.explanation }).slice(0, 240)}`;
+      }
+      return false;
+    }
     return true;
   });
   logFiltered('examQuestions', mappedExam.length, examQuestions.length);
+  if (firstMcqFilterReason) {
+    // eslint-disable-next-line no-console
+    console.warn(`[schema]${modelLabel} examQuestions first-filter: ${firstMcqFilterReason}`);
+  }
   if (examQuestions.length < 3) {
     // eslint-disable-next-line no-console
     console.warn(`[schema]${modelLabel} examQuestions: only ${examQuestions.length} after quality bar — pack will be sparse`);
   }
 
   // Flashcards: front ≥ 20, back ≥ 40, reject trivial "What is X?" / "X is Y" pairs.
+  let firstCardFilterReason: string | null = null;
   const rawCards = (o.flashcards as any[]).filter((f) => f?.front && f?.back);
   const flashcards = rawCards.filter((f) => {
     const front: string = typeof f.front === 'string' ? f.front : '';
     const back: string = typeof f.back === 'string' ? f.back : '';
-    if (front.length < 20) return false;
-    if (back.length < 40) return false;
-    if (front.startsWith('What is ') && back.slice(0, 30).includes(' is ')) return false;
+    if (front.length < 20) {
+      if (!firstCardFilterReason) firstCardFilterReason = `front.length=${front.length} (need ≥20) | front="${front.slice(0, 80)}"`;
+      return false;
+    }
+    if (back.length < 40) {
+      if (!firstCardFilterReason) firstCardFilterReason = `back.length=${back.length} (need ≥40) | front="${front.slice(0, 60)}" back="${back.slice(0, 80)}"`;
+      return false;
+    }
+    if (front.startsWith('What is ') && back.slice(0, 30).includes(' is ')) {
+      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
+      return false;
+    }
     return true;
   });
   logFiltered('flashcards', rawCards.length, flashcards.length);
+  if (firstCardFilterReason) {
+    // eslint-disable-next-line no-console
+    console.warn(`[schema]${modelLabel} flashcards first-filter: ${firstCardFilterReason}`);
+  }
   if (flashcards.length < 5) {
     // eslint-disable-next-line no-console
     console.warn(`[schema]${modelLabel} flashcards: only ${flashcards.length} after quality bar — pack will be sparse`);
