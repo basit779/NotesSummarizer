@@ -55,7 +55,10 @@ function UploadInner() {
   const cooldown = useCooldown();
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: { 'application/pdf': ['.pdf'] },
+    accept: {
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+    },
     maxFiles: MAX_FILES,
     maxSize: 15 * 1024 * 1024,
     onDrop: (accepted, rejected) => {
@@ -162,7 +165,7 @@ function UploadInner() {
         </BlurFade>
         <BlurFade delay={0.16}>
           <p className="mt-4 text-[14.5px] text-white/55 leading-relaxed max-w-md">
-            1 PDF at a time · structured notes, flashcards, quiz, chat tutor.
+            PDF or DOCX · 1 file at a time · structured notes, flashcards, quiz, chat tutor.
           </p>
         </BlurFade>
       </div>
@@ -239,10 +242,10 @@ function UploadInner() {
                 <h3 className="text-[15px] font-medium text-white">
                   {isDragActive
                     ? 'Release to upload'
-                    : 'Drop a PDF here, or click to browse'}
+                    : 'Drop a PDF or DOCX here, or click to browse'}
                 </h3>
                 <p className="mono text-[10.5px] text-white/40 tracking-[0.18em] uppercase">
-                  PDF · max 15 MB
+                  PDF or DOCX · max 15 MB
                 </p>
               </div>
             </div>

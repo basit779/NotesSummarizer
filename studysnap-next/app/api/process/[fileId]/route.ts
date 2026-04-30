@@ -4,7 +4,7 @@ import { waitUntil } from '@vercel/functions';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
-import { extractTextFromPdfBuffer } from '@/lib/pdf';
+import { extractTextFromBuffer } from '@/lib/pdf';
 import { analyzeText } from '@/lib/ai';
 import { MODEL_REGISTRY } from '@/lib/ai/registry';
 import type { ModelId } from '@/lib/ai/types';
@@ -93,7 +93,8 @@ async function runPipeline(
 
     if (file.storagePath.startsWith('mem:base64:')) {
       const buffer = Buffer.from(file.storagePath.slice('mem:base64:'.length), 'base64');
-      const extracted = await extractTextFromPdfBuffer(buffer);
+      // Dispatch on the persisted MIME type. Today: PDF + DOCX.
+      const extracted = await extractTextFromBuffer(buffer, file.mimeType);
       text = extracted.text;
       pages = extracted.pages;
     } else if (file.storagePath.startsWith('mem:text:')) {

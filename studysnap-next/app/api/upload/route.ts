@@ -5,7 +5,7 @@ import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
 import { checkDailyLimit } from '@/lib/usage';
 import { env, isTestUser } from '@/lib/env';
-import { extractTextFromPdfBuffer } from '@/lib/pdf';
+import { extractTextFromPdfBuffer, SUPPORTED_MIMES, inferMimeFromFilename } from '@/lib/pdf';
 import { enforceUploadCooldown, MSG_LIMIT_REACHED } from '@/lib/rateLimit';
 import { lookupPdfCache } from '@/lib/ai/pdfCache';
 
@@ -69,20 +69,21 @@ export const POST = withErrorHandling(async (req: Request) => {
     throw new HttpError(400, 'TOO_MANY_FILES', 'Only 1 PDF per upload');
   }
 
-  // Validate each file
-  const files: { name: string; buffer: Buffer; sizeBytes: number }[] = [];
+  // Validate each file. Accept any SUPPORTED_MIMES; fall back to filename
+  // sniff when blob.type is empty (some browsers send empty MIME for DOCX).
+  const files: { name: string; buffer: Buffer; sizeBytes: number; mime: string }[] = [];
   let totalBytes = 0;
   for (const blob of rawFiles) {
-    const name = (blob as { name?: string }).name ?? 'upload.pdf';
-    const mime = blob.type || 'application/pdf';
-    if (mime !== 'application/pdf') {
-      throw new HttpError(400, 'BAD_MIME', `${name}: only PDF files are supported`);
+    const name = (blob as { name?: string }).name ?? 'upload';
+    const mime = blob.type || inferMimeFromFilename(name);
+    if (!SUPPORTED_MIMES.has(mime)) {
+      throw new HttpError(400, 'BAD_MIME', `${name}: only PDF and DOCX files are supported`);
     }
     if (blob.size > env.maxUploadMb * 1024 * 1024) {
       throw new HttpError(413, 'TOO_LARGE', `${name}: file exceeds ${env.maxUploadMb}MB limit`);
     }
     const buffer = Buffer.from(await blob.arrayBuffer());
-    files.push({ name, buffer, sizeBytes: blob.size });
+    files.push({ name, buffer, sizeBytes: blob.size, mime });
     totalBytes += blob.size;
   }
 
@@ -130,7 +131,7 @@ export const POST = withErrorHandling(async (req: Request) => {
           filename: combinedFilename,
           storagePath: 'consumed',
           sizeBytes: totalBytes,
-          mimeType: 'application/pdf',
+          mimeType: files[0].mime,
           contentHash,
           pageCount: cacheHit.pageCount,
         },
@@ -216,7 +217,7 @@ export const POST = withErrorHandling(async (req: Request) => {
       filename: combinedFilename,
       storagePath,
       sizeBytes: totalBytes,
-      mimeType: 'application/pdf',
+      mimeType: files[0].mime,
       contentHash,
       pageCount: totalPages > 0 ? totalPages : null,
     },
