@@ -102,11 +102,28 @@ export async function geminiProvider(
     },
   };
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  // 25s client-side timeout — tighter than openaiCompat's 35s because Gemini
+  // is chain position 1 and a hung Gemini blocks DeepSeek's full 30s window
+  // under Vercel's 60s ceiling. Cascade math:
+  //   Gemini hangs (25s abort) + DeepSeek runs (~30s) = 55s, fits.
+  //   Gemini @ 35s + DeepSeek 30s = 65s, blows the ceiling.
+  // Same AbortSignal.timeout pattern as openaiCompat (Node 18.17+ native
+  // timer — undici handles connect-phase / awaiting-headers hangs reliably,
+  // unlike the AbortController + setTimeout combo).
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(25_000),
+    });
+  } catch (err: any) {
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+      throw new TransientAIError('PROVIDER_TIMEOUT', `Gemini ${modelName} did not respond within 25s`);
+    }
+    throw err;
+  }
 
   if (res.status === 429) {
     const retryAfterSeconds = await parseGeminiRetryAfter(res);
