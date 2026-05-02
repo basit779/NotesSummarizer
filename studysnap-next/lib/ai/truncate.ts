@@ -40,6 +40,10 @@ const TOKEN_BUDGETS: Record<string, TierBudget> = {
   'mistral-small':       { short:  8_000, medium:  8_000, long:  8_000, xl:  8_000 },
   'github-gpt-4o-mini':  { short:  3_000, medium:  3_000, long:  3_000, xl:  3_000 },
   'github-llama-3.3-70b':{ short:  7_000, medium:  7_000, long:  7_000, xl:  7_000 },
+  // DeepSeek V4-Flash has a 1M-token context window. 50K tokens (~200K chars)
+  // input budget is well under the ceiling and easily handles a full XL chunk
+  // (~100K chars from analyzeChunked) plus prompt + schema overhead.
+  'deepseek-v4-flash':   { short: 50_000, medium: 50_000, long: 50_000, xl: 50_000 },
 };
 
 const DEFAULT_TOKENS: TierBudget = { short: 8_000, medium: 8_000, long: 8_000, xl: 8_000 };

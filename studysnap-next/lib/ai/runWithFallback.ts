@@ -47,11 +47,15 @@ function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 /** Primary provider — the best-quality model we try first. */
 const PRIMARY_PROVIDER: ModelId = 'gemini-2.5-flash';
 
-/** Treat any Gemini variant as "not a fallback" — the "Fast mode" banner is
- *  meant to warn users about a quality drop (Gemini → Llama etc.), not about
- *  within-family switches between Gemini models. */
-function isPrimaryFamily(id: ModelId): boolean {
-  return id.startsWith('gemini-');
+/** Returns true when the winning provider IS the active chain's primary
+ *  (first provider we'd actually try after filtering for isConfigured). A
+ *  primary win reports `fallbackUsed: null`; anything else reports its ID so
+ *  the UI can show a "fallback used" / "Fast mode" indicator.
+ *
+ *  Used to be hardcoded to `id.startsWith('gemini-')` back when Gemini was
+ *  primary — now derived from the chain so it stays correct as chains evolve. */
+function isPrimary(id: ModelId, primaryId: ModelId | undefined): boolean {
+  return id === primaryId;
 }
 
 // ——————————————————————————————————————————————————————————————
@@ -159,7 +163,7 @@ export async function runWithFallback(
       console.log(`[AI][${reqId}] ✓ ${id} succeeded in ${elapsed}ms (${result.tokensUsed} tokens) — TOTAL API CALLS: ${i + 1}`);
       logProviderEvent({ reqId, providerId: id, outcome: 'success', elapsedMs: elapsed, tokensUsed: result.tokensUsed });
       attempted.push({ id });
-      return { ...result, attempted, fallbackUsed: isPrimaryFamily(id) ? null : id };
+      return { ...result, attempted, fallbackUsed: isPrimary(id, configured[0]) ? null : id };
     } catch (err: any) {
       const elapsed = Date.now() - t0;
       if (err instanceof PermanentAIError) {
@@ -249,7 +253,7 @@ export async function runWithFallback(
           console.log(`[AI][${reqId}] ✓ ${id} wait-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           providerCooldownUntil.delete(id);  // clear cooldown on success
           attempted.push({ id, error: `${msg} → recovered after ${waitMs}ms wait` });
-          return { ...result, attempted, fallbackUsed: isPrimaryFamily(id) ? null : id };
+          return { ...result, attempted, fallbackUsed: isPrimary(id, configured[0]) ? null : id };
         } catch (err2: any) {
           const elapsed2 = Date.now() - t1;
           const msg2 = err2 instanceof TransientAIError ? `${err2.code}: ${err2.message}` : String(err2?.message ?? err2);
@@ -273,7 +277,7 @@ export async function runWithFallback(
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} minimal-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered via minimal retry` });
-          return { ...result, attempted, fallbackUsed: isPrimaryFamily(id) ? null : id };
+          return { ...result, attempted, fallbackUsed: isPrimary(id, configured[0]) ? null : id };
         } catch (err2: any) {
           const elapsed2 = Date.now() - t1;
           const msg2 = err2 instanceof TransientAIError ? `${err2.code}: ${err2.message}` : String(err2?.message ?? err2);

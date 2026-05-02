@@ -28,7 +28,8 @@ export type ModelId =
   | 'openrouter-free'
   | 'mistral-small'
   | 'github-gpt-4o-mini'
-  | 'github-llama-3.3-70b';
+  | 'github-llama-3.3-70b'
+  | 'deepseek-v4-flash';
 
 export interface ProviderResult {
   material: StudyMaterial;
@@ -83,4 +84,5 @@ export const MODEL_IDS: ModelId[] = [
   'mistral-small',
   'github-gpt-4o-mini',
   'github-llama-3.3-70b',
+  'deepseek-v4-flash',
 ];

@@ -41,6 +41,9 @@ const OUTPUT_CAPS: Record<string, number> = {
   'mistral-small': 7500,
   'github-gpt-4o-mini': 3500,
   'github-llama-3.3-70b': 4096,
+  // DeepSeek V4-Flash supports much higher, but 8192 matches the schema's
+  // realistic max output and keeps parity with other primary-class providers.
+  'deepseek-v4-flash': 8192,
 };
 
 /**
@@ -172,44 +175,52 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     }),
     isConfigured: () => Boolean(env.githubToken),
   },
+  'deepseek-v4-flash': {
+    id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', provider: 'deepseek',
+    // V4-Flash defaults to thinking mode which breaks JSON output and burns
+    // extra tokens. extraBody disables it.
+    run: (text, plan, opts) => openaiCompat({
+      baseUrl: 'https://api.deepseek.com/v1',
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      modelName: 'deepseek-v4-flash',
+      displayName: 'DeepSeek V4 Flash',
+      text: truncateForModel(text, 'deepseek-v4-flash', selectTier(text.length, opts?.pages)), plan,
+      minimal: opts?.minimal,
+      pages: opts?.pages,
+      pass: opts?.pass,
+      maxOutputTokens: OUTPUT_CAPS['deepseek-v4-flash'],
+      extraBody: { thinking: { type: 'disabled' } },
+    }),
+    isConfigured: () => !!process.env.DEEPSEEK_API_KEY,
+  },
 };
 
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * Slimmed-down chain: 3 providers per tier. Less surface area, more
- * predictable behavior, easier to reason about in logs. The previous
- * 7-provider chain over-tried failures within the 60s budget.
+ * Same chain for both tiers — DeepSeek V4-Flash has a 1M-char context window
+ * so it handles XL just as well as default-size docs, no need to reorder.
  *
- *   DEFAULT (under-40K-char docs):
- *     1. groq-llama-3.3-70b — Reliable, 30 RPM, 8K output.
- *     2. mistral-small      — 500K TPM free, generous output budget.
- *     3. gemini-2.0-flash   — Guaranteed safety net (with 4s pre-call delay).
+ *   1. deepseek-v4-flash  — Paid primary. 1M context, no thinking-mode tokens.
+ *   2. groq-llama-3.3-70b — Free fallback. Reliable, 30 RPM, 8K output.
+ *   3. mistral-small      — Free last-resort. 500K TPM, generous output.
  *
- *   XL (40K+ chars):
- *     1. mistral-small      — 32K-char input window beats Groq for XL.
- *     2. groq-llama-3.3-70b — Smaller XL coverage but reliable RPM.
- *     3. gemini-2.5-flash   — Larger-context Gemini for XL safety net.
- *
- * Removed:
- *   - openrouter-free  — auto-router was inconsistent in practice.
- *   - groq-llama-3.1-8b — too tight a TPM budget; 70B handles its load.
- *   - gemini-2.5-pro   — 5 RPM / 25 RPD is too tight to be a useful slot.
- *   - github-* models  — 8K total context cap 413s on realistic inputs.
- *
- * Gemini still gets the 4s pre-call delay from runWithFallback to protect
- * daily RPD when it does fire as the last-resort safety net.
+ * Registered but NOT in active chains (kept for future use):
+ *   - gemini-* (all variants)  — RPD bottleneck made them unreliable.
+ *   - openrouter-free          — auto-router was inconsistent in practice.
+ *   - groq-llama-3.1-8b        — too tight a TPM budget; 70B handles its load.
+ *   - github-* models          — 8K total context cap 413s on realistic inputs.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
+  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
-  'gemini-2.0-flash',
 ];
 
 const XL_FALLBACK_ORDER: ModelId[] = [
-  'mistral-small',
+  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
-  'gemini-2.5-flash',
+  'mistral-small',
 ];
 
 export function getFallbackOrder(tier: Tier): ModelId[] {

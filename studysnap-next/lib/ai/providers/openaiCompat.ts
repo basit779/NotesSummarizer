@@ -46,10 +46,14 @@ export async function openaiCompat(args: {
    * for input — pass ~3500 there.
    */
   maxOutputTokens?: number;
+  /** Provider-specific extras spread into the request body. Used for DeepSeek's
+   *  `thinking: { type: 'disabled' }` flag — V4-Flash defaults to thinking mode
+   *  which breaks JSON output. Other providers ignore unknown fields. */
+  extraBody?: Record<string, unknown>;
 }): Promise<ProviderResult> {
   const {
     baseUrl, apiKey, modelName, displayName, text, plan, extraHeaders = {}, supportsJsonSchema = true, minimal = false,
-    pages, pass, maxOutputTokens,
+    pages, pass, maxOutputTokens, extraBody,
   } = args;
 
   if (!apiKey) throw new TransientAIError('NO_KEY', `API key missing for ${displayName}`);
@@ -73,6 +77,7 @@ ${JSON.stringify(effectiveSchema)}`;
     ],
     temperature: 0.4,
     max_tokens: maxOutputTokens ?? 8192,
+    ...(extraBody ?? {}),
   };
   if (supportsJsonSchema) body.response_format = { type: 'json_object' };
 
