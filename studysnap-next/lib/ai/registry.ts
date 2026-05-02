@@ -223,14 +223,14 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  *   - github-* models          — 8K total context cap 413s on realistic inputs.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
+  'deepseek-v4-flash',
   'mistral-small',
 ];
 
 const XL_FALLBACK_ORDER: ModelId[] = [
-  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
+  'deepseek-v4-flash',
   'mistral-small',
 ];
 
