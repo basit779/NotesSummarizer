@@ -88,16 +88,21 @@ ${JSON.stringify(effectiveSchema)}`;
   // eslint-disable-next-line no-console
   console.log(`[DEBUG][openaiCompat] thinking field: ${JSON.stringify((body as any).thinking)}`);
 
-  // 35s client-side timeout. Vercel Hobby kills the function at 60s — without
+  // 25s client-side timeout. Vercel Hobby kills the function at 60s — without
   // this, fetch() holds the connection until the function dies and there's no
   // headroom for runWithFallback to advance to the next provider.
   //
-  // Sized for the 4-provider chain (Gemini → DeepSeek → Groq → Mistral). Worst
-  // case: Gemini fail-fast (~3s) + DeepSeek timeout (35s) + Groq run (~5s) =
-  // ~43s, leaving ~17s buffer for cold start + pipeline overhead under the 60s
-  // ceiling. 35s is generous for Groq/Mistral (5-8s typical) but tight for
-  // DeepSeek (averages ~30s) — DeepSeek occasionally aborting early is
-  // acceptable since the next provider picks up reliably.
+  // Lowered from 35s after a real-world test where the cascade hit the ceiling:
+  //   Gemini abort (25s) + DeepSeek timeout (35s) = 60s exactly = function killed.
+  // New cascade math at 25s — every scenario fits under 60s:
+  //   Gemini hangs + DeepSeek hangs + Groq runs   = 25 + 25 + 5 = 55s ✓
+  //   Gemini hangs + DeepSeek runs fast (~15s)    = 25 + 15      = 40s ✓
+  //   Gemini fast-fail + DeepSeek timeout + Groq  =  3 + 25 +  5 = 33s ✓
+  //   Gemini wins                                  = 5-10s            ✓
+  // Tradeoff: DeepSeek averages ~30s real-world, so ~50% of DeepSeek calls
+  // (those reached after a Gemini hang) abort and fall to Groq. Acceptable
+  // because Groq is fast (~5s) and reliable — better than function-killing
+  // 60s timeouts that lose the entire request.
   //
   // Uses AbortSignal.timeout (Node 18.17+) instead of AbortController + setTimeout —
   // native timer that undici handles correctly during connect-phase / awaiting-headers
@@ -115,11 +120,11 @@ ${JSON.stringify(effectiveSchema)}`;
         ...extraHeaders,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(35_000),
+      signal: AbortSignal.timeout(25_000),
     });
   } catch (err: any) {
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-      throw new TransientAIError('PROVIDER_TIMEOUT', `${displayName} did not respond within 35s`);
+      throw new TransientAIError('PROVIDER_TIMEOUT', `${displayName} did not respond within 25s`);
     }
     throw err;
   }
