@@ -31,10 +31,14 @@ const TOKEN_BUDGETS: Record<string, TierBudget> = {
   'gemini-2.5-flash':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
   'gemini-2.5-flash-lite': { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
   'gemini-2.0-flash':      { short: 40_000, medium: 40_000, long: 40_000, xl: 40_000 },
-  // Rebalanced to pair with 6500-token output cap: budget = 12K TPM − 6.5K out
-  // − 1.1K overhead ≈ 4.4K tokens remaining for input. Keeps comfortable
-  // headroom on every tier so a single call never 429s mid-request.
-  'groq-llama-3.3-70b':  { short:  2_800, medium:  3_500, long:  4_000, xl:  3_500 },
+  // Capped at 3K input to fit alongside 6500 output cap under the 12K TPM
+  // ceiling: 3K input + 6.5K output + ~2.5K overhead = 12K exact. Real overhead
+  // is closer to 2.5K than the original 1.1K estimate, so the prior 3.5K-4K
+  // input values 413'd. `short` stays at 2800 — already under cap, no need to
+  // raise. `long` drops the most (4000 → 3000) which slightly degrades source
+  // coverage on long-tier Groq calls, but Groq is now chain position 3 so the
+  // hit is rare; Gemini/DeepSeek handle long docs first.
+  'groq-llama-3.3-70b':  { short:  2_800, medium:  3_000, long:  3_000, xl:  3_000 },
   'groq-llama-3.1-8b':   { short:  1_800, medium:  2_200, long:  2_500, xl:  1_600 },
   'openrouter-free':     { short: 10_000, medium: 10_000, long: 10_000, xl: 10_000 },
   'mistral-small':       { short:  8_000, medium:  8_000, long:  8_000, xl:  8_000 },

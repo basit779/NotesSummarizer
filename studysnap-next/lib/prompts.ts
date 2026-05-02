@@ -77,7 +77,7 @@ function scaleCounts(c: Counts, factor: number): Counts {
  */
 const TIER_COUNTS: Record<Tier, Counts> = {
   short:  { summaryWords: '400-700',   key: '8-12',  defs: '6-10',  exam: '5-7',   cards: '10-15', tips: '4-5', connections: '3-4' },
-  medium: { summaryWords: '600-900',   key: '10-13', defs: '8-12',  exam: '6-9',   cards: '14-20', tips: '4-5', connections: '3-5' },
+  medium: { summaryWords: '600-900',   key: '10-16', defs: '8-15',  exam: '6-12',  cards: '14-26', tips: '4-5', connections: '3-5' },
   long:   { summaryWords: '1500-2000', key: '18-22', defs: '16-20', exam: '12-15', cards: '25-32', tips: '6-8', connections: '5-7' },
   xl:     { summaryWords: '500-700',   key: '25-28', defs: '20-24', exam: '18-20', cards: '35-38', tips: '4-6', connections: '4-6' },
 };

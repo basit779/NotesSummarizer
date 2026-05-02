@@ -221,8 +221,16 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
       if (!firstCardFilterReason) firstCardFilterReason = `back.length=${back.length} (need ≥40) | front="${front.slice(0, 60)}" back="${back.slice(0, 80)}"`;
       return false;
     }
-    if (front.startsWith('What is ') && back.slice(0, 30).includes(' is ')) {
-      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
+    // Trivial-pair guard: reject "What is X?" / "X is Y..." cards ONLY when
+    // the back is also short (<80 chars). Substantive definitional cards
+    // legitimately restate the subject in the first clause and were being
+    // over-filtered (~40% of legit cards in prod). Length escape lets them through.
+    if (
+      front.startsWith('What is ') &&
+      back.slice(0, 30).includes(' is ') &&
+      back.length < 80
+    ) {
+      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair (back<80) | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
       return false;
     }
     return true;
@@ -378,8 +386,16 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
       if (!firstCardFilterReason) firstCardFilterReason = `back.length=${back.length} (need ≥40) | front="${front.slice(0, 60)}" back="${back.slice(0, 80)}"`;
       return false;
     }
-    if (front.startsWith('What is ') && back.slice(0, 30).includes(' is ')) {
-      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
+    // Trivial-pair guard: reject "What is X?" / "X is Y..." cards ONLY when
+    // the back is also short (<80 chars). Substantive definitional cards
+    // legitimately restate the subject in the first clause and were being
+    // over-filtered (~40% of legit cards in prod). Length escape lets them through.
+    if (
+      front.startsWith('What is ') &&
+      back.slice(0, 30).includes(' is ') &&
+      back.length < 80
+    ) {
+      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair (back<80) | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
       return false;
     }
     return true;

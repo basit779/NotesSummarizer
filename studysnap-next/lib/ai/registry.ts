@@ -31,11 +31,14 @@ export interface ModelSpec {
  */
 const OUTPUT_CAPS: Record<string, number> = {
   // Groq 70B: max completion is 32K, but 12K TPM free tier is the binding
-  // constraint. Real overhead (schema JSON + system prompt + scaffolding) is
-  // larger than the original 1.1K estimate — observed 413s at 6500 output
-  // cap. Dropped to 5000: 3.5K input + 5.0K output + ~2.5K overhead = 11K,
-  // leaves slack inside the 12K TPM rolling window.
-  'groq-llama-3.3-70b': 5000,
+  // constraint. Pairs with 3K input cap in truncate.ts:
+  //   3K input + 6K output + ~2.5K overhead = 11.5K, leaves 500 tok margin
+  //   under the 12K TPM cap — safe against overhead variance.
+  // Tradeoff: with TIER_COUNTS medium asking for 14-26 flashcards, 6K output
+  // typically yields ~22-24 visible cards (lower-bound of requested range).
+  // Acceptable because Groq is now chain position 3 — Gemini/DeepSeek serve
+  // most requests with the full 14-26 range; Groq only fires as a fallback.
+  'groq-llama-3.3-70b': 6000,
   'groq-llama-3.1-8b': 2500,
   'openrouter-free': 4096,
   'mistral-small': 7500,
@@ -209,28 +212,37 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * Same chain for both tiers — DeepSeek V4-Flash has a 1M-char context window
- * so it handles XL just as well as default-size docs, no need to reorder.
+ * Same chain for both tiers — Gemini 2.5 Flash and DeepSeek V4-Flash both
+ * have generous context windows (1M+) so XL gets the same treatment.
  *
- *   1. deepseek-v4-flash  — Paid primary. 1M context, no thinking-mode tokens.
- *   2. groq-llama-3.3-70b — Free fallback. Reliable, 30 RPM, 8K output.
- *   3. mistral-small      — Free last-resort. 500K TPM, generous output.
+ *   1. gemini-2.5-flash   — Free primary. Polished output, ~5s latency.
+ *                           Free RPD (~1500/day) sufficient at current scale.
+ *   2. deepseek-v4-flash  — Paid backup ($4 budget). Used when Gemini fails.
+ *                           ~30s latency, fits inside 35s client timeout.
+ *   3. groq-llama-3.3-70b — Fast fallback (~5s). Reliable safety net.
+ *                           Tight 12K TPM cap → 3K input / 6K output.
+ *   4. mistral-small      — Last resort. 500K TPM, generous output.
  *
  * Registered but NOT in active chains (kept for future use):
- *   - gemini-* (all variants)  — RPD bottleneck made them unreliable.
- *   - openrouter-free          — auto-router was inconsistent in practice.
- *   - groq-llama-3.1-8b        — too tight a TPM budget; 70B handles its load.
- *   - github-* models          — 8K total context cap 413s on realistic inputs.
+ *   - gemini-2.5-pro / -flash-lite / 2.0-flash — variant-of-primary, redundant.
+ *   - openrouter-free                           — auto-router was inconsistent.
+ *   - groq-llama-3.1-8b                         — too tight a TPM budget.
+ *   - github-* models                           — 8K total context cap 413s.
+ *
+ * Worst-case latency cascade: Gemini fail-fast (~3s) + DeepSeek timeout (35s)
+ * + Groq run (~5s) = ~43s, comfortably under Vercel's 60s function ceiling.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'groq-llama-3.3-70b',
+  'gemini-2.5-flash',
   'deepseek-v4-flash',
+  'groq-llama-3.3-70b',
   'mistral-small',
 ];
 
 const XL_FALLBACK_ORDER: ModelId[] = [
-  'groq-llama-3.3-70b',
+  'gemini-2.5-flash',
   'deepseek-v4-flash',
+  'groq-llama-3.3-70b',
   'mistral-small',
 ];
 
