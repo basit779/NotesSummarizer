@@ -84,7 +84,12 @@ export async function geminiProvider(
   // Pass 2 only generates flashcards + MCQs + tips + connections — well
   // under 4K tokens at the reduced XL counts. Capping at 4096 stops 2.5-flash
   // from drifting into MAX_TOKENS truncation and cascading to flash-lite.
-  const maxOutputTokens = opts.pass === 2 ? 4096 : 8192;
+  //
+  // Single-pass: bumped 8192 → 16384 after the medium-tier TIER_COUNTS bump
+  // (cards 14-26, MCQs 6-12) pushed estimated output to ~5.6K, and prod hit
+  // finish=MAX_TOKENS at 8K with completionTok=6565 (cut mid-generation).
+  // Gemini 2.5 Flash supports 64K max output — 16K gives massive headroom.
+  const maxOutputTokens = opts.pass === 2 ? 4096 : 16384;
 
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
