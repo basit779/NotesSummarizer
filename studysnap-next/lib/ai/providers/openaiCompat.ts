@@ -92,8 +92,13 @@ ${JSON.stringify(effectiveSchema)}`;
   // this, fetch() holds the connection until the function dies and there's no
   // headroom for runWithFallback to advance to the next provider. Aborting at
   // 50s leaves ~10s for one fallback attempt.
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 50_000);
+  //
+  // Uses AbortSignal.timeout (Node 18.17+) instead of AbortController + setTimeout —
+  // native timer that undici handles correctly during connect-phase / awaiting-headers
+  // hangs. The setTimeout-based version was observed NOT firing on a 60s DeepSeek
+  // hang in production (2026-05-02), letting the function ride out to Vercel's
+  // hard kill. Both 'TimeoutError' (signal.timeout fired) and 'AbortError'
+  // (manual abort, theoretical) map to PROVIDER_TIMEOUT.
   let res: Response;
   try {
     res = await fetch(`${baseUrl}/chat/completions`, {
@@ -104,15 +109,13 @@ ${JSON.stringify(effectiveSchema)}`;
         ...extraHeaders,
       },
       body: JSON.stringify(body),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(50_000),
     });
   } catch (err: any) {
-    if (err?.name === 'AbortError') {
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
       throw new TransientAIError('PROVIDER_TIMEOUT', `${displayName} did not respond within 50s`);
     }
     throw err;
-  } finally {
-    clearTimeout(timeoutId);
   }
 
   if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `${displayName} rate-limited`, 429, parseRetryAfterHeader(res));
