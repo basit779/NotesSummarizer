@@ -81,15 +81,39 @@ ${JSON.stringify(effectiveSchema)}`;
   };
   if (supportsJsonSchema) body.response_format = { type: 'json_object' };
 
-  const res = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-      ...extraHeaders,
-    },
-    body: JSON.stringify(body),
-  });
+  // DEBUG: verify extraBody (e.g. DeepSeek thinking-mode disable) reached body.
+  // Logs only field names + the thinking field — does not leak prompt content.
+  // eslint-disable-next-line no-console
+  console.log(`[DEBUG][openaiCompat] body keys: ${JSON.stringify(Object.keys(body))}`);
+  // eslint-disable-next-line no-console
+  console.log(`[DEBUG][openaiCompat] thinking field: ${JSON.stringify((body as any).thinking)}`);
+
+  // 50s client-side timeout. Vercel Hobby kills the function at 60s — without
+  // this, fetch() holds the connection until the function dies and there's no
+  // headroom for runWithFallback to advance to the next provider. Aborting at
+  // 50s leaves ~10s for one fallback attempt.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 50_000);
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        ...extraHeaders,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      throw new TransientAIError('PROVIDER_TIMEOUT', `${displayName} did not respond within 50s`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `${displayName} rate-limited`, 429, parseRetryAfterHeader(res));
   if (res.status >= 500) throw new TransientAIError('UPSTREAM', `${displayName} ${res.status}`, res.status);

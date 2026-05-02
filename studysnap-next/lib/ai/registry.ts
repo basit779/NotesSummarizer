@@ -178,18 +178,29 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   'deepseek-v4-flash': {
     id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash', provider: 'deepseek',
     // V4-Flash defaults to thinking mode which breaks JSON output and burns
-    // extra tokens. extraBody disables it.
+    // extra tokens. extraBody disables it. supportsJsonSchema:false strips
+    // response_format — V4-Flash silently re-enables thinking when JSON mode
+    // is requested; the system prompt + schema validators handle JSON output.
     run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://api.deepseek.com/v1',
       apiKey: process.env.DEEPSEEK_API_KEY,
       modelName: 'deepseek-v4-flash',
       displayName: 'DeepSeek V4 Flash',
       text: truncateForModel(text, 'deepseek-v4-flash', selectTier(text.length, opts?.pages)), plan,
+      supportsJsonSchema: false,
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
       maxOutputTokens: OUTPUT_CAPS['deepseek-v4-flash'],
-      extraBody: { thinking: { type: 'disabled' } },
+      // Two thinking-disable flags sent in parallel:
+      //   - `thinking: {type: disabled}` — V4-Flash documented format
+      //   - `chat_template_kwargs.thinking: false` — V3.1 / vLLM-hosted format
+      // V4-Flash honors the first; vLLM-hosted variants honor the second.
+      // Either way, no thinking tokens. Unknown fields are ignored upstream.
+      extraBody: {
+        thinking: { type: 'disabled' },
+        chat_template_kwargs: { thinking: false },
+      },
     }),
     isConfigured: () => !!process.env.DEEPSEEK_API_KEY,
   },
