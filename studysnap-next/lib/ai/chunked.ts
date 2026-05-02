@@ -1,6 +1,4 @@
 import { runWithFallback } from './runWithFallback';
-import { runTwoPassXL } from './twoPass';
-import { selectTier } from '../prompts';
 import type { ModelId, ProviderResult, StudyMaterial } from './types';
 
 const CHUNK_CHAR_BUDGET = 100_000;   // ~25k tokens — single-call friendly for Gemini 2.0 Flash
@@ -41,24 +39,10 @@ export async function analyzeChunked(
   pages?: number,
 ): Promise<ChunkedResult> {
   if (rawText.length <= CHUNK_THRESHOLD) {
-    // XL tier (page-heavy or char-heavy) — split generation into notes and
-    // practice halves so each has the full 8192 budget. Gated to the
-    // single-call path on purpose: chunked runs already split output across
-    // multiple packs, and 2-pass per chunk would 4× the API calls on free tier.
-    const tier = selectTier(rawText.length, pages);
-    if (tier === 'xl') {
-      const r = await runTwoPassXL(rawText, plan, preferredModel, pages);
-      return {
-        material: r.material,
-        model: r.model,
-        tokensUsed: r.tokensUsed,
-        attempted: r.attempted,
-        chunks: 1,
-        sourceChars: rawText.length,
-        degraded: r.degraded,
-        fallbackUsed: r.fallbackUsed,
-      };
-    }
+    // Single-pass for everything under the chunk threshold. 2-pass XL was
+    // removed — the parallel orchestration was eating the 60s budget when
+    // either pass landed on a slow provider, and bumping the XL char
+    // threshold to 40K means most docs fit single-pass comfortably anyway.
     const r = await runWithFallback(rawText, plan, preferredModel, pages);
     return { ...r, chunks: 1, sourceChars: rawText.length, fallbackUsed: r.fallbackUsed };
   }

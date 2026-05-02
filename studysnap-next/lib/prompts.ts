@@ -98,7 +98,7 @@ export function selectTier(chars: number, pages: number | undefined): Tier {
   // was hitting finish=MAX_TOKENS on 20+ page docs (output ≥ 8k tokens for
   // rich content, but Gemini's 8192 completion cap truncates mid-JSON).
   // 2-pass XL mode splits the schema so each pass fits comfortably.
-  if (p >= 20 || chars >= 20000) return 'xl';
+  if (p >= 20 || chars >= 40000) return 'xl';
   if (p >= 15 || chars >= 15000) return 'medium';
   if (p >= 8  || chars >= 5000)  return 'medium'; // slide decks at 8-14 pages still MEDIUM on page signal
   return 'short';

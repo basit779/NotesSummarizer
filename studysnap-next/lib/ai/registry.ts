@@ -177,65 +177,39 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * Architecture (post-Gemini-quota-protection rework):
+ * Slimmed-down chain: 3 providers per tier. Less surface area, more
+ * predictable behavior, easier to reason about in logs. The previous
+ * 7-provider chain over-tried failures within the 60s budget.
  *
- * Goal: keep Gemini OUT of the hot path when possible. Daily Gemini RPD is
- * the real bottleneck — free-tier devs burn it across testing iterations,
- * and once it's gone every Gemini variant 429s independently. Putting
- * non-Google providers first means Gemini is held in reserve, and the 4s
- * pre-call delay in runWithFallback (only on `gemini-*` providers) further
- * protects what's left of the daily quota.
+ *   DEFAULT (under-40K-char docs):
+ *     1. groq-llama-3.3-70b — Reliable, 30 RPM, 8K output.
+ *     2. mistral-small      — 500K TPM free, generous output budget.
+ *     3. gemini-2.0-flash   — Guaranteed safety net (with 4s pre-call delay).
  *
- * OpenRouter is the auto-router — it picks any available free model
- * (DeepSeek/Qwen/Llama). Pinning a specific model (e.g. deepseek-v3.1) was
- * tried previously and 404'd when the version was retired; the auto-router
- * is resilient to that.
+ *   XL (40K+ chars):
+ *     1. mistral-small      — 32K-char input window beats Groq for XL.
+ *     2. groq-llama-3.3-70b — Smaller XL coverage but reliable RPM.
+ *     3. gemini-2.5-flash   — Larger-context Gemini for XL safety net.
  *
- *   1. openrouter-free       — Auto-router (DeepSeek/Qwen/Llama). Generous TPM, version-resilient.
- *   2. groq-llama-3.1-8b     — 30 RPM. Fast.
- *   3. groq-llama-3.3-70b    — 30 RPM. Smarter fallback.
- *   4. mistral-small         — 500K TPM free. Good safety net.
- *   5. gemini-2.0-flash      — Last-resort Gemini (15 RPM, 4s delay).
- *   6. gemini-2.5-flash      — Larger-context Gemini backup.
- *   7. gemini-2.5-flash-lite — Cheapest Gemini backup.
+ * Removed:
+ *   - openrouter-free  — auto-router was inconsistent in practice.
+ *   - groq-llama-3.1-8b — too tight a TPM budget; 70B handles its load.
+ *   - gemini-2.5-pro   — 5 RPM / 25 RPD is too tight to be a useful slot.
+ *   - github-* models  — 8K total context cap 413s on realistic inputs.
  *
- * gemini-2.5-pro stays out of the chain (5 RPM / 25 RPD is too tight to be
- * useful as a fallback slot). github-gpt-4o-mini also excluded: 8k TOTAL
- * context cap 413s on realistic inputs.
- *
- * Add GOOGLE_API_KEY_2 to .env and register a second Google provider
- * instance to extend free quota. Multi-key support would require env.ts
- * exposing a second key, a Gemini provider variant accepting an explicit
- * key, and a new ModelId entry — kept out of scope here.
+ * Gemini still gets the 4s pre-call delay from runWithFallback to protect
+ * daily RPD when it does fire as the last-resort safety net.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'openrouter-free',
-  'groq-llama-3.1-8b',
   'groq-llama-3.3-70b',
   'mistral-small',
   'gemini-2.0-flash',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
 ];
 
-/**
- * XL fallback order — same shape as DEFAULT under the new architecture.
- * Non-Google providers first (where Mistral's 500K TPM and OpenRouter's
- * generous budget meaningfully serve XL inputs), Gemini in reserve.
- *
- * Note: Groq 70B's 12K TPM rolling cap caps single-call input at ~24K chars
- * = 45% coverage on XL docs — it remains in the chain but is positioned
- * before Mistral (which has 60% XL coverage at 32K chars) on RPM grounds.
- * The 8B is fastest at small inputs.
- */
 const XL_FALLBACK_ORDER: ModelId[] = [
-  'openrouter-free',
-  'groq-llama-3.1-8b',
-  'groq-llama-3.3-70b',
   'mistral-small',
-  'gemini-2.0-flash',
+  'groq-llama-3.3-70b',
   'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
 ];
 
 export function getFallbackOrder(tier: Tier): ModelId[] {

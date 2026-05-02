@@ -96,6 +96,18 @@ export const PASS2_SCHEMA = {
   required: ['examQuestions', 'flashcards'],
 } as const;
 
+/** Extract the answer letter (A/B/C/D) from common `correct` field formats:
+ *  "A", "A.", "A)", "(A)", "Option A", "A) The cat", "correct answer is B".
+ *  Looks for the first A-D character that's preceded by start-of-string OR
+ *  punctuation/whitespace AND followed by end-of-string OR same — that
+ *  filters out incidental letters inside words ("CORRECT" → no false C
+ *  match). Returns '' if no plausible letter is found. */
+function extractCorrectLetter(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const m = raw.toUpperCase().match(/(?:^|[\s().,:;-])([A-D])(?=$|[\s().,:;-])/);
+  return m ? m[1] : '';
+}
+
 /**
  * Validate + apply a minimum quality bar to the model's output. Items that
  * fail the bar are dropped silently (with a console.warn) rather than
@@ -144,7 +156,7 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
       // Derive the plain answer text from options + correct letter if needed
       let answer = typeof q.answer === 'string' ? q.answer : '';
       if (!answer && options && correct) {
-        const idx = ['A', 'B', 'C', 'D'].indexOf(correct.toUpperCase().trim().replace(/[).]/g, ''));
+        const idx = ['A', 'B', 'C', 'D'].indexOf(extractCorrectLetter(correct));
         if (idx >= 0 && options[idx]) answer = options[idx].replace(/^[A-D][).]\s*/i, '');
       }
       return {
@@ -167,7 +179,7 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
       }
       return false;
     }
-    const normCorrect = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '');
+    const normCorrect = extractCorrectLetter(q.correct);
     if (!['A', 'B', 'C', 'D'].includes(normCorrect)) {
       if (!firstMcqFilterReason) {
         firstMcqFilterReason = `correct=${JSON.stringify(q.correct)} normalized="${normCorrect}" (need A/B/C/D) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 60), correct: q.correct, options: q.options }).slice(0, 280)}`;
@@ -192,7 +204,7 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
     console.warn(`[schema]${modelLabel} examQuestions: only ${examQuestions.length} after quality bar — pack will be sparse`);
   }
 
-  // Flashcards: front ≥ 20, back ≥ 40, and reject trivial "What is X?" /
+  // Flashcards: front ≥ 10, back ≥ 40, and reject trivial "What is X?" /
   // "X is Y" definition cards. The system prompt already bans these but
   // we enforce it here as a backstop for non-Gemini providers without
   // schema-side enforcement.
@@ -201,8 +213,8 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
   const flashcards = rawCards.filter((f) => {
     const front: string = typeof f.front === 'string' ? f.front : '';
     const back: string = typeof f.back === 'string' ? f.back : '';
-    if (front.length < 20) {
-      if (!firstCardFilterReason) firstCardFilterReason = `front.length=${front.length} (need ≥20) | front="${front.slice(0, 80)}"`;
+    if (front.length < 10) {
+      if (!firstCardFilterReason) firstCardFilterReason = `front.length=${front.length} (need ≥10) | front="${front.slice(0, 80)}"`;
       return false;
     }
     if (back.length < 40) {
@@ -306,7 +318,7 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
       const correct = typeof q.correct === 'string' ? q.correct : undefined;
       let answer = typeof q.answer === 'string' ? q.answer : '';
       if (!answer && options && correct) {
-        const idx = ['A', 'B', 'C', 'D'].indexOf(correct.toUpperCase().trim().replace(/[).]/g, ''));
+        const idx = ['A', 'B', 'C', 'D'].indexOf(extractCorrectLetter(correct));
         if (idx >= 0 && options[idx]) answer = options[idx].replace(/^[A-D][).]\s*/i, '');
       }
       return {
@@ -327,7 +339,7 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
       }
       return false;
     }
-    const normCorrect = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '');
+    const normCorrect = extractCorrectLetter(q.correct);
     if (!['A', 'B', 'C', 'D'].includes(normCorrect)) {
       if (!firstMcqFilterReason) {
         firstMcqFilterReason = `correct=${JSON.stringify(q.correct)} normalized="${normCorrect}" (need A/B/C/D) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 60), correct: q.correct, options: q.options }).slice(0, 280)}`;
@@ -352,14 +364,14 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
     console.warn(`[schema]${modelLabel} examQuestions: only ${examQuestions.length} after quality bar — pack will be sparse`);
   }
 
-  // Flashcards: front ≥ 20, back ≥ 40, reject trivial "What is X?" / "X is Y" pairs.
+  // Flashcards: front ≥ 10, back ≥ 40, reject trivial "What is X?" / "X is Y" pairs.
   let firstCardFilterReason: string | null = null;
   const rawCards = (o.flashcards as any[]).filter((f) => f?.front && f?.back);
   const flashcards = rawCards.filter((f) => {
     const front: string = typeof f.front === 'string' ? f.front : '';
     const back: string = typeof f.back === 'string' ? f.back : '';
-    if (front.length < 20) {
-      if (!firstCardFilterReason) firstCardFilterReason = `front.length=${front.length} (need ≥20) | front="${front.slice(0, 80)}"`;
+    if (front.length < 10) {
+      if (!firstCardFilterReason) firstCardFilterReason = `front.length=${front.length} (need ≥10) | front="${front.slice(0, 80)}"`;
       return false;
     }
     if (back.length < 40) {
