@@ -140,6 +140,17 @@ export async function runWithFallback(
       continue;
     }
 
+    // Gemini-only pre-call delay. Free-tier RPD is the real bottleneck on
+    // Gemini (everything-else has comfortable per-day budgets), and a 4s
+    // pause meaningfully reduces 429s when we DO reach a Gemini slot. Only
+    // fires after the cooldown check so we don't burn 4s on a provider we'd
+    // skip anyway. After-cooldown placement also means the delay doesn't
+    // include time the provider spent in process-local cooldown.
+    if (id.startsWith('gemini-')) {
+      console.log(`[AI][${reqId}] ⏸ ${id} — 4s pre-call delay (Gemini quota protection)`);
+      await sleep(4000);
+    }
+
     const t0 = Date.now();
     try {
       console.log(`[AI][${reqId}] attempt ${i + 1}/${configured.length} — ${id}${pass ? ` pass=${pass}` : ''}`);
