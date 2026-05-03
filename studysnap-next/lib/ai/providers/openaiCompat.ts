@@ -50,10 +50,14 @@ export async function openaiCompat(args: {
    *  `thinking: { type: 'disabled' }` flag — V4-Flash defaults to thinking mode
    *  which breaks JSON output. Other providers ignore unknown fields. */
   extraBody?: Record<string, unknown>;
+  /** Abort timeout in ms. Default 25_000 (chat + legacy paths). Per-provider
+   *  Inngest steps pass 55_000 since each provider gets its own 60s Vercel
+   *  function invocation under the new orchestrator. */
+  timeoutMs?: number;
 }): Promise<ProviderResult> {
   const {
     baseUrl, apiKey, modelName, displayName, text, plan, extraHeaders = {}, supportsJsonSchema = true, minimal = false,
-    pages, pass, maxOutputTokens, extraBody,
+    pages, pass, maxOutputTokens, extraBody, timeoutMs = 25_000,
   } = args;
 
   if (!apiKey) throw new TransientAIError('NO_KEY', `API key missing for ${displayName}`);
@@ -88,28 +92,20 @@ ${JSON.stringify(effectiveSchema)}`;
   // eslint-disable-next-line no-console
   console.log(`[DEBUG][openaiCompat] thinking field: ${JSON.stringify((body as any).thinking)}`);
 
-  // 25s client-side timeout. Vercel Hobby kills the function at 60s — without
-  // this, fetch() holds the connection until the function dies and there's no
-  // headroom for runWithFallback to advance to the next provider.
+  // Client-side abort timeout (default 25s, configurable via timeoutMs).
   //
-  // Lowered from 35s after a real-world test where the cascade hit the ceiling:
-  //   Gemini abort (25s) + DeepSeek timeout (35s) = 60s exactly = function killed.
-  // New cascade math at 25s — every scenario fits under 60s:
-  //   Gemini hangs + DeepSeek hangs + Groq runs   = 25 + 25 + 5 = 55s ✓
-  //   Gemini hangs + DeepSeek runs fast (~15s)    = 25 + 15      = 40s ✓
-  //   Gemini fast-fail + DeepSeek timeout + Groq  =  3 + 25 +  5 = 33s ✓
-  //   Gemini wins                                  = 5-10s            ✓
-  // Tradeoff: DeepSeek averages ~30s real-world, so ~50% of DeepSeek calls
-  // (those reached after a Gemini hang) abort and fall to Groq. Acceptable
-  // because Groq is fast (~5s) and reliable — better than function-killing
-  // 60s timeouts that lose the entire request.
+  // 25s: chat path + legacy shared-budget callers. Vercel Hobby kills the
+  // function at 60s — without a client timeout, fetch() rides the function
+  // out to its hard kill and there's no headroom for the next provider.
   //
-  // Uses AbortSignal.timeout (Node 18.17+) instead of AbortController + setTimeout —
-  // native timer that undici handles correctly during connect-phase / awaiting-headers
-  // hangs. The setTimeout-based version was observed NOT firing on a 60s DeepSeek
-  // hang in production (2026-05-02), letting the function ride out to Vercel's
-  // hard kill. Both 'TimeoutError' (signal.timeout fired) and 'AbortError'
-  // (manual abort, theoretical) map to PROVIDER_TIMEOUT.
+  // 55s: per-provider Inngest steps (lib/inngest.ts) — each provider gets
+  // its own 60s function invocation, so the timeout can use most of the
+  // budget. This is what lets DeepSeek (~50-80 tok/s × ~4K tokens minimal
+  // = 50-80s) actually finish on Hobby instead of always aborting at 25s.
+  //
+  // Uses AbortSignal.timeout (Node 18.17+) — undici handles connect-phase
+  // and awaiting-headers hangs reliably, unlike AbortController + setTimeout
+  // which was observed NOT firing on a 60s DeepSeek hang (2026-05-02).
   let res: Response;
   try {
     res = await fetch(`${baseUrl}/chat/completions`, {
@@ -120,11 +116,11 @@ ${JSON.stringify(effectiveSchema)}`;
         ...extraHeaders,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err: any) {
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-      throw new TransientAIError('PROVIDER_TIMEOUT', `${displayName} did not respond within 25s`);
+      throw new TransientAIError('PROVIDER_TIMEOUT', `${displayName} did not respond within ${Math.round(timeoutMs / 1000)}s`);
     }
     throw err;
   }

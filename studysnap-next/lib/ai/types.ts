@@ -47,6 +47,11 @@ export interface ProviderRunOptions {
    *  connections + tips). 2 = practice half (flashcards + examQuestions).
    *  Undefined = single-pass mode (default for SHORT/MEDIUM/LONG). */
   pass?: 1 | 2;
+  /** Per-call abort timeout in milliseconds. Default 25_000 (25s) preserves
+   *  shared-budget behavior used by chat + legacy single-step paths. The
+   *  per-provider Inngest steps in lib/inngest.ts pass 55_000 since each
+   *  provider attempt runs in its own 60s Vercel function invocation. */
+  timeoutMs?: number;
 }
 
 export type ProviderFn = (text: string, plan: 'FREE' | 'PRO', opts?: ProviderRunOptions) => Promise<ProviderResult>;

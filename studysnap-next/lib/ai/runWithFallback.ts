@@ -4,6 +4,28 @@ import { HttpError } from '../httpError';
 import { logProviderEvent } from './telemetry';
 import { selectTier } from '../prompts';
 
+/**
+ * Run a single provider, no fallback. Used by the Inngest per-provider step
+ * orchestrator (lib/inngest.ts) so each provider attempt can be checkpointed
+ * as its own Inngest step + Vercel function invocation.
+ *
+ * Throws TransientAIError on transient failures (timeouts, rate limits, bad
+ * JSON, etc.) and PermanentAIError on input-too-large / no-key. The orchestrator
+ * catches transient errors and advances to the next provider; permanent errors
+ * propagate to the user via the Inngest function's catch block.
+ */
+export async function runOneProvider(
+  id: ModelId,
+  text: string,
+  plan: 'FREE' | 'PRO',
+  opts: { pages?: number; pass?: 1 | 2; minimal?: boolean; timeoutMs?: number } = {},
+): Promise<ProviderResult> {
+  const spec = MODEL_REGISTRY[id];
+  if (!spec) throw new PermanentAIError('UNKNOWN_PROVIDER', `Unknown provider: ${id}`);
+  if (!spec.isConfigured()) throw new TransientAIError('NO_KEY', `${id} not configured`);
+  return spec.run(text, plan, opts);
+}
+
 /** Hard cap on how many providers we try per request. Protects quotas while
  *  still letting the entire fallback chain run when every Gemini variant is
  *  rate-limited.

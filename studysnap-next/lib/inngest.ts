@@ -6,7 +6,10 @@ import { analyzeText } from '@/lib/ai';
 import { logUsage } from '@/lib/usage';
 import { storePdfCache } from '@/lib/ai/pdfCache';
 import { buildRagIndex } from '@/lib/ai/ragIndex';
-import type { ModelId } from '@/lib/ai/types';
+import { getFallbackOrder, MODEL_REGISTRY } from '@/lib/ai/registry';
+import { runOneProvider } from '@/lib/ai/runWithFallback';
+import { selectTier } from '@/lib/prompts';
+import type { ModelId, ProviderResult, StudyMaterial } from '@/lib/ai/types';
 
 export type ProcessFileEventData = {
   fileId: string;
@@ -16,6 +19,28 @@ export type ProcessFileEventData = {
 };
 
 export const inngest = new Inngest({ id: 'studysnap' });
+
+/** Single-call threshold (matches lib/ai/chunked.ts CHUNK_THRESHOLD). Docs
+ *  larger than this go through the legacy single-step `analyzeText` path
+ *  which internally chunks + parallel-merges via runWithFallback. */
+const CHUNK_THRESHOLD = 120_000;
+
+/** Per-provider client-side abort timeout. 5s margin under Vercel's 60s
+ *  function cap — gives DeepSeek (50-80 tok/s × ~4K minimal-flag tokens =
+ *  50-80s) room to actually finish where the legacy shared-25s timeout
+ *  always aborted. */
+const PER_PROVIDER_TIMEOUT_MS = 55_000;
+
+type AnalysisOutput = {
+  material: StudyMaterial;
+  model: string;
+  tokensUsed: number;
+  attempted: { id: ModelId; error?: string }[];
+  chunks: number;
+  sourceChars: number;
+  degraded?: boolean;
+  fallbackUsed: string | null;
+};
 
 export const processFile = inngest.createFunction(
   {
@@ -62,14 +87,87 @@ export const processFile = inngest.createFunction(
 
       console.log(`[INNGEST] ${fileId} — ${pages} pages, ${text.length} chars, model=${requestedModel ?? 'auto'}`);
 
-      // Analyze step is still bound by the underlying Vercel function cap
-      // (60s on Hobby). The architectural win here is durability + clean
-      // per-user serialization; provider physics are unchanged. Splitting
-      // analyze into per-provider steps would lift each attempt out of the
-      // shared 60s window — see _AI_HANDOFF.md "Option C" for that path.
-      const analysis = await step.run('analyze', async () => {
-        return analyzeText(text, plan, requestedModel, pages);
-      });
+      let analysis: AnalysisOutput;
+
+      if (text.length > CHUNK_THRESHOLD) {
+        // Multi-chunk path stays on the legacy single-step analyze. Chunking
+        // already parallelizes across 3 chunks, so per-provider step splitting
+        // would explode the step count without proportional benefit. Most
+        // uploads are <120K chars and hit the per-provider path below.
+        const r = await step.run('analyze-chunked', async () => {
+          return analyzeText(text, plan, requestedModel, pages);
+        });
+        analysis = { ...r, fallbackUsed: r.fallbackUsed ?? null };
+      } else {
+        // Per-provider step orchestration. Each provider runs in its own
+        // Inngest step = its own Vercel function invocation = its own 60s
+        // budget. DeepSeek (paid primary) gets 55s + minimal flag, finishes
+        // ~70-80% of uploads. Gemini/Groq/Mistral cover the rest with their
+        // normal config in dedicated steps.
+        const tier = selectTier(text.length, pages);
+        const baseChain = getFallbackOrder(tier);
+        const chain: ModelId[] = requestedModel && MODEL_REGISTRY[requestedModel]
+          ? [requestedModel, ...baseChain.filter((id) => id !== requestedModel)]
+          : baseChain;
+        const configured = chain.filter((id) => MODEL_REGISTRY[id].isConfigured());
+
+        if (configured.length === 0) {
+          throw new Error('No AI provider configured. Set GOOGLE_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY, or DEEPSEEK_API_KEY.');
+        }
+
+        let result: ProviderResult | null = null;
+        let usedProvider: ModelId | null = null;
+        const attempted: { id: ModelId; error?: string }[] = [];
+
+        for (const providerId of configured) {
+          if (result) break;
+
+          // DeepSeek needs minimal flag so its ~4K-token output (vs ~5-6K
+          // full) fits the 55s timeout at 50-80 tok/s. Other providers run
+          // full counts (their per-token speed isn't the binding constraint).
+          const useMinimal = providerId === 'deepseek-v4-flash';
+
+          const stepResult = await step.run(`analyze-${providerId}`, async () => {
+            const t0 = Date.now();
+            try {
+              const r = await runOneProvider(providerId, text, plan, {
+                pages,
+                minimal: useMinimal,
+                timeoutMs: PER_PROVIDER_TIMEOUT_MS,
+              });
+              const elapsedMs = Date.now() - t0;
+              console.log(`[INNGEST][${providerId}] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
+              return { ok: true as const, result: r, elapsedMs };
+            } catch (err: any) {
+              const elapsedMs = Date.now() - t0;
+              const message = err?.message ?? String(err);
+              console.log(`[INNGEST][${providerId}] ✗ ${elapsedMs}ms — ${message}`);
+              return { ok: false as const, error: message, elapsedMs };
+            }
+          });
+
+          if (stepResult.ok) {
+            result = stepResult.result;
+            usedProvider = providerId;
+            attempted.push({ id: providerId });
+          } else {
+            attempted.push({ id: providerId, error: stepResult.error });
+          }
+        }
+
+        if (!result || !usedProvider) {
+          const summary = attempted.map((a) => `${a.id}=${a.error ?? 'ok'}`).join('; ');
+          throw new Error(`All ${configured.length} providers failed: ${summary}`);
+        }
+
+        analysis = {
+          ...result,
+          attempted,
+          chunks: 1,
+          sourceChars: text.length,
+          fallbackUsed: usedProvider === configured[0] ? null : usedProvider,
+        };
+      }
 
       const { material, model, tokensUsed, attempted, chunks, sourceChars, degraded, fallbackUsed } = analysis;
 

@@ -91,6 +91,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       minimal: true,
       pages: opts?.pages,
       pass: opts?.pass,
+      timeoutMs: opts?.timeoutMs,
       maxOutputTokens: OUTPUT_CAPS['groq-llama-3.3-70b'],
     }),
     isConfigured: () => Boolean(env.groqApiKey),
@@ -107,6 +108,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       minimal: true,
       pages: opts?.pages,
       pass: opts?.pass,
+      timeoutMs: opts?.timeoutMs,
       maxOutputTokens: OUTPUT_CAPS['groq-llama-3.1-8b'],
     }),
     isConfigured: () => Boolean(env.groqApiKey),
@@ -127,6 +129,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
+      timeoutMs: opts?.timeoutMs,
       maxOutputTokens: OUTPUT_CAPS['openrouter-free'],
     }),
     isConfigured: () => Boolean(env.openrouterApiKey),
@@ -142,6 +145,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
+      timeoutMs: opts?.timeoutMs,
       maxOutputTokens: opts?.pass ? MISTRAL_PASS_CAPS[opts.pass] : OUTPUT_CAPS['mistral-small'],
     }),
     isConfigured: () => Boolean(env.mistralApiKey),
@@ -159,6 +163,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       minimal: true,
       pages: opts?.pages,
       pass: opts?.pass,
+      timeoutMs: opts?.timeoutMs,
       maxOutputTokens: OUTPUT_CAPS['github-gpt-4o-mini'],
     }),
     isConfigured: () => Boolean(env.githubToken),
@@ -174,6 +179,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
+      timeoutMs: opts?.timeoutMs,
       maxOutputTokens: OUTPUT_CAPS['github-llama-3.3-70b'],
     }),
     isConfigured: () => Boolean(env.githubToken),
@@ -194,6 +200,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       minimal: opts?.minimal,
       pages: opts?.pages,
       pass: opts?.pass,
+      timeoutMs: opts?.timeoutMs,
       maxOutputTokens: OUTPUT_CAPS['deepseek-v4-flash'],
       // Two thinking-disable flags sent in parallel:
       //   - `thinking: {type: disabled}` — V4-Flash documented format
@@ -212,15 +219,24 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * Same chain for both tiers — Gemini 2.5 Flash and DeepSeek V4-Flash both
- * have generous context windows (1M+) so XL gets the same treatment.
+ * DeepSeek V4-Flash is FIRST in the chain because:
+ *   1. User paid $4 explicitly to use DeepSeek for packs — chain order should
+ *      reflect that intent.
+ *   2. With per-provider Inngest steps (lib/inngest.ts) each provider gets its
+ *      own 60s Vercel function invocation, so DeepSeek's 50-80 tok/s × ~4K
+ *      tokens (minimal flag) = 50-80s actually fits — 70-80% completion rate
+ *      vs 0% under the old shared-25s-budget cascade.
+ *   3. DeepSeek output quality > Llama 70B for reasoning-heavy content; Gemini
+ *      free quota burns out fast in dev (10 RPM / 250 RPD), so leaning on a
+ *      paid primary insulates us from quota cliffs.
  *
- *   1. gemini-2.5-flash   — Free primary. Polished output, ~5s latency.
- *                           Free RPD (~1500/day) sufficient at current scale.
- *   2. deepseek-v4-flash  — Paid backup ($4 budget). Used when Gemini fails.
- *                           ~30s latency, fits inside 35s client timeout.
- *   3. groq-llama-3.3-70b — Fast fallback (~5s). Reliable safety net.
- *                           Tight 12K TPM cap → 3K input / 6K output.
+ *   1. deepseek-v4-flash  — Paid primary ($4 budget). 50-80s typical with
+ *                           minimal flag, 55s client timeout, finishes 70-80%
+ *                           of the time inside its dedicated Inngest step.
+ *   2. gemini-2.5-flash   — Fast free fallback. ~5-30s when quota healthy,
+ *                           covers DeepSeek aborts and rate-limit days.
+ *   3. groq-llama-3.3-70b — Reliable safety net (~15s LPU). Tight 12K TPM cap
+ *                           → 3K input / 6K output.
  *   4. mistral-small      — Last resort. 500K TPM, generous output.
  *
  * Registered but NOT in active chains (kept for future use):
@@ -229,19 +245,20 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  *   - groq-llama-3.1-8b                         — too tight a TPM budget.
  *   - github-* models                           — 8K total context cap 413s.
  *
- * Worst-case latency cascade: Gemini fail-fast (~3s) + DeepSeek timeout (35s)
- * + Groq run (~5s) = ~43s, comfortably under Vercel's 60s function ceiling.
+ * Per-provider step orchestration (lib/inngest.ts) means each entry runs in
+ * its own Vercel function, so worst-case = N × ~60s across N steps. Inngest
+ * checkpoints between steps so failed providers don't re-burn quota on retry.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'gemini-2.5-flash',
   'deepseek-v4-flash',
+  'gemini-2.5-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];
 
 const XL_FALLBACK_ORDER: ModelId[] = [
-  'gemini-2.5-flash',
   'deepseek-v4-flash',
+  'gemini-2.5-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];

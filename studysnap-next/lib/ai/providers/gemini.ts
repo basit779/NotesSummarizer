@@ -62,7 +62,7 @@ export async function geminiProvider(
   modelName: string,
   text: string,
   plan: 'FREE' | 'PRO',
-  opts: { minimal?: boolean; pages?: number; pass?: 1 | 2 } = {},
+  opts: { minimal?: boolean; pages?: number; pass?: 1 | 2; timeoutMs?: number } = {},
 ): Promise<ProviderResult> {
   const key = env.googleApiKey;
   if (!key) throw new TransientAIError('NO_KEY', `GOOGLE_API_KEY not configured for ${modelName}`);
@@ -102,25 +102,23 @@ export async function geminiProvider(
     },
   };
 
-  // 25s client-side timeout — tighter than openaiCompat's 35s because Gemini
-  // is chain position 1 and a hung Gemini blocks DeepSeek's full 30s window
-  // under Vercel's 60s ceiling. Cascade math:
-  //   Gemini hangs (25s abort) + DeepSeek runs (~30s) = 55s, fits.
-  //   Gemini @ 35s + DeepSeek 30s = 65s, blows the ceiling.
-  // Same AbortSignal.timeout pattern as openaiCompat (Node 18.17+ native
-  // timer — undici handles connect-phase / awaiting-headers hangs reliably,
-  // unlike the AbortController + setTimeout combo).
+  // Client-side abort timeout (default 25s, configurable). 25s for chat +
+  // legacy shared-budget callers; 55s when called from per-provider Inngest
+  // steps where each provider gets its own 60s function invocation. Same
+  // AbortSignal.timeout pattern as openaiCompat — undici handles connect-phase
+  // / awaiting-headers hangs reliably.
+  const timeoutMs = opts.timeoutMs ?? 25_000;
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(25_000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err: any) {
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-      throw new TransientAIError('PROVIDER_TIMEOUT', `Gemini ${modelName} did not respond within 25s`);
+      throw new TransientAIError('PROVIDER_TIMEOUT', `Gemini ${modelName} did not respond within ${Math.round(timeoutMs / 1000)}s`);
     }
     throw err;
   }
