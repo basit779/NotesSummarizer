@@ -122,9 +122,95 @@ export const processFile = inngest.createFunction(
         for (const providerId of configured) {
           if (result) break;
 
-          // DeepSeek needs minimal flag so its ~4K-token output (vs ~5-6K
-          // full) fits the 55s timeout at 50-80 tok/s. Other providers run
-          // full counts (their per-token speed isn't the binding constraint).
+          // DeepSeek + medium/long/xl tier → 2-pass PARALLEL orchestration.
+          // Each pass runs as its own Inngest step = its own 60s Vercel
+          // function invocation, so DeepSeek's 50-80 tok/s × ~3K tokens per
+          // pass = 37-60s fits comfortably. Without 2-pass, DeepSeek's full
+          // ~6K output tokens at 50-80 tok/s = 75-120s blows Hobby's 60s wall.
+          //
+          // Short tier uses single-pass DeepSeek — output already fits 55s
+          // budget, no point paying for 2 API calls.
+          //
+          // Other providers (Gemini/Groq/Mistral) always single-pass — their
+          // per-token speed isn't the binding constraint.
+          const useDeepSeekTwoPass = providerId === 'deepseek-v4-flash' && tier !== 'short';
+
+          if (useDeepSeekTwoPass) {
+            // Pass 1 + Pass 2 via Promise.all — Inngest dispatches each
+            // step.run() as its own function invocation in parallel.
+            const [pass1, pass2] = await Promise.all([
+              step.run(`analyze-${providerId}-pass1`, async () => {
+                const t0 = Date.now();
+                try {
+                  const r = await runOneProvider(providerId, text, plan, {
+                    pages,
+                    pass: 1,
+                    minimal: true,
+                    timeoutMs: PER_PROVIDER_TIMEOUT_MS,
+                  });
+                  const elapsedMs = Date.now() - t0;
+                  console.log(`[INNGEST][${providerId}/pass1] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
+                  return { ok: true as const, result: r, elapsedMs };
+                } catch (err: any) {
+                  const elapsedMs = Date.now() - t0;
+                  const message = err?.message ?? String(err);
+                  console.log(`[INNGEST][${providerId}/pass1] ✗ ${elapsedMs}ms — ${message}`);
+                  return { ok: false as const, error: message, elapsedMs };
+                }
+              }),
+              step.run(`analyze-${providerId}-pass2`, async () => {
+                const t0 = Date.now();
+                try {
+                  const r = await runOneProvider(providerId, text, plan, {
+                    pages,
+                    pass: 2,
+                    minimal: true,
+                    timeoutMs: PER_PROVIDER_TIMEOUT_MS,
+                  });
+                  const elapsedMs = Date.now() - t0;
+                  console.log(`[INNGEST][${providerId}/pass2] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
+                  return { ok: true as const, result: r, elapsedMs };
+                } catch (err: any) {
+                  const elapsedMs = Date.now() - t0;
+                  const message = err?.message ?? String(err);
+                  console.log(`[INNGEST][${providerId}/pass2] ✗ ${elapsedMs}ms — ${message}`);
+                  return { ok: false as const, error: message, elapsedMs };
+                }
+              }),
+            ]);
+
+            // Both passes must succeed for DeepSeek to "win" this upload.
+            // Partial success isn't useful — a pack without a summary or
+            // without flashcards isn't a complete pack. If either pass
+            // fails, advance to the next provider in the chain.
+            if (pass1.ok && pass2.ok) {
+              const merged: StudyMaterial = {
+                title: pass1.result.material.title,
+                summary: pass1.result.material.summary,
+                keyPoints: pass1.result.material.keyPoints,
+                definitions: pass1.result.material.definitions,
+                flashcards: pass2.result.material.flashcards,
+                examQuestions: pass2.result.material.examQuestions,
+                topicConnections: pass2.result.material.topicConnections,
+                studyTips: pass2.result.material.studyTips,
+              };
+              result = {
+                material: merged,
+                model: providerId,
+                tokensUsed: pass1.result.tokensUsed + pass2.result.tokensUsed,
+              };
+              usedProvider = providerId;
+              attempted.push({ id: providerId });
+              console.log(`[INNGEST][${providerId}] 2-pass merged: pass1=${pass1.elapsedMs}ms pass2=${pass2.elapsedMs}ms`);
+            } else {
+              const errSummary = `pass1=${pass1.ok ? 'ok' : pass1.error}; pass2=${pass2.ok ? 'ok' : pass2.error}`;
+              attempted.push({ id: providerId, error: `2-pass failed: ${errSummary}` });
+              console.log(`[INNGEST][${providerId}] 2-pass FAILED — ${errSummary}, advancing chain`);
+            }
+            continue;
+          }
+
+          // Single-pass path (Gemini/Groq/Mistral always; DeepSeek for short tier)
           const useMinimal = providerId === 'deepseek-v4-flash';
 
           const stepResult = await step.run(`analyze-${providerId}`, async () => {

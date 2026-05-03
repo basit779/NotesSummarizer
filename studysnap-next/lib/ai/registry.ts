@@ -219,25 +219,29 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * DeepSeek V4-Flash is FIRST in the chain because:
- *   1. User paid $4 explicitly to use DeepSeek for packs — chain order should
- *      reflect that intent.
- *   2. With per-provider Inngest steps (lib/inngest.ts) each provider gets its
- *      own 60s Vercel function invocation, so DeepSeek's 50-80 tok/s × ~4K
- *      tokens (minimal flag) = 50-80s actually fits — 70-80% completion rate
- *      vs 0% under the old shared-25s-budget cascade.
- *   3. DeepSeek output quality > Llama 70B for reasoning-heavy content; Gemini
- *      free quota burns out fast in dev (10 RPM / 250 RPD), so leaning on a
- *      paid primary insulates us from quota cliffs.
- *
- *   1. deepseek-v4-flash  — Paid primary ($4 budget). 50-80s typical with
- *                           minimal flag, 55s client timeout, finishes 70-80%
- *                           of the time inside its dedicated Inngest step.
- *   2. gemini-2.5-flash   — Fast free fallback. ~5-30s when quota healthy,
- *                           covers DeepSeek aborts and rate-limit days.
+ * Gemini primary, DeepSeek as paid backup with 2-pass parallel orchestration:
+ *   1. gemini-2.5-flash   — Free primary. ~5-30s typical, top quality, serves
+ *                           the bulk of uploads while quota is healthy
+ *                           (250 RPD, 10 RPM free tier).
+ *   2. deepseek-v4-flash  — Paid backup ($4). When Gemini rate-limits or
+ *                           errors out, DeepSeek fires. For medium+ docs the
+ *                           Inngest orchestrator (lib/inngest.ts) splits
+ *                           DeepSeek into PARALLEL pass1 + pass2 Inngest steps,
+ *                           each in its own 60s function invocation, so
+ *                           DeepSeek finishes for any doc size despite Hobby's
+ *                           60s wall. Short docs use single-pass DeepSeek.
  *   3. groq-llama-3.3-70b — Reliable safety net (~15s LPU). Tight 12K TPM cap
  *                           → 3K input / 6K output.
  *   4. mistral-small      — Last resort. 500K TPM, generous output.
+ *
+ * Why this order:
+ *   - Gemini quality is the best free option; using it primary means default
+ *     uploads get the best output without spending the $4 budget.
+ *   - DeepSeek as backup means the $4 lasts 3-5x longer (only fires when
+ *     Gemini fails) AND with 2-pass orchestration the $4 actually delivers
+ *     when called — no more wasted aborts.
+ *   - Both providers earn their keep: Gemini handles ~80%, DeepSeek catches
+ *     ~15-20% (rate-limit days, dev testing, traffic spikes).
  *
  * Registered but NOT in active chains (kept for future use):
  *   - gemini-2.5-pro / -flash-lite / 2.0-flash — variant-of-primary, redundant.
@@ -250,15 +254,15 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  * checkpoints between steps so failed providers don't re-burn quota on retry.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'deepseek-v4-flash',
   'gemini-2.5-flash',
+  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];
 
 const XL_FALLBACK_ORDER: ModelId[] = [
-  'deepseek-v4-flash',
   'gemini-2.5-flash',
+  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];
