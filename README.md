@@ -1,158 +1,212 @@
 # StudySnap AI
 
-**The AI study operating system.** Drop a PDF — get summaries, flashcards, definitions, and exam questions in seconds. Built for students who move fast.
+**Drop a PDF, get a study pack.** Summary, key points, definitions, flashcards, exam questions, plus chat-with-your-doc — all in seconds.
+
+Live at **[studysnap-cyan.vercel.app](https://studysnap-cyan.vercel.app)**.
+
+---
+
+## What's interesting under the hood
+
+This isn't another "wrap GPT in Next.js" project. The AI pipeline survives Vercel Hobby's 60-second function cap while still using a **paid 50-80 tok/s model** that physically can't finish a study pack in 60s under normal architecture. The trick:
+
+1. **Inngest as a background queue.** The Vercel route returns `202 + jobId` in <1s, then Inngest fires the work as a separate webhook. Browser doesn't hang.
+2. **Per-provider Inngest steps.** Each AI provider attempt runs in its own Vercel function invocation = its own 60s budget. Failures cleanly cascade to the next provider without losing the upload.
+3. **Parallel 2-pass DeepSeek for medium+ docs.** When the chain reaches DeepSeek and the doc is bigger than a few pages, the pipeline splits the pack into pass1 (summary + keyPoints + definitions) and pass2 (flashcards + MCQs + tips), runs both as **parallel Inngest steps**, and merges the halves. Each parallel step generates ~3K tokens (≤55s on DeepSeek's hardware), so the full pack actually finishes on Hobby.
+
+Result: a $4 DeepSeek budget that actively serves packs at any doc size on a free Vercel plan.
+
+---
 
 ## Stack
 
-- **Frontend:** Vite + React 18 + TypeScript + Tailwind + Framer Motion (dark, cinematic UI)
-- **Backend:** Node.js + Express + TypeScript + Prisma
-- **Database:** PostgreSQL
-- **AI:** Multi-provider — Gemini (2.5 Pro / 2.0 Flash), Groq (Llama 3.3 70B / 3.1 8B), OpenRouter (DeepSeek V3 free), Mistral Small. Automatic rate-limit fallback. Pick from the UI.
-- **Auth:** JWT + bcrypt
-- **Billing:** Mock by default ($0 mode). Real Stripe pluggable when you're ready.
+- **Next.js 15** App Router — single project, frontend + serverless API routes
+- **Tailwind + Framer Motion** — dark, cinematic UI
+- **Prisma + Postgres** — Neon free tier in prod, docker compose locally
+- **Inngest** — background queue + per-step orchestration (free tier)
+- **AI providers (auto-fallback chain):**
+  1. `gemini-2.5-flash` — free primary, ~80% of uploads
+  2. `deepseek-v4-flash` — paid backup with 2-pass parallel for medium+ docs
+  3. `groq-llama-3.3-70b` — LPU safety net (~15s)
+  4. `mistral-small` — last resort
+- **JWT auth + bcrypt**
+- **Stripe** — mock mode by default ($0 dev), `BILLING_MODE=live` for real
+- **RAG chat** — Gemini `text-embedding-004`, Postgres-backed cosine similarity, top-4 chunks per turn
 
-## Quick start
+---
+
+## Architecture diagram
+
+```
+Browser
+   │
+   │  POST /api/process/:fileId
+   ▼
+Vercel Edge (returns 202 + jobId in <1s)
+   │
+   │  inngest.send({ name: "process.file", data: {...} })
+   ▼
+Inngest Cloud
+   │
+   │  webhook → /api/inngest
+   ▼
+Vercel Function (process-file orchestrator)
+   │
+   ├── step.run("load-file")       → Postgres
+   ├── step.run("extract-text")    → pdf-parse / mammoth
+   ├── analyze branch:
+   │     ├── short doc?
+   │     │     └── single-pass per-provider chain
+   │     └── medium+ doc?
+   │           └── chain loop:
+   │                 ├── step.run("analyze-gemini-2.5-flash")
+   │                 │     OR
+   │                 ├── Promise.all([
+   │                 │     step.run("analyze-deepseek-v4-flash-pass1"),
+   │                 │     step.run("analyze-deepseek-v4-flash-pass2")
+   │                 │   ])  ← each in its own 60s Vercel function
+   │                 ├── step.run("analyze-groq-llama-3.3-70b")
+   │                 └── step.run("analyze-mistral-small")
+   ├── step.run("persist-result")  → Postgres ProcessingResult
+   └── step.run("cache-and-rag")   → PdfCache + buildRagIndex
+```
+
+Each `step.run()` is a separate Vercel function invocation with its own 60s budget. Inngest checkpoints between steps — failed steps don't kill prior progress.
+
+---
+
+## Local quick start
+
+The active app is in `studysnap-next/`.
 
 ```bash
 # 1. Postgres
 docker compose up -d
 
-# 2. Backend
-cd backend
-cp .env.example .env          # add at least one AI provider key
+# 2. Configure
+cd studysnap-next
+cp .env.example .env.local
+#   set JWT_SECRET (any random string)
+#   set DATABASE_URL (default works with docker-compose)
+#   set at least one AI key (GOOGLE_API_KEY or DEEPSEEK_API_KEY recommended)
+
+# 3. Install + migrate
 npm install
 npx prisma migrate dev --name init
-npm run dev                   # → http://localhost:4000
 
-# 3. Frontend (new terminal)
-cd frontend
-npm install
-npm run dev                   # → http://localhost:5173
+# 4. Run
+npm run dev                # → http://localhost:3000
+
+# 5. (optional) Local Inngest dev server in another terminal
+npx inngest-cli@latest dev # → http://localhost:8288 (Inngest dashboard)
 ```
 
-That's it. Open http://localhost:5173, sign up, drop a PDF.
+Open localhost:3000, sign up, drop a PDF, watch it work.
 
-## Get a free AI key (need at least ONE)
+---
+
+## Get free AI keys
+
+You only need ONE to start, but the cascade works best with multiple configured.
 
 | Provider | Free tier | Get key |
 |---|---|---|
-| **Google AI Studio** (Gemini 2.5 Pro + 2.0 Flash) — recommended | Generous, daily reset | https://aistudio.google.com/app/apikey |
-| **Groq** (Llama 3.3 70B + 3.1 8B Instant) | Fast, generous | https://console.groq.com/keys |
-| **OpenRouter** (DeepSeek V3 free + many) | Free tier on `:free` models | https://openrouter.ai/keys |
-| **Mistral** (Mistral Small) | Free tier | https://console.mistral.ai/api-keys/ |
+| **Google AI Studio** (Gemini 2.5 Flash) — recommended | 250 RPD, 10 RPM | https://aistudio.google.com/app/apikey |
+| **Groq** (Llama 3.3 70B) — fast LPU fallback | 12K TPM | https://console.groq.com/keys |
+| **DeepSeek** (V4 Flash) — paid, $4 credit serves hundreds of packs | $4 trial credit | https://platform.deepseek.com/api_keys |
+| **Mistral** (Small) | Free tier | https://console.mistral.ai/api-keys/ |
 
-Set any combination in `backend/.env`. The app automatically falls back if one is rate-limited.
+---
+
+## Deploy
+
+### Vercel (recommended)
+
+1. Push to GitHub
+2. Import on vercel.com → Framework: Next.js (auto-detected)
+3. Set env vars (see `.env.example`) including `DATABASE_URL` pointing to Neon
+4. Deploy
+
+### Inngest (for the background queue)
+
+1. Sign up at [inngest.com](https://www.inngest.com/) (GitHub login)
+2. **Settings → Integrations → Vercel → Connect.** Auto-installs `INNGEST_EVENT_KEY` + `INNGEST_SIGNING_KEY` on Vercel
+3. **Critical:** in Inngest's Vercel integration page, set **Custom Production Domain** to your Vercel custom domain (`yourapp.vercel.app`). Preview URLs are blocked by Vercel SSO — Inngest will get 401 if pointed there
+4. Trigger a fresh Vercel deploy — Inngest auto-discovers `process-file` at `/api/inngest`
+
+### Database
+
+Neon, Supabase, or any Postgres. Run `npx prisma migrate deploy` once after pointing `DATABASE_URL` at prod.
+
+---
 
 ## Folder structure
 
 ```
-.
-├── frontend/                    # Vite + React + Tailwind + Framer Motion
-│   └── src/
-│       ├── components/
-│       │   ├── fx/              # GridBackground, PageTransition, Reveal
-│       │   ├── ui/              # GlassCard, MotionButton, primitives
-│       │   ├── ModelPicker.tsx  # AI model dropdown
-│       │   └── ...
-│       └── pages/               # Landing, Login, Signup, Dashboard, Upload, Results, History, Billing
-├── backend/
-│   ├── src/
-│   │   ├── services/
-│   │   │   ├── ai/              # multi-provider registry + fallback runner
-│   │   │   │   ├── providers/   # gemini, openaiCompat (Groq/OR/Mistral)
-│   │   │   │   ├── registry.ts
-│   │   │   │   ├── runWithFallback.ts
-│   │   │   │   └── schema.ts
-│   │   │   ├── billing/         # mock/live billing facade
-│   │   │   ├── aiService.ts     # public AI facade (unchanged API)
-│   │   │   └── ...
-│   │   └── ...
-│   └── prisma/schema.prisma
-├── docker-compose.yml
-└── README.md
+studysnap-next/
+├── app/
+│   ├── api/
+│   │   ├── auth/{signup,login,me}/
+│   │   ├── upload/                       # in-memory PDF upload
+│   │   ├── process/[fileId]/             # enqueues Inngest event, returns 202
+│   │   ├── inngest/                      # Inngest webhook handler
+│   │   ├── chat/                         # RAG chat endpoint
+│   │   ├── history/, results/, dashboard/
+│   │   └── stripe/{checkout,subscription-status,webhook}/
+│   ├── (pages)/                          # Landing, Auth, Dashboard, Upload, Results, History, Billing
+│   └── layout.tsx
+├── components/                           # Navbar, Footer, Flashcard, fx/, ui/
+├── lib/
+│   ├── inngest.ts                        # Inngest client + processFile orchestrator
+│   ├── ai/
+│   │   ├── providers/                    # gemini.ts, openaiCompat.ts
+│   │   ├── registry.ts                   # provider chain + per-provider config
+│   │   ├── runWithFallback.ts            # legacy chain runner (chat path) + runOneProvider helper
+│   │   ├── twoPass.ts                    # dead-path; merge logic ported into lib/inngest.ts
+│   │   ├── chunked.ts                    # >120K char path
+│   │   ├── ragIndex.ts, retrieval.ts, embeddings.ts
+│   │   └── schema.ts, truncate.ts, telemetry.ts
+│   ├── client/                           # browser-side api + zustand auth store
+│   └── env.ts, prisma.ts, pdf.ts, prompts.ts, ...
+└── prisma/schema.prisma
 ```
 
-## Environment
+---
 
-`backend/.env` (see `backend/.env.example` for full template):
+## Environment variables
+
+See [studysnap-next/.env.example](studysnap-next/.env.example) for the full template.
 
 ```env
 # Required
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/studysnap?schema=public
+DATABASE_URL=postgresql://...
 JWT_SECRET=change-me
 
 # At least one AI key
 GOOGLE_API_KEY=
+DEEPSEEK_API_KEY=
 GROQ_API_KEY=
-OPENROUTER_API_KEY=
 MISTRAL_API_KEY=
 
-# Billing mode
-BILLING_MODE=mock              # mock = $0 dev mode. live = real Stripe.
+# Inngest (auto-set by Vercel integration in prod)
+INNGEST_EVENT_KEY=
+INNGEST_SIGNING_KEY=
+
+# Billing
+BILLING_MODE=mock   # mock = $0 dev. live = real Stripe
 
 # Limits
-FREE_DAILY_UPLOAD_LIMIT=3
+FREE_DAILY_UPLOAD_LIMIT=5
 MAX_UPLOAD_MB=15
 ```
 
-## How the AI pipeline works
+---
 
-1. PDF uploaded → `uploadController` saves file + logs usage.
-2. `processController` calls `extractTextFromPdf` → `analyzeText(text, plan, requestedModel?)`.
-3. `analyzeText` → `runWithFallback` tries the requested model first, then walks the configured fallback chain on rate-limit / 5xx / bad-JSON errors.
-4. Each provider returns a validated `StudyMaterial` JSON (summary, keyPoints, definitions, examQuestions, flashcards).
-5. Result persisted to `ProcessingResult` table; response includes the `model` actually used and the `attempted` chain for debugging.
+## What this repo also contains
 
-## API
+The `frontend/` and `backend/` folders are the **legacy Express + Vite version**. They're kept for reference but the Next.js app in `studysnap-next/` is what's deployed and maintained.
 
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| POST | `/api/auth/signup` | – | Create account |
-| POST | `/api/auth/login` | – | Log in |
-| GET  | `/api/auth/me` | ✓ | Current user |
-| POST | `/api/upload` | ✓ | Upload PDF (multipart `file`) |
-| POST | `/api/process/:fileId` | ✓ | Generate study pack — body: `{ model?: ModelId }` |
-| GET  | `/api/history` | ✓ | Paginated past results |
-| GET  | `/api/results/:id` | ✓ | Single result |
-| GET  | `/api/dashboard` | ✓ | Usage + totals + recent |
-| POST | `/api/stripe/checkout` | ✓ | Mock or real checkout |
-| GET  | `/api/stripe/subscription-status` | ✓ | Current plan |
-| POST | `/api/stripe/webhook` | – | Stripe events (live mode only) |
-| GET  | `/api/health` | – | Health check |
-
-## Switching to real Stripe (later)
-
-1. Create a Stripe account + recurring product → copy the `price_…` id.
-2. Fill `STRIPE_*` env vars in `backend/.env`.
-3. Set `BILLING_MODE=live`.
-4. Forward webhooks: `stripe listen --forward-to localhost:4000/api/stripe/webhook` → copy `whsec_…` into `STRIPE_WEBHOOK_SECRET`.
-5. Done — no code changes needed.
-
-## Verification checklist
-
-```bash
-# 1. Postgres healthy
-docker compose ps                 # studysnap-postgres-1   running   0.0.0.0:5432
-
-# 2. Migrations applied
-cd backend && npx prisma migrate status
-
-# 3. Backend boots
-npm run dev                       # logs "API on :4000"
-curl http://localhost:4000/api/health
-# → {"ok":true,"service":"studysnap-api"}
-
-# 4. Frontend boots
-cd ../frontend && npm run dev     # opens http://localhost:5173
-```
-
-End-to-end: sign up → drop a PDF → pick a model → see study pack → flip flashcards → click upgrade → mock-Pro flips your plan.
-
-## Deploy
-
-- **Backend:** Railway / Render / Fly.io. `npm run build && npm start`. Run `npx prisma migrate deploy` on release.
-- **Frontend:** Vercel. Set `VITE_API_URL` to your backend URL (or proxy via `vercel.json`).
-- **DB:** Neon / Supabase free tier.
+---
 
 ## License
 
