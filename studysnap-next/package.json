@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^11.11.17",
     "highlight.js": "^11.11.1",
+    "inngest": "^4.2.6",
     "jsonwebtoken": "^9.0.2",
     "jszip": "^3.10.1",
     "lucide-react": "^0.460.0",
