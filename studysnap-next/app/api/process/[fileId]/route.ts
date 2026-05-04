@@ -10,8 +10,14 @@ export const runtime = 'nodejs';
 // Route only does a quick DB read + enqueue, so it doesn't need the full 60s.
 export const maxDuration = 10;
 
-/** If a /process started within this many ms and hasn't finished, reject duplicate calls. */
-const PROCESSING_LOCK_MS = 90_000;
+/** If a /process started within this many ms and hasn't finished, reject duplicate calls.
+ *
+ *  300s (5 min) matches STALE_PROCESSING_MS in the status route. Sized for the
+ *  post-Inngest worst case: Gemini timeout (55s) + DeepSeek 2-pass parallel
+ *  (~55s) + Groq + Mistral + persist + cache+RAG ≈ 180-200s realistic ceiling.
+ *  The OLD 90s window was pre-Inngest and rejected legit duplicate-defense
+ *  during ~130s 2-pass runs. */
+const PROCESSING_LOCK_MS = 300_000;
 
 /**
  * Async kick-off. Returns 202 in <1s with `{ jobId, status: 'processing' }`,

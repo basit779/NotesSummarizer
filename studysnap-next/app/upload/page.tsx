@@ -30,11 +30,13 @@ function fileTypeLabel(file: File | undefined): string {
   return 'document';
 }
 
-/** Poll cadence + timeout. 3s × 60 = 3 min hard ceiling — generous against
- *  the 60s function cap + ~20s of pre-flight, with headroom for cold starts.
- *  After this, we surface an error rather than spinning forever. */
+/** Poll cadence + timeout. 3s × 120 = 6 min hard client ceiling.
+ *  Sized for the post-Inngest architecture: a worst-case medium+ doc with
+ *  DeepSeek 2-pass + Gemini fallback + Groq tail can run ~3-4 min wall time.
+ *  6 min on the client matches the 5 min server-side STALE_PROCESSING_MS with
+ *  some margin. After this we surface an error rather than spinning forever. */
 const POLL_INTERVAL_MS = 3000;
-const POLL_MAX_ATTEMPTS = 60;
+const POLL_MAX_ATTEMPTS = 120;
 
 async function pollUntilDone(fileId: string): Promise<{ id: string }> {
   for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {

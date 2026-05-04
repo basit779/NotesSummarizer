@@ -6,9 +6,18 @@ import { HttpError } from '@/lib/httpError';
 export const runtime = 'nodejs';
 
 /** Match the POST route's idempotency window. If status=PROCESSING and the lock
- *  is older than this, the worker function was almost certainly killed by Vercel's
- *  60s ceiling — surface as ERROR rather than letting the client poll forever. */
-const STALE_PROCESSING_MS = 90_000;
+ *  is older than this, treat the worker as dead and surface ERROR rather than
+ *  letting the client poll forever.
+ *
+ *  300s (5 min) sized for the post-Inngest architecture worst case:
+ *  Gemini timeout (55s) + DeepSeek 2-pass parallel (~55s, see lib/inngest.ts) +
+ *  Groq fallback (~15s) + Mistral last resort (~30s) + persist (~2s) +
+ *  cache-and-rag (~15s) + Inngest dispatch overhead (~10-30s) = ~180-200s
+ *  realistic ceiling. 300s gives ~100s safety margin and matches the
+ *  POST route's PROCESSING_LOCK_MS exactly. The OLD 90s value was sized for
+ *  the pre-Inngest single-function pipeline and was firing FALSE-POSITIVE
+ *  errors on legitimate 2-pass DeepSeek runs (~130s observed in prod). */
+const STALE_PROCESSING_MS = 300_000;
 
 /**
  * Poll endpoint for the async process pipeline.

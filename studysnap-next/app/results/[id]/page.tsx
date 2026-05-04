@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import {
   Copy, Download, Lock, Clock, FileText, ArrowLeft, Play, Zap,
   BookOpen, ListOrdered, Library, Layers, HelpCircle, Lightbulb, MessageSquare,
-  CheckCircle2, Hash, PanelRightClose, PanelRightOpen, RefreshCw,
+  CheckCircle2, Hash, PanelRightClose, PanelRightOpen,
 } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { useAuth } from '@/lib/client/auth';
@@ -42,23 +42,6 @@ interface ResultData {
   studyTips?: string[];
   file: { filename: string; pageCount: number | null };
   createdAt: string;
-  fallbackUsed?: string | null;
-}
-
-const PROVIDER_LABELS: Record<string, string> = {
-  'mistral-small': 'Mistral',
-  'openrouter-free': 'OpenRouter',
-  'groq-llama-3.3-70b': 'Llama 70B',
-  'groq-llama-3.1-8b': 'Llama 8B',
-  'github-gpt-4o-mini': 'GPT-4o mini',
-  'github-llama-3.3-70b': 'Llama 70B (GitHub)',
-  'gemini-2.5-pro': 'Gemini 2.5 Pro',
-  'gemini-2.5-flash': 'Gemini 2.5 Flash',
-  'gemini-2.5-flash-lite': 'Gemini 2.5 Flash Lite',
-  'gemini-2.0-flash': 'Gemini 2.0 Flash',
-};
-function labelForProvider(id: string): string {
-  return PROVIDER_LABELS[id] ?? id;
 }
 
 type TabId = 'notes' | 'key' | 'defs' | 'flash' | 'exam' | 'tips';
@@ -195,7 +178,6 @@ function Loading() {
 
 function ResultsInner() {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const id = params.id;
   const { user } = useAuth();
   const [result, setResult] = useState<ResultData | null>(null);
@@ -250,32 +232,6 @@ function ResultsInner() {
       >
         <ArrowLeft className="h-3 w-3" /> back to history
       </Link>
-
-      {/* Fallback degradation banner — shown when the pack was generated on a
-          non-primary provider (Gemini got rate-limited, Mistral/OpenRouter
-          took over). Informational, not alarming — user can re-upload for
-          potentially fuller detail on the primary provider. */}
-      {result.fallbackUsed && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="mt-3 flex items-start gap-3 rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/[0.06] to-amber-500/[0.02] px-4 py-3"
-        >
-          <Zap className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
-          <div className="flex-1 min-w-0">
-            <div className="text-[13.5px] text-amber-100/90 leading-relaxed">
-              Fast mode — generated with <span className="text-amber-300 font-medium">{labelForProvider(result.fallbackUsed)}</span> after the primary model was busy. Re-upload for fuller detail.
-            </div>
-          </div>
-          <button
-            onClick={() => router.push('/upload')}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-[12px] text-amber-200 hover:text-white hover:bg-amber-500/20 hover:border-amber-500/50 transition-all cursor-pointer"
-          >
-            <RefreshCw className="h-3 w-3" /> Regenerate
-          </button>
-        </motion.div>
-      )}
 
       {/* Hero */}
       <motion.div
