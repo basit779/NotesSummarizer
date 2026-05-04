@@ -38,8 +38,15 @@ export interface ProviderResult {
 }
 
 export interface ProviderRunOptions {
-  /** Retry mode: use a trimmed prompt so output fits in the model's max_tokens cap. */
+  /** Retry mode: use a trimmed prompt so output fits in the model's max_tokens cap.
+   *  Scales TIER_COUNTS by ~0.7×. */
   minimal?: boolean;
+  /** Aggressive trim: scales TIER_COUNTS by ~0.5×. Used ONLY for DeepSeek pass
+   *  calls in lib/inngest.ts where physics demand even smaller output to fit
+   *  the 55s timeout reliably (50-80 tok/s × 1.5K tokens = 19-30s, vs 30-60s
+   *  with regular minimal). Other providers don't need this — their per-token
+   *  speed isn't the binding constraint. */
+  ultraMinimal?: boolean;
   /** Number of PDF pages (if known). Used by the prompt builder for tier
    *  selection — slide-heavy PDFs need page signal, not just char count. */
   pages?: number;

@@ -145,7 +145,11 @@ export const processFile = inngest.createFunction(
                   const r = await runOneProvider(providerId, text, plan, {
                     pages,
                     pass: 1,
-                    minimal: true,
+                    // ultraMinimal (0.5×) instead of minimal (0.7×): DeepSeek
+                    // pass1 was hitting the 55s timeout on medium docs even
+                    // with minimal — physics edge. Ultra trims output to ~1.5K
+                    // tokens, finishing in 19-30s reliably.
+                    ultraMinimal: true,
                     timeoutMs: PER_PROVIDER_TIMEOUT_MS,
                   });
                   const elapsedMs = Date.now() - t0;
@@ -164,7 +168,8 @@ export const processFile = inngest.createFunction(
                   const r = await runOneProvider(providerId, text, plan, {
                     pages,
                     pass: 2,
-                    minimal: true,
+                    // ultraMinimal: see pass1 comment.
+                    ultraMinimal: true,
                     timeoutMs: PER_PROVIDER_TIMEOUT_MS,
                   });
                   const elapsedMs = Date.now() - t0;

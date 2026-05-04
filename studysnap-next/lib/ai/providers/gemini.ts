@@ -62,7 +62,7 @@ export async function geminiProvider(
   modelName: string,
   text: string,
   plan: 'FREE' | 'PRO',
-  opts: { minimal?: boolean; pages?: number; pass?: 1 | 2; timeoutMs?: number } = {},
+  opts: { minimal?: boolean; ultraMinimal?: boolean; pages?: number; pass?: 1 | 2; timeoutMs?: number } = {},
 ): Promise<ProviderResult> {
   const key = env.googleApiKey;
   if (!key) throw new TransientAIError('NO_KEY', `GOOGLE_API_KEY not configured for ${modelName}`);
@@ -72,10 +72,10 @@ export async function geminiProvider(
   // Pass selection — XL 2-pass uses narrower schema + narrower prompt each call,
   // so the 8192 output-token ceiling serves one half of the pack instead of both.
   const userPromptText = opts.pass === 1
-    ? buildUserPromptPass1(text, { minimal: opts.minimal, pages: opts.pages })
+    ? buildUserPromptPass1(text, { minimal: opts.minimal, ultraMinimal: opts.ultraMinimal, pages: opts.pages })
     : opts.pass === 2
-    ? buildUserPromptPass2(text, { minimal: opts.minimal, pages: opts.pages })
-    : buildUserPrompt(text, plan, { minimal: opts.minimal, pages: opts.pages });
+    ? buildUserPromptPass2(text, { minimal: opts.minimal, ultraMinimal: opts.ultraMinimal, pages: opts.pages })
+    : buildUserPrompt(text, plan, { minimal: opts.minimal, ultraMinimal: opts.ultraMinimal, pages: opts.pages });
 
   const responseSchema = opts.pass === 1 ? PASS1_SCHEMA
     : opts.pass === 2 ? PASS2_SCHEMA

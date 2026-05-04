@@ -35,6 +35,8 @@ export async function openaiCompat(args: {
   extraHeaders?: Record<string, string>;
   supportsJsonSchema?: boolean;
   minimal?: boolean;
+  /** Aggressive trim mode — see ProviderRunOptions in types.ts. */
+  ultraMinimal?: boolean;
   /** PDF page count for tier selection — forwarded to buildUserPrompt. */
   pages?: number;
   /** XL 2-pass signal — see ProviderRunOptions in types.ts. */
@@ -57,7 +59,7 @@ export async function openaiCompat(args: {
 }): Promise<ProviderResult> {
   const {
     baseUrl, apiKey, modelName, displayName, text, plan, extraHeaders = {}, supportsJsonSchema = true, minimal = false,
-    pages, pass, maxOutputTokens, extraBody, timeoutMs = 25_000,
+    ultraMinimal = false, pages, pass, maxOutputTokens, extraBody, timeoutMs = 25_000,
   } = args;
 
   if (!apiKey) throw new TransientAIError('NO_KEY', `API key missing for ${displayName}`);
@@ -67,10 +69,10 @@ export async function openaiCompat(args: {
 ${JSON.stringify(effectiveSchema)}`;
 
   const userPromptText = pass === 1
-    ? buildUserPromptPass1(text, { minimal, pages })
+    ? buildUserPromptPass1(text, { minimal, ultraMinimal, pages })
     : pass === 2
-    ? buildUserPromptPass2(text, { minimal, pages })
-    : buildUserPrompt(text, plan, { minimal, pages });
+    ? buildUserPromptPass2(text, { minimal, ultraMinimal, pages })
+    : buildUserPrompt(text, plan, { minimal, ultraMinimal, pages });
   const userPrompt = userPromptText + '\n\n' + schemaInstruction;
 
   const body: Record<string, unknown> = {

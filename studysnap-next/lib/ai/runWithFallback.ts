@@ -18,7 +18,7 @@ export async function runOneProvider(
   id: ModelId,
   text: string,
   plan: 'FREE' | 'PRO',
-  opts: { pages?: number; pass?: 1 | 2; minimal?: boolean; timeoutMs?: number } = {},
+  opts: { pages?: number; pass?: 1 | 2; minimal?: boolean; ultraMinimal?: boolean; timeoutMs?: number } = {},
 ): Promise<ProviderResult> {
   const spec = MODEL_REGISTRY[id];
   if (!spec) throw new PermanentAIError('UNKNOWN_PROVIDER', `Unknown provider: ${id}`);

@@ -26,10 +26,22 @@ export interface PromptOptions {
   /** Retry mode: scales counts ~30% smaller so the pack fits tight output caps
    *  (e.g. Groq's 4096-token fallback ceiling). */
   minimal?: boolean;
+  /** Aggressive trim: scales counts ~50% smaller. Used by DeepSeek's per-pass
+   *  Inngest steps (lib/inngest.ts) where its 50-80 tok/s × ~3K minimal-flag
+   *  output can still hit the 55s timeout for medium docs. ultraMinimal drops
+   *  to ~1.5K tokens, finishing in 19-30s reliably. */
+  ultraMinimal?: boolean;
   /** Number of PDF pages (if known). Tier selection uses pages OR chars
    *  whichever lands in the higher tier — slide-heavy PDFs have low char
    *  density but still need broad coverage. */
   pages?: number;
+}
+
+/** Resolve the count-scaling factor: ultraMinimal=0.5, minimal=0.7, neither=1.0 */
+function resolveScaleFactor(opts: { minimal?: boolean; ultraMinimal?: boolean }): number {
+  if (opts.ultraMinimal) return 0.5;
+  if (opts.minimal) return 0.7;
+  return 1.0;
 }
 
 export type Tier = 'short' | 'medium' | 'long' | 'xl';
@@ -105,7 +117,7 @@ export function selectTier(chars: number, pages: number | undefined): Tier {
 }
 
 export function buildUserPrompt(text: string, _plan: 'FREE' | 'PRO', opts: PromptOptions = {}) {
-  const { minimal = false, pages } = opts;
+  const { pages } = opts;
 
   const chars = text.length;
   const tier = selectTier(chars, pages);
@@ -115,8 +127,9 @@ export function buildUserPrompt(text: string, _plan: 'FREE' | 'PRO', opts: Promp
     : tier === 'medium' ? 'a MEDIUM source (~5-14 pages)'
     : 'a SHORT source (~2-4 pages)';
 
+  const factor = resolveScaleFactor(opts);
   const base = TIER_COUNTS[tier];
-  const counts = minimal ? scaleCounts(base, 0.7) : base;
+  const counts = factor === 1.0 ? base : scaleCounts(base, factor);
 
   const pageInfo = pages ? `${pages} pages, ${chars} chars` : `${chars} chars`;
 
@@ -209,9 +222,10 @@ function scalePass2(c: Pass2Counts, factor: number): Pass2Counts {
  * the 7500-token cap with finish=length on a 45-page test — pass 1 carrying
  * 5 sections was too heavy. Splitting 3/4 fits both passes comfortably.
  */
-export function buildUserPromptPass1(text: string, opts: { minimal?: boolean; pages?: number } = {}) {
-  const { minimal = false, pages } = opts;
-  const base = minimal ? scalePass1(XL_PASS1_COUNTS, 0.7) : XL_PASS1_COUNTS;
+export function buildUserPromptPass1(text: string, opts: { minimal?: boolean; ultraMinimal?: boolean; pages?: number } = {}) {
+  const { pages } = opts;
+  const factor = resolveScaleFactor(opts);
+  const base = factor === 1.0 ? XL_PASS1_COUNTS : scalePass1(XL_PASS1_COUNTS, factor);
   const pageInfo = pages ? `${pages} pages, ${text.length} chars` : `${text.length} chars`;
 
   return `Analyze this source and produce the CORE NOTES HALF of a study pack as JSON. Source is an XL document (${pageInfo}).
@@ -256,9 +270,10 @@ ${text}
  * examQuestions + topicConnections + studyTips. Pass 1 handled core notes
  * (summary/keyPoints/definitions).
  */
-export function buildUserPromptPass2(text: string, opts: { minimal?: boolean; pages?: number } = {}) {
-  const { minimal = false, pages } = opts;
-  const base = minimal ? scalePass2(XL_PASS2_COUNTS, 0.7) : XL_PASS2_COUNTS;
+export function buildUserPromptPass2(text: string, opts: { minimal?: boolean; ultraMinimal?: boolean; pages?: number } = {}) {
+  const { pages } = opts;
+  const factor = resolveScaleFactor(opts);
+  const base = factor === 1.0 ? XL_PASS2_COUNTS : scalePass2(XL_PASS2_COUNTS, factor);
   const pageInfo = pages ? `${pages} pages, ${text.length} chars` : `${text.length} chars`;
 
   return `Analyze this source and produce the PRACTICE HALF of a study pack as JSON. Source is an XL document (${pageInfo}).
