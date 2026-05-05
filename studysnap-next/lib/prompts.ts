@@ -160,7 +160,7 @@ Counts (aim for ~1 flashcard per distinct concept, ~1 quiz question per major se
 - keyPoints: ${counts.key} items (1-2 sentences each; explain WHY, not just WHAT)
 - definitions: ${counts.defs} items (cover every technical term, formula, jargon in the source)
 - flashcards: ${counts.cards} items. BANNED: trivial "What is X?"/"X is Y" pairs — every card must be unsolvable without having read this specific source. Mix: ~25% recall of non-obvious facts, ~30% cause/effect or mechanism, ~25% compare/contrast, ~20% apply-to-scenario. Front: specific probing question. Back: 2-3 sentences with answer + one implication.
-- examQuestions: ${counts.exam} MCQs, each with exactly 4 options A-D, a correct letter, an explanation for why right AND why each distractor is wrong; mix ~30% easy / 40% understanding / 30% application
+- examQuestions: AT LEAST ${counts.exam.split('-')[0]} MCQs (target ${counts.exam}). DO NOT stop early — produce the full count even if explanations get tight. Each MCQ: exactly 4 options A-D, a correct letter (A/B/C/D), and an explanation. Explanation MUST be ONE concise sentence per option (~15-25 words each, ~80 words total) — NOT paragraphs. State briefly why the correct answer is right and why each distractor fails. Mix ~30% easy / 40% understanding / 30% application.
 - topicConnections: ${counts.connections} one-sentence items
 - studyTips: ${counts.tips} items. Each tip must be so specific that it would only make sense for THIS document — if it could apply to any subject, discard it and write a better one. Examples: memory hooks for specific terms in this source, common misconceptions about these exact concepts, which topics in this document are most likely to appear on exams and why.
 
@@ -284,7 +284,7 @@ Aim for coverage across every distinct topic in the source — roughly 1 flashca
 
 Counts:
 - flashcards: ${base.cards} items. BANNED: trivial "What is X?"/"X is Y" pairs — every card must be unsolvable without having read this specific source. Mix: ~25% recall of non-obvious facts, ~30% cause/effect or mechanism, ~25% compare/contrast, ~20% apply-to-scenario. Front: specific probing question. Back: 2-3 sentences with answer + one implication.
-- examQuestions: ${base.exam} MCQs, each with exactly 4 options A-D, a correct letter, an explanation for why right AND why each distractor is wrong; mix ~30% easy / 40% understanding / 30% application
+- examQuestions: AT LEAST ${base.exam.split('-')[0]} MCQs (target ${base.exam}). DO NOT stop early — produce the full count even if explanations get tight. Each MCQ: exactly 4 options A-D, a correct letter (A/B/C/D), and an explanation. Explanation MUST be ONE concise sentence per option (~15-25 words each, ~80 words total) — NOT paragraphs. State briefly why the correct answer is right and why each distractor fails. Mix ~30% easy / 40% understanding / 30% application.
 - topicConnections: ${base.connections} one-sentence items (cross-concept links — dependencies, contrasts, progressions)
 - studyTips: ${base.tips} items. Each tip must be so specific that it would only make sense for THIS document — if it could apply to any subject, discard it and write a better one. Examples: memory hooks for specific terms in this source, common misconceptions about these exact concepts, which topics in this document are most likely to appear on exams and why.
 
