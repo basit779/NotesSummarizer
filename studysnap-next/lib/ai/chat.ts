@@ -147,6 +147,7 @@ async function openaiStyleChat(id: ModelId, messages: ChatMsg[], provider: strin
       messages,
       temperature: 0.5,
       max_tokens: config.maxOutput ?? 2048,
+      ...(config.extraBody ?? {}),
     }),
   });
   if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `${id} rate-limited`, 429);
@@ -159,7 +160,15 @@ async function openaiStyleChat(id: ModelId, messages: ChatMsg[], provider: strin
   return { content, model: config.modelName, tokensUsed: tokens };
 }
 
-interface ProviderConfig { baseUrl: string; apiKey: string; modelName: string; extraHeaders: Record<string, string>; maxOutput?: number }
+interface ProviderConfig {
+  baseUrl: string;
+  apiKey: string;
+  modelName: string;
+  extraHeaders: Record<string, string>;
+  maxOutput?: number;
+  /** Spread into request body — e.g. DeepSeek's thinking-disable flags. */
+  extraBody?: Record<string, unknown>;
+}
 
 function getProviderConfig(id: ModelId, _provider: string): ProviderConfig {
   switch (id) {
@@ -169,6 +178,22 @@ function getProviderConfig(id: ModelId, _provider: string): ProviderConfig {
     case 'mistral-small':       return { baseUrl: 'https://api.mistral.ai/v1',    apiKey: env.mistralApiKey,    modelName: 'mistral-small-latest',              extraHeaders: {}, maxOutput: 600 };
     case 'github-gpt-4o-mini':  return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'gpt-4o-mini',               extraHeaders: {}, maxOutput: 600 };
     case 'github-llama-3.3-70b':return { baseUrl: 'https://models.inference.ai.azure.com', apiKey: env.githubToken, modelName: 'Llama-3.3-70B-Instruct',    extraHeaders: {}, maxOutput: 600 };
+    // DeepSeek V4-Flash — paid backup for chat. Same thinking-disable flags
+    // as the pack-generation path (registry.ts deepseek-v4-flash entry):
+    // V4-Flash defaults to thinking mode which burns tokens and breaks short
+    // chat replies. Both V4-docs and V3.1/vLLM-hosted format are sent in
+    // parallel — whichever upstream variant honors wins, unknown fields ignored.
+    case 'deepseek-v4-flash':   return {
+      baseUrl: 'https://api.deepseek.com/v1',
+      apiKey: process.env.DEEPSEEK_API_KEY ?? '',
+      modelName: 'deepseek-v4-flash',
+      extraHeaders: {},
+      maxOutput: 800,
+      extraBody: {
+        thinking: { type: 'disabled' },
+        chat_template_kwargs: { thinking: false },
+      },
+    };
     default: throw new Error(`Unhandled provider for ${id}`);
   }
 }
