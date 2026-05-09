@@ -31,6 +31,13 @@ const CHUNK_THRESHOLD = 120_000;
  *  always aborted. */
 const PER_PROVIDER_TIMEOUT_MS = 55_000;
 
+/** Tighter timeout for DeepSeek 2-pass calls. 50s gives 10s margin under
+ *  Vercel's 60s wall — needed because pass1 was still hitting the 55s edge
+ *  and getting killed mid-cleanup (run 01KR67K3R7Y0SE6XHDNM0AEYNM, 2026-05-09).
+ *  With ultraMinimal output (~1.5K tokens) + 3500-token cap, pass1/2 should
+ *  finish in 19-30s anyway, so 50s is plenty of headroom. */
+const DEEPSEEK_PASS_TIMEOUT_MS = 50_000;
+
 type AnalysisOutput = {
   material: StudyMaterial;
   model: string;
@@ -138,8 +145,15 @@ export const processFile = inngest.createFunction(
           if (useDeepSeekTwoPass) {
             // Pass 1 + Pass 2 via Promise.all — Inngest dispatches each
             // step.run() as its own function invocation in parallel.
+            //
+            // Step-level `retries: 0` (passed via `as any` since v4's
+            // StepOptions type doesn't expose it but the runtime accepts it).
+            // Without this, a failed/timed-out step gets RETRIED by Inngest —
+            // observed in run 01KR67K3R7Y0SE6XHDNM0AEYNM (2026-05-09): pass1
+            // step took 1m 50s = 2× ~55s, doubling the wall time. Function-
+            // level retries:0 only prevents function retries, not step retries.
             const [pass1, pass2] = await Promise.all([
-              step.run(`analyze-${providerId}-pass1`, async () => {
+              step.run({ id: `analyze-${providerId}-pass1`, retries: 0 } as any, async () => {
                 const t0 = Date.now();
                 try {
                   const r = await runOneProvider(providerId, text, plan, {
@@ -150,7 +164,7 @@ export const processFile = inngest.createFunction(
                     // with minimal — physics edge. Ultra trims output to ~1.5K
                     // tokens, finishing in 19-30s reliably.
                     ultraMinimal: true,
-                    timeoutMs: PER_PROVIDER_TIMEOUT_MS,
+                    timeoutMs: DEEPSEEK_PASS_TIMEOUT_MS,
                   });
                   const elapsedMs = Date.now() - t0;
                   console.log(`[INNGEST][${providerId}/pass1] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
@@ -162,7 +176,7 @@ export const processFile = inngest.createFunction(
                   return { ok: false as const, error: message, elapsedMs };
                 }
               }),
-              step.run(`analyze-${providerId}-pass2`, async () => {
+              step.run({ id: `analyze-${providerId}-pass2`, retries: 0 } as any, async () => {
                 const t0 = Date.now();
                 try {
                   const r = await runOneProvider(providerId, text, plan, {
@@ -170,7 +184,7 @@ export const processFile = inngest.createFunction(
                     pass: 2,
                     // ultraMinimal: see pass1 comment.
                     ultraMinimal: true,
-                    timeoutMs: PER_PROVIDER_TIMEOUT_MS,
+                    timeoutMs: DEEPSEEK_PASS_TIMEOUT_MS,
                   });
                   const elapsedMs = Date.now() - t0;
                   console.log(`[INNGEST][${providerId}/pass2] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);

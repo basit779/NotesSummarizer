@@ -202,14 +202,15 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       pages: opts?.pages,
       pass: opts?.pass,
       timeoutMs: opts?.timeoutMs,
-      // Pass-call output cap: 4000 tokens hard ceiling (vs 8192 for non-pass).
+      // Pass-call output cap: 3500 tokens hard ceiling (vs 8192 for non-pass).
       // Belt-and-suspenders alongside ultraMinimal — even if the prompt's
-      // smaller targets are ignored, the model can't generate more than 4K
-      // tokens. At DeepSeek's 50-80 tok/s, 4K tokens = 50-80s, fits 55s most
-      // of the time. Without this cap, pass1 was hitting 55s timeout on
-      // 4-page docs (run 01KQQE... 2026-05-04) because the model targeted
-      // ~3K tokens but generated more.
-      maxOutputTokens: opts?.pass ? 4000 : OUTPUT_CAPS['deepseek-v4-flash'],
+      // smaller targets are ignored, the model can't generate more than 3500
+      // tokens. At DeepSeek's 50-80 tok/s, 3500 tokens = 44-70s. Combined with
+      // ultraMinimal asking for ~1500 tokens, real output should land 19-30s.
+      // Tightened from 4000 → 3500 after run 01KR67K3R7Y0SE6XHDNM0AEYNM
+      // (2026-05-09) showed pass1 still hitting 55s timeout — the 4K cap was
+      // letting model generate too many tokens despite ultraMinimal targeting.
+      maxOutputTokens: opts?.pass ? 3500 : OUTPUT_CAPS['deepseek-v4-flash'],
       // Two thinking-disable flags sent in parallel:
       //   - `thinking: {type: disabled}` — V4-Flash documented format
       //   - `chat_template_kwargs.thinking: false` — V3.1 / vLLM-hosted format
