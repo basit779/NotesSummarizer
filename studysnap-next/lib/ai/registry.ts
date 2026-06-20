@@ -192,7 +192,7 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
     // is requested; the system prompt + schema validators handle JSON output.
     run: (text, plan, opts) => openaiCompat({
       baseUrl: 'https://api.deepseek.com/v1',
-      apiKey: process.env.DEEPSEEK_API_KEY,
+      apiKey: env.deepseekApiKey,
       modelName: 'deepseek-v4-flash',
       displayName: 'DeepSeek V4 Flash',
       text: truncateForModel(text, 'deepseek-v4-flash', selectTier(text.length, opts?.pages)), plan,
@@ -221,42 +221,44 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
         chat_template_kwargs: { thinking: false },
       },
     }),
-    isConfigured: () => !!process.env.DEEPSEEK_API_KEY,
+    isConfigured: () => Boolean(env.deepseekApiKey),
   },
 };
 
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * Gemini primary, DeepSeek as paid backup with 2-pass parallel orchestration:
- *   1. gemini-2.5-flash   — Free primary. ~5-30s typical, top quality, serves
- *                           the bulk of uploads while quota is healthy
- *                           (250 RPD, 10 RPM free tier).
- *   2. deepseek-v4-flash  — Paid backup ($4). When Gemini rate-limits or
- *                           errors out, DeepSeek fires. For medium+ docs the
- *                           Inngest orchestrator (lib/inngest.ts) splits
- *                           DeepSeek into PARALLEL pass1 + pass2 Inngest steps,
- *                           each in its own 60s function invocation, so
- *                           DeepSeek finishes for any doc size despite Hobby's
- *                           60s wall. Short docs use single-pass DeepSeek.
- *   3. groq-llama-3.3-70b — Reliable safety net (~15s LPU). Tight 12K TPM cap
- *                           → 3K input / 6K output.
- *   4. mistral-small      — Last resort. 500K TPM, generous output.
+ * STACKED GEMINI FAMILY FIRST. This is the key to NOT always falling through
+ * to Groq/llama. Google's free-tier quotas are PER MODEL — each Gemini variant
+ * has its own independent RPM/RPD bucket, all on the same GOOGLE_API_KEY:
+ *   1. gemini-2.5-flash      — best quality. ~250 RPD, 10 RPM.
+ *   2. gemini-2.5-flash-lite — same 2.5 family, near-equal quality, FAST.
+ *                              ~1000 RPD (highest free quota) — the workhorse
+ *                              fallback that catches 2.5-flash's quota wall.
+ *   3. gemini-2.0-flash      — solid. ~200 RPD, separate bucket again.
+ *   --- combined ~1450 Gemini-quality requests/day before any non-Gemini ---
+ *   4. deepseek-v4-flash     — Paid backup ($4). Fires only when ALL Gemini
+ *                              quota is exhausted. Medium+ docs use the 2-pass
+ *                              parallel Inngest orchestration (lib/inngest.ts)
+ *                              so it fits Hobby's 60s wall. Short docs single-pass.
+ *   5. groq-llama-3.3-70b    — Fast safety net (~15s LPU) when even DeepSeek
+ *                              fails/times out. Lower quality but always finishes.
+ *   6. mistral-small         — Last resort. 500K TPM.
  *
  * Why this order:
- *   - Gemini quality is the best free option; using it primary means default
- *     uploads get the best output without spending the $4 budget.
- *   - DeepSeek as backup means the $4 lasts 3-5x longer (only fires when
- *     Gemini fails) AND with 2-pass orchestration the $4 actually delivers
- *     when called — no more wasted aborts.
- *   - Both providers earn their keep: Gemini handles ~80%, DeepSeek catches
- *     ~15-20% (rate-limit days, dev testing, traffic spikes).
+ *   - The OLD chain (gemini-2.5-flash → deepseek → groq) fell through to Groq
+ *     constantly during heavy testing: one Gemini model's 250 RPD burns fast,
+ *     then DeepSeek is slow/flaky on Hobby, so Groq mopped up = "always llama".
+ *   - Stacking 3 Gemini variants (3 independent quotas) means Gemini-quality
+ *     serves virtually every upload before anything weaker is reached.
+ *   - DeepSeek stays in as the paid insurance it was meant to be: it fires when
+ *     Google is genuinely exhausted/down, and Groq still catches its failures.
  *
- * Registered but NOT in active chains (kept for future use):
- *   - gemini-2.5-pro / -flash-lite / 2.0-flash — variant-of-primary, redundant.
- *   - openrouter-free                           — auto-router was inconsistent.
- *   - groq-llama-3.1-8b                         — too tight a TPM budget.
- *   - github-* models                           — 8K total context cap 413s.
+ * Registered but NOT in active chains:
+ *   - gemini-2.5-pro     — stricter free quota than flash; flash family is plenty.
+ *   - openrouter-free    — auto-router was inconsistent.
+ *   - groq-llama-3.1-8b  — too tight a TPM budget.
+ *   - github-* models    — 8K total context cap 413s.
  *
  * Per-provider step orchestration (lib/inngest.ts) means each entry runs in
  * its own Vercel function, so worst-case = N × ~60s across N steps. Inngest
@@ -264,13 +266,20 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
   'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];
 
+// XL uses the same stacked-Gemini order. Gemini 2.5/2.0 Flash all have 1M
+// context so large single-call docs fit; the >120K chunked path (runWithFallback)
+// skips DeepSeek since its 50-80 tok/s can't finish inside that path's 25s budget.
 const XL_FALLBACK_ORDER: ModelId[] = [
   'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.0-flash',
   'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',

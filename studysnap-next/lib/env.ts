@@ -70,6 +70,7 @@ export const env = {
   groqApiKey: process.env.GROQ_API_KEY ?? '',
   openrouterApiKey: process.env.OPENROUTER_API_KEY ?? '',
   mistralApiKey: process.env.MISTRAL_API_KEY ?? '',
+  deepseekApiKey: process.env.DEEPSEEK_API_KEY ?? '',
   githubToken: process.env.GITHUB_MODELS_TOKEN ?? process.env.GITHUB_TOKEN ?? '',
 
   resendApiKey: resendKey,

@@ -66,9 +66,6 @@ const FALLBACK_NO_HINT_WAIT_MS = 5_000;
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
-/** Primary provider — the best-quality model we try first. */
-const PRIMARY_PROVIDER: ModelId = 'gemini-2.5-flash';
-
 /** Returns true when the winning provider IS the active chain's primary
  *  (first provider we'd actually try after filtering for isConfigured). A
  *  primary win reports `fallbackUsed: null`; anything else reports its ID so
@@ -117,8 +114,11 @@ export async function runWithFallback(
 ): Promise<ProviderResult & { attempted: { id: ModelId; error?: string }[]; fallbackUsed: string | null }> {
   const reqId = Math.random().toString(36).slice(2, 8);
 
-  // Tier-aware fallback order. XL demotes Groq (TPM-bound, small per-request
-  // budget) in favor of Mistral + DeepSeek which have generous free-tier TPM.
+  // Tier-aware fallback order. DEFAULT and XL chains are currently identical
+  // (Gemini → DeepSeek → Groq → Mistral); kept as separate exports in
+  // registry.ts for future divergence. NB: this legacy runner is now only
+  // reached by the chunked (>120K char) path — the ≤120K pack path uses
+  // per-provider Inngest steps via runOneProvider instead.
   const tier = selectTier(text.length, pages);
   const chain: ModelId[] = [];
   if (preferred && MODEL_REGISTRY[preferred]) chain.push(preferred);
@@ -126,7 +126,16 @@ export async function runWithFallback(
     if (!chain.includes(id)) chain.push(id);
   }
 
-  const configured = chain.filter((id) => MODEL_REGISTRY[id].isConfigured()).slice(0, MAX_ATTEMPTS);
+  const configured = chain
+    .filter((id) => MODEL_REGISTRY[id].isConfigured())
+    // This legacy runner is only reached by the chunked (>120K char) path,
+    // where each provider gets the DEFAULT 25s timeout inside a shared 60s
+    // Vercel function. DeepSeek (50-80 tok/s) physically can't finish in 25s,
+    // so including it just burns 25s per chunk and risks a 60s function-kill.
+    // Skip it here — the per-provider Inngest path (≤120K docs) still uses
+    // DeepSeek with its proper 50s 2-pass budget.
+    .filter((id) => id !== 'deepseek-v4-flash')
+    .slice(0, MAX_ATTEMPTS);
   if (configured.length === 0) {
     throw new HttpError(
       503,

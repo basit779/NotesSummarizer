@@ -8,6 +8,13 @@ export interface ChatMsg { role: 'user' | 'assistant' | 'system'; content: strin
 const MAX_CHAT_ATTEMPTS = 4;
 const RATE_LIMIT_WAIT_MS = 7_000;
 
+/** Per-provider abort timeout for chat. Chat output is tiny (600-800 tokens,
+ *  ~10-16s even on DeepSeek's slow GPUs), so 20s is generous. Without this a
+ *  provider that connects-but-hangs blocked the whole chat route until Vercel's
+ *  60s kill instead of cascading to the next provider. Same AbortSignal.timeout
+ *  pattern as the pack-gen providers. */
+const CHAT_TIMEOUT_MS = 20_000;
+
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
 /**
@@ -113,15 +120,24 @@ async function geminiChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: 
     .filter((m) => m.role !== 'system')
     .map((m) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      ...(sys ? { systemInstruction: { parts: [{ text: sys }] } } : {}),
-      contents,
-      generationConfig: { temperature: 0.5, maxOutputTokens: 800 },
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...(sys ? { systemInstruction: { parts: [{ text: sys }] } } : {}),
+        contents,
+        generationConfig: { temperature: 0.5, maxOutputTokens: 800 },
+      }),
+      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+    });
+  } catch (err: any) {
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+      throw new TransientAIError('PROVIDER_TIMEOUT', `Gemini ${modelName} did not respond within ${CHAT_TIMEOUT_MS / 1000}s`);
+    }
+    throw err;
+  }
   if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `Gemini ${modelName} rate-limited`, 429);
   if (res.status >= 500) throw new TransientAIError('UPSTREAM', `Gemini ${modelName} ${res.status}`, res.status);
   if (!res.ok) throw new TransientAIError('ERR', `Gemini ${res.status}`, res.status);
@@ -135,21 +151,30 @@ async function geminiChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: 
 async function openaiStyleChat(id: ModelId, messages: ChatMsg[], provider: string): Promise<{ content: string; model: string; tokensUsed: number }> {
   const config = getProviderConfig(id, provider);
   if (!config.apiKey) throw new TransientAIError('NO_KEY', `No key for ${id}`);
-  const res = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey}`,
-      ...config.extraHeaders,
-    },
-    body: JSON.stringify({
-      model: config.modelName,
-      messages,
-      temperature: 0.5,
-      max_tokens: config.maxOutput ?? 2048,
-      ...(config.extraBody ?? {}),
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${config.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${config.apiKey}`,
+        ...config.extraHeaders,
+      },
+      body: JSON.stringify({
+        model: config.modelName,
+        messages,
+        temperature: 0.5,
+        max_tokens: config.maxOutput ?? 2048,
+        ...(config.extraBody ?? {}),
+      }),
+      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+    });
+  } catch (err: any) {
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+      throw new TransientAIError('PROVIDER_TIMEOUT', `${id} did not respond within ${CHAT_TIMEOUT_MS / 1000}s`);
+    }
+    throw err;
+  }
   if (res.status === 429) throw new TransientAIError('RATE_LIMIT', `${id} rate-limited`, 429);
   if (res.status >= 500) throw new TransientAIError('UPSTREAM', `${id} ${res.status}`, res.status);
   if (!res.ok) throw new TransientAIError('ERR', `${id} ${res.status}`, res.status);
@@ -185,7 +210,7 @@ function getProviderConfig(id: ModelId, _provider: string): ProviderConfig {
     // parallel — whichever upstream variant honors wins, unknown fields ignored.
     case 'deepseek-v4-flash':   return {
       baseUrl: 'https://api.deepseek.com/v1',
-      apiKey: process.env.DEEPSEEK_API_KEY ?? '',
+      apiKey: env.deepseekApiKey,
       modelName: 'deepseek-v4-flash',
       extraHeaders: {},
       maxOutput: 800,

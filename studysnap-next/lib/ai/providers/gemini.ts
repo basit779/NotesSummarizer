@@ -85,11 +85,12 @@ export async function geminiProvider(
   // under 4K tokens at the reduced XL counts. Capping at 4096 stops 2.5-flash
   // from drifting into MAX_TOKENS truncation and cascading to flash-lite.
   //
-  // Single-pass: bumped 8192 → 16384 after the medium-tier TIER_COUNTS bump
-  // (cards 14-26, MCQs 6-12) pushed estimated output to ~5.6K, and prod hit
-  // finish=MAX_TOKENS at 8K with completionTok=6565 (cut mid-generation).
-  // Gemini 2.5 Flash supports 64K max output — 16K gives massive headroom.
-  const maxOutputTokens = opts.pass === 2 ? 4096 : 16384;
+  // Single-pass: 2.5 family supports 64K output, so 16384 gives massive
+  // headroom (needed after the medium-tier TIER_COUNTS bump pushed output to
+  // ~5.6K and prod hit finish=MAX_TOKENS at 8K). Gemini 2.0 Flash caps at
+  // 8192 output — requesting more can be rejected, so clamp it per-model.
+  const singlePassCap = modelName.startsWith('gemini-2.0') ? 8192 : 16384;
+  const maxOutputTokens = opts.pass === 2 ? 4096 : singlePassCap;
 
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
