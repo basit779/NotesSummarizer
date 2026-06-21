@@ -5,15 +5,19 @@ import { HttpError } from '../httpError';
 
 export interface ChatMsg { role: 'user' | 'assistant' | 'system'; content: string; }
 
-const MAX_CHAT_ATTEMPTS = 4;
+/** Worst-case wall time MUST stay under the chat route's maxDuration (60s) or
+ *  Vercel kills the connection with a 504 mid-response. With one rate-limit
+ *  wait-retry the worst path is:
+ *    429 fast-fail (~2s) + RATE_LIMIT_WAIT (7s) + 3 × CHAT_TIMEOUT (3×15s) = 54s.
+ *  That fits 60s. The OLD values (4 attempts × 20s = 80s+) blew the cap. */
+const MAX_CHAT_ATTEMPTS = 3;
 const RATE_LIMIT_WAIT_MS = 7_000;
 
-/** Per-provider abort timeout for chat. Chat output is tiny (600-800 tokens,
- *  ~10-16s even on DeepSeek's slow GPUs), so 20s is generous. Without this a
- *  provider that connects-but-hangs blocked the whole chat route until Vercel's
- *  60s kill instead of cascading to the next provider. Same AbortSignal.timeout
- *  pattern as the pack-gen providers. */
-const CHAT_TIMEOUT_MS = 20_000;
+/** Per-provider abort timeout for chat. Chat output is tiny (600-800 tokens),
+ *  so 15s is enough for Gemini/Groq (the usual answerers, 2-8s). Kept tight so
+ *  the full cascade fits the 60s route cap (see MAX_CHAT_ATTEMPTS math above).
+ *  Without this a connect-but-hang blocked the route until Vercel's 60s kill. */
+const CHAT_TIMEOUT_MS = 15_000;
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 

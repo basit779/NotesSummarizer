@@ -148,11 +148,6 @@ ${defsBlock}${olderSummaryNote ? `\n\n=== EARLIER CONVERSATION (condensed) ===\n
     { role: 'user' as const, content: userMessage },
   ];
 
-  // Save the user message first so it shows even if AI fails
-  const savedUser = await prisma.chatMessage.create({
-    data: { resultId, userId: user.id, role: 'user', content: userMessage },
-  });
-
   let assistantContent: string;
   let model: string;
   let degraded = false;
@@ -190,9 +185,19 @@ ${defsBlock}${olderSummaryNote ? `\n\n=== EARLIER CONVERSATION (condensed) ===\n
     console.log(`[CHAT] ${user.id} degraded response — ${err?.code ?? 'UNKNOWN'}: ${err?.message ?? err}`);
   }
 
-  const savedAssistant = await prisma.chatMessage.create({
-    data: { resultId, userId: user.id, role: 'assistant', content: assistantContent },
-  });
+  // Persist the user message and the assistant reply atomically so a DB hiccup
+  // can never leave an orphaned question with no answer. Explicit sequential
+  // timestamps keep the GET ordering (by createdAt) correct even though both
+  // rows are written in one transaction (Postgres now() is identical within a tx).
+  const ts = Date.now();
+  const [savedUser, savedAssistant] = await prisma.$transaction([
+    prisma.chatMessage.create({
+      data: { resultId, userId: user.id, role: 'user', content: userMessage, createdAt: new Date(ts) },
+    }),
+    prisma.chatMessage.create({
+      data: { resultId, userId: user.id, role: 'assistant', content: assistantContent, createdAt: new Date(ts + 1) },
+    }),
+  ]);
 
   return NextResponse.json({
     userMessage: savedUser,

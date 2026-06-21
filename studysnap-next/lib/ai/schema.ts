@@ -186,9 +186,9 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
       }
       return false;
     }
-    if (!q.explanation || q.explanation.length < 10) {
+    if (!q.explanation || q.explanation.length < 4) {
       if (!firstMcqFilterReason) {
-        firstMcqFilterReason = `explanation.length=${q.explanation?.length ?? 0} (need ≥10) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 80), explanation: q.explanation }).slice(0, 240)}`;
+        firstMcqFilterReason = `explanation.length=${q.explanation?.length ?? 0} (need ≥4) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 80), explanation: q.explanation }).slice(0, 240)}`;
       }
       return false;
     }
@@ -228,9 +228,9 @@ export function validateStudyMaterial(obj: unknown, modelId?: string): StudyMate
     if (
       front.startsWith('What is ') &&
       back.slice(0, 30).includes(' is ') &&
-      back.length < 80
+      back.length < 120
     ) {
-      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair (back<80) | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
+      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair (back<120) | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
       return false;
     }
     return true;
@@ -354,9 +354,9 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
       }
       return false;
     }
-    if (!q.explanation || q.explanation.length < 10) {
+    if (!q.explanation || q.explanation.length < 4) {
       if (!firstMcqFilterReason) {
-        firstMcqFilterReason = `explanation.length=${q.explanation?.length ?? 0} (need ≥10) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 80), explanation: q.explanation }).slice(0, 240)}`;
+        firstMcqFilterReason = `explanation.length=${q.explanation?.length ?? 0} (need ≥4) | sample: ${JSON.stringify({ question: String(q.question).slice(0, 80), explanation: q.explanation }).slice(0, 240)}`;
       }
       return false;
     }
@@ -393,9 +393,9 @@ export function validatePass2(obj: unknown, modelId?: string): StudyMaterial {
     if (
       front.startsWith('What is ') &&
       back.slice(0, 30).includes(' is ') &&
-      back.length < 80
+      back.length < 120
     ) {
-      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair (back<80) | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
+      if (!firstCardFilterReason) firstCardFilterReason = `trivial "What is X?/X is Y" pair (back<120) | front="${front.slice(0, 60)}" back="${back.slice(0, 60)}"`;
       return false;
     }
     return true;

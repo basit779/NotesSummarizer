@@ -57,6 +57,21 @@ export async function createCheckoutSession(userId: string, email: string, name:
   return { url: session.url ?? `${env.appUrl}/billing?canceled=1`, id: session.id, mode: 'live' };
 }
 
+/** Set a user's plan, tolerating a deleted user. A Stripe webhook must not 500
+ *  if the referenced user was removed — Stripe would retry the event forever.
+ *  P2025 ("record to update not found") is logged and swallowed. */
+async function setUserPlan(userId: string, plan: 'PRO' | 'FREE'): Promise<void> {
+  try {
+    await prisma.user.update({ where: { id: userId }, data: { plan } });
+  } catch (err) {
+    if ((err as { code?: string })?.code === 'P2025') {
+      console.warn(`[billing] user ${userId} not found for plan=${plan} — skipping (likely deleted).`);
+      return;
+    }
+    throw err;
+  }
+}
+
 export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
   if (env.billingMode !== 'live') return;
   switch (event.type) {
@@ -66,7 +81,7 @@ export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
       const subId = typeof s.subscription === 'string' ? s.subscription : s.subscription?.id;
       if (!userId || !subId) break;
       const sub = await stripe.subscriptions.retrieve(subId);
-      await prisma.user.update({ where: { id: userId }, data: { plan: 'PRO' } });
+      await setUserPlan(userId, 'PRO');
       await prisma.subscription.upsert({
         where: { userId },
         create: {
@@ -94,7 +109,7 @@ export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
         where: { stripeSubscriptionId: sub.id },
         data: { status: sub.status, currentPeriodEnd: new Date((sub as any).current_period_end * 1000) },
       });
-      await prisma.user.update({ where: { id: existing.userId }, data: { plan: isActive ? 'PRO' : 'FREE' } });
+      await setUserPlan(existing.userId, isActive ? 'PRO' : 'FREE');
       break;
     }
     case 'customer.subscription.deleted': {
@@ -102,7 +117,7 @@ export async function handleStripeWebhook(event: Stripe.Event): Promise<void> {
       const existing = await prisma.subscription.findUnique({ where: { stripeSubscriptionId: sub.id } });
       if (!existing) break;
       await prisma.subscription.update({ where: { stripeSubscriptionId: sub.id }, data: { status: 'canceled' } });
-      await prisma.user.update({ where: { id: existing.userId }, data: { plan: 'FREE' } });
+      await setUserPlan(existing.userId, 'FREE');
       break;
     }
   }

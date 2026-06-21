@@ -79,13 +79,19 @@ model ProcessingResult {
   file           UploadedFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  summary        String       @db.Text
-  keyPoints      Json
-  definitions    Json
-  examQuestions  Json
-  flashcards     Json
-  model          String
-  tokensUsed     Int?
+  summary          String     @db.Text
+  keyPoints        Json
+  definitions      Json
+  examQuestions    Json
+  flashcards       Json
+  /// AI-generated doc title (optional — older rows / some providers omit it).
+  title            String?
+  /// Cross-topic connection strings. Rendered in the "Study tips" tab.
+  topicConnections Json?
+  /// Document-specific study tactic strings. Rendered in the "Study tips" tab.
+  studyTips        Json?
+  model            String
+  tokensUsed       Int?
   /// Non-null when generation fell through primary Gemini to a fallback provider.
   /// Stores the provider id that actually served the pack (e.g. "mistral-small",
   /// "openrouter-free"). Null = primary Gemini succeeded clean.

@@ -98,8 +98,7 @@ studysnap-next/
 │   ├── ai/
 │   │   ├── providers/{gemini,openaiCompat}.ts
 │   │   ├── registry.ts                      # provider chain + per-provider config
-│   │   ├── runWithFallback.ts               # legacy chain runner (chat path) + runOneProvider helper
-│   │   ├── twoPass.ts                       # dead-path; merge logic ported into lib/inngest.ts
+│   │   ├── runWithFallback.ts               # legacy chain runner (chunked path) + runOneProvider helper
 │   │   ├── chunked.ts                       # >120K char path
 │   │   ├── ragIndex.ts, retrieval.ts, embeddings.ts
 │   │   └── schema.ts, truncate.ts, telemetry.ts, pdfCache.ts, errorClassify.ts

@@ -30,11 +30,21 @@ export const POST = withErrorHandling(async (req: Request) => {
   }
 
   const hash = await bcrypt.hash(newPassword, 10);
-  const user = await prisma.user.update({
-    where: { id: payload.sub },
-    data: { passwordHash: hash },
-    select: { id: true, email: true, name: true, plan: true },
-  });
+  let user;
+  try {
+    user = await prisma.user.update({
+      where: { id: payload.sub },
+      data: { passwordHash: hash },
+      select: { id: true, email: true, name: true, plan: true },
+    });
+  } catch (err) {
+    // P2025 = "record to update not found" — a valid-looking token whose user
+    // was deleted. Surface a clean 400 instead of an unhandled Prisma 500.
+    if ((err as { code?: string })?.code === 'P2025') {
+      throw new HttpError(400, 'BAD_TOKEN', 'Reset link is invalid or expired.');
+    }
+    throw err;
+  }
   const authToken = signToken(user.id);
   return NextResponse.json({ token: authToken, user });
 });

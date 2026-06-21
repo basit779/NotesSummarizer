@@ -29,6 +29,11 @@ export interface PdfCachePack {
   definitions: StudyMaterial['definitions'];
   examQuestions: StudyMaterial['examQuestions'];
   flashcards: StudyMaterial['flashcards'];
+  // Optional so old cache rows (written before these were tracked) still
+  // validate as hits — they just won't have tips/connections/title.
+  title?: StudyMaterial['title'];
+  topicConnections?: StudyMaterial['topicConnections'];
+  studyTips?: StudyMaterial['studyTips'];
   originalModel: string;
 }
 

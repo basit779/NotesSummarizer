@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
-import { checkDailyLimit } from '@/lib/usage';
+import { checkDailyLimit, logUsage } from '@/lib/usage';
 import { env, isTestUser } from '@/lib/env';
 import { extractTextFromPdfBuffer, SUPPORTED_MIMES, inferMimeFromFilename } from '@/lib/pdf';
 import { enforceUploadCooldown, MSG_LIMIT_REACHED } from '@/lib/rateLimit';
@@ -149,12 +149,25 @@ export const POST = withErrorHandling(async (req: Request) => {
           examQuestions: cacheHit.pack.examQuestions as any,
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           flashcards: cacheHit.pack.flashcards as any,
+          // Carry through tips/connections/title for cache-served packs too
+          // (older cache rows simply won't have them — all optional).
+          title: cacheHit.pack.title ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          topicConnections: (cacheHit.pack.topicConnections ?? null) as any,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          studyTips: (cacheHit.pack.studyTips ?? null) as any,
           model: 'pdf_cache',
           tokensUsed: 0,
         },
       });
       return uf;
     });
+    // Count cache-served packs against the daily quota. Without this a FREE
+    // user could materialize unlimited packs by re-uploading PDFs already in
+    // the cross-user cache — the limit check at the top reads UsageLog, which
+    // this populates. (Fresh uploads are logged in the Inngest persist step.)
+    await logUsage(user.id, 'UPLOAD');
+    await logUsage(user.id, 'PROCESS');
     console.log(`[UPLOAD] ${user.id} cross-user cache hit — hash=${contentHash.slice(0, 12)} hitCount=${cacheHit.hitCount} origModel=${cacheHit.pack.originalModel} (0 AI calls)`);
     return NextResponse.json({
       file: {

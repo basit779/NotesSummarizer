@@ -146,7 +146,23 @@ function UploadInner() {
       } else if (err?.code === 'ALREADY_PROCESSING') {
         toast.info('Already processing — hold on…');
       } else if (err?.code === 'UPLOAD_COOLDOWN') {
-        toast.info(err.message ?? 'Please wait a moment before uploading again.');
+        // A previous upload is still processing. Don't strand the user on the
+        // idle screen — attach to that job's id and poll it to completion.
+        const pendingId = err?.details?.fileId as string | undefined;
+        if (pendingId) {
+          toast.info('Your previous upload is still finishing — picking it up…');
+          setStage('processing');
+          try {
+            const existing = await pollUntilDone(pendingId);
+            toast.success('Study pack ready');
+            router.push(`/results/${existing.id}`);
+            return; // finally{} still resets the lock; skip the trailing setStage('idle')
+          } catch (pollErr: any) {
+            toast.error(pollErr?.message ?? 'That upload did not finish. Try again.');
+          }
+        } else {
+          toast.info(err.message ?? 'Please wait a moment before uploading again.');
+        }
       } else if (err?.code === 'ALL_RATE_LIMITED') {
         toast.error('AI providers are busy. Wait ~1 minute, then try again.', { duration: 8000 });
         cooldown.start(60);
