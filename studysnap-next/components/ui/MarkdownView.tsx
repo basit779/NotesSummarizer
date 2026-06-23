@@ -11,6 +11,18 @@ interface MarkdownViewProps {
   className?: string;
 }
 
+/** Defence-in-depth on top of react-markdown's default urlTransform: only allow
+ *  http(s)/mailto links from AI-generated content. Anything else (javascript:,
+ *  data:, etc.) is dropped so a crafted PDF/AI output can't inject a clickable
+ *  script URL. */
+function safeHref(href: string | undefined): string | undefined {
+  if (!href) return undefined;
+  const v = href.trim();
+  if (/^(https?:|mailto:)/i.test(v)) return v;
+  if (v.startsWith('/') || v.startsWith('#')) return v;
+  return undefined;
+}
+
 /**
  * Renders AI-generated markdown notes with premium study-note typography.
  * Supports GFM tables, task lists, code blocks with syntax highlighting,
@@ -93,7 +105,7 @@ export function MarkdownView({ content, className }: MarkdownViewProps) {
           ),
           a: ({ href, children }) => (
             <a
-              href={href}
+              href={safeHref(href)}
               target="_blank"
               rel="noopener noreferrer"
               className="text-mint-400 hover:text-mint-300 underline underline-offset-2 decoration-mint-400/30 transition-colors cursor-pointer"

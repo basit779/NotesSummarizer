@@ -87,13 +87,6 @@ ${JSON.stringify(effectiveSchema)}`;
   };
   if (supportsJsonSchema) body.response_format = { type: 'json_object' };
 
-  // DEBUG: verify extraBody (e.g. DeepSeek thinking-mode disable) reached body.
-  // Logs only field names + the thinking field — does not leak prompt content.
-  // eslint-disable-next-line no-console
-  console.log(`[DEBUG][openaiCompat] body keys: ${JSON.stringify(Object.keys(body))}`);
-  // eslint-disable-next-line no-console
-  console.log(`[DEBUG][openaiCompat] thinking field: ${JSON.stringify((body as any).thinking)}`);
-
   // Client-side abort timeout (default 25s, configurable via timeoutMs).
   //
   // 25s: chat path + legacy shared-budget callers. Vercel Hobby kills the

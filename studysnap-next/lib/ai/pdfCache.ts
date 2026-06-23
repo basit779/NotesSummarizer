@@ -169,11 +169,12 @@ export async function storePdfCache(params: {
 
 async function selfCleanExpired(): Promise<number> {
   try {
-    const deleted = await prisma.$executeRawUnsafe(
-      `DELETE FROM pdf_cache WHERE id IN (
-         SELECT id FROM pdf_cache WHERE "expiresAt" < NOW() LIMIT ${SELF_CLEAN_LIMIT}
-       )`
-    );
+    // Tagged-template $executeRaw parameterizes the LIMIT (becomes a bound $1),
+    // so even if SELF_CLEAN_LIMIT ever becomes dynamic it can't be injected.
+    const deleted = await prisma.$executeRaw`
+      DELETE FROM pdf_cache WHERE id IN (
+        SELECT id FROM pdf_cache WHERE "expiresAt" < NOW() LIMIT ${SELF_CLEAN_LIMIT}
+      )`;
     return Number(deleted) || 0;
   } catch {
     return 0;

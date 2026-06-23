@@ -68,6 +68,19 @@ export function withErrorHandling<T extends any[]>(
   };
 }
 
+/** Parse a JSON request body, turning malformed JSON into a clean 400 instead
+ *  of an unhandled SyntaxError that surfaces as a 500. Returns {} for an empty
+ *  body so callers' schema validation produces the precise field errors. */
+export async function readJsonBody(req: Request): Promise<unknown> {
+  try {
+    const text = await req.text();
+    if (!text.trim()) return {};
+    return JSON.parse(text);
+  } catch {
+    throw new HttpError(400, 'INVALID_JSON', 'Request body is not valid JSON.');
+  }
+}
+
 export function signToken(userId: string) {
   assertJwtSecretReady();
   return jwt.sign({ sub: userId }, env.jwtSecret, { expiresIn: env.jwtExpiresIn } as jwt.SignOptions);

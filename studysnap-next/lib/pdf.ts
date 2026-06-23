@@ -28,9 +28,20 @@ const NUL_RE = new RegExp('\\x00', 'g');
 const SPACE_TAB_RE = new RegExp('[ \\t]+', 'g');
 const MULTI_NEWLINE_RE = new RegExp('\\n{3,}', 'g');
 
+/** Hard cap on extracted text. A 15MB office file (zip) can decompress to
+ *  gigabytes (zip bomb); bounding the OUTPUT keeps a single malicious upload
+ *  from blowing the function's memory. ~4M chars ≈ 1M tokens — far above any
+ *  real document, so legitimate uploads are never truncated. */
+const MAX_EXTRACT_CHARS = 4_000_000;
+
 function clean(text: string): string {
-  return text.replace(NUL_RE, '').replace(SPACE_TAB_RE, ' ').replace(MULTI_NEWLINE_RE, '\n\n').trim();
+  const capped = text.length > MAX_EXTRACT_CHARS ? text.slice(0, MAX_EXTRACT_CHARS) : text;
+  return capped.replace(NUL_RE, '').replace(SPACE_TAB_RE, ' ').replace(MULTI_NEWLINE_RE, '\n\n').trim();
 }
+
+/** Upper bound on slides/sheets we'll walk — a decompression bomb could
+ *  otherwise present hundreds of thousands of entries. */
+const MAX_ZIP_ENTRIES = 5_000;
 
 export async function extractTextFromPdfBuffer(buffer: Buffer): Promise<{ text: string; pages: number }> {
   const data = await pdfParse(buffer);
@@ -65,12 +76,16 @@ async function extractTextFromPptxBuffer(buffer: Buffer): Promise<{ text: string
       const ai = parseInt(a.match(/slide(\d+)\.xml$/)![1], 10);
       const bi = parseInt(b.match(/slide(\d+)\.xml$/)![1], 10);
       return ai - bi;
-    });
+    })
+    .slice(0, MAX_ZIP_ENTRIES);
 
   const runRe = /<a:t[^>]*>([\s\S]*?)<\/a:t>/g;
   const slides: string[] = [];
+  let accumulated = 0;
   for (const name of slideEntries) {
+    if (accumulated > MAX_EXTRACT_CHARS) break; // bail early on a bomb
     const xml = await zip.files[name].async('string');
+    accumulated += xml.length;
     const runs: string[] = [];
     let m: RegExpExecArray | null;
     while ((m = runRe.exec(xml)) !== null) {
@@ -87,9 +102,11 @@ async function extractTextFromPptxBuffer(buffer: Buffer): Promise<{ text: string
  *  knows where one sheet ends and the next begins. `pages` is 0 (sheets
  *  aren't pages) and the tier selector keys off chars alone. */
 async function extractTextFromXlsxBuffer(buffer: Buffer): Promise<{ text: string; pages: number }> {
-  const wb = XLSX.read(buffer, { type: 'buffer' });
+  // sheetRows bounds how many rows per sheet are parsed — caps the memory a
+  // crafted spreadsheet (huge row count) can force XLSX.read to allocate.
+  const wb = XLSX.read(buffer, { type: 'buffer', sheetRows: 50_000 });
   const parts: string[] = [];
-  for (const sheetName of wb.SheetNames) {
+  for (const sheetName of wb.SheetNames.slice(0, MAX_ZIP_ENTRIES)) {
     const sheet = wb.Sheets[sheetName];
     if (!sheet) continue;
     const csv = XLSX.utils.sheet_to_csv(sheet, { blankrows: false }).trim();

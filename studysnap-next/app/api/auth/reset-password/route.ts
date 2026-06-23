@@ -4,7 +4,8 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { env, assertJwtSecretReady } from '@/lib/env';
-import { signToken, withErrorHandling } from '@/lib/apiHelpers';
+import { signToken, withErrorHandling, readJsonBody } from '@/lib/apiHelpers';
+import { enforceAuthRateLimit, getClientIp } from '@/lib/rateLimit';
 import { HttpError } from '@/lib/httpError';
 
 export const runtime = 'nodejs';
@@ -16,7 +17,9 @@ const schema = z.object({
 
 export const POST = withErrorHandling(async (req: Request) => {
   assertJwtSecretReady();
-  const body = await req.json();
+  // Throttle token-guessing: 12 attempts per IP / 15 min.
+  await enforceAuthRateLimit({ key: `reset-pw:ip:${getClientIp(req)}`, maxAttempts: 12, windowSeconds: 900 });
+  const body = await readJsonBody(req);
   const { token, newPassword } = schema.parse(body);
 
   let payload: { sub: string; type?: string };

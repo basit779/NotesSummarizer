@@ -58,7 +58,16 @@ export async function retrieveTopK(
     vecMap.set(row.textHash, deserializeVector(Buffer.from(row.vector)));
   }
 
-  const { vector: qVec } = await embedOne(question);
+  // Embedding the question requires a live Gemini call — if it fails (rate
+  // limit, timeout, outage), return [] so the chat route falls back to legacy
+  // summary/keyPoints context instead of throwing a 500 at the user.
+  let qVec: Float32Array;
+  try {
+    ({ vector: qVec } = await embedOne(question));
+  } catch (err) {
+    console.warn(`[AI][rag] question embed failed — falling back to legacy context: ${(err as Error)?.message ?? err}`);
+    return [];
+  }
 
   // Score every chunk that has an embedding. Missing embeddings (shouldn't
   // happen post-index but possible if /process partially wrote) get score 0

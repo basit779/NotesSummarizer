@@ -3,7 +3,8 @@ import jwt from 'jsonwebtoken';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { env, assertJwtSecretReady } from '@/lib/env';
-import { withErrorHandling } from '@/lib/apiHelpers';
+import { withErrorHandling, readJsonBody } from '@/lib/apiHelpers';
+import { enforceAuthRateLimit, getClientIp } from '@/lib/rateLimit';
 import { sendPasswordResetEmail } from '@/lib/mailer';
 
 export const runtime = 'nodejs';
@@ -12,8 +13,12 @@ const schema = z.object({ email: z.string().email() });
 
 export const POST = withErrorHandling(async (req: Request) => {
   assertJwtSecretReady();
-  const body = await req.json();
+  // Throttle by IP (mass abuse) and by email (don't let anyone email-bomb a
+  // victim with reset links). Both windows are generous enough for real users.
+  await enforceAuthRateLimit({ key: `reset:ip:${getClientIp(req)}`, maxAttempts: 10, windowSeconds: 3600 });
+  const body = await readJsonBody(req);
   const { email } = schema.parse(body);
+  await enforceAuthRateLimit({ key: `reset:email:${email.toLowerCase()}`, maxAttempts: 5, windowSeconds: 3600 });
   const user = await prisma.user.findUnique({ where: { email } });
   // Always return 200 — don't leak which emails exist.
   if (!user) {

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
 import { chatComplete } from '@/lib/ai/chat';
+import { readJsonBody } from '@/lib/apiHelpers';
 import { enforceChatCooldown } from '@/lib/rateLimit';
 import { cacheGet, cacheSet, hashKey } from '@/lib/ai/cache';
 import { retrieveTopK } from '@/lib/ai/retrieval';
@@ -28,7 +29,7 @@ export const GET = withErrorHandling(async (req: Request, ctx: { params: Promise
 export const POST = withErrorHandling(async (req: Request, ctx: { params: Promise<{ resultId: string }> }) => {
   const user = await requireAuth(req);
   const { resultId } = await ctx.params;
-  const body = await req.json();
+  const body = await readJsonBody(req) as { message?: unknown };
   const userMessage = String(body?.message ?? '').slice(0, 2000).trim();
   if (!userMessage) throw new HttpError(400, 'EMPTY', 'Message is empty');
 

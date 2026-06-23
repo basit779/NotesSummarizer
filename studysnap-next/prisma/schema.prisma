@@ -126,6 +126,18 @@ model UsageLog {
   @@index([userId, action, createdAt])
 }
 
+/// Rate-limit ledger for unauthenticated/abuse-prone endpoints (auth). One row
+/// per attempt; `key` is a scoped identifier like "login:ip:1.2.3.4" or
+/// "reset:email:a@b.com". Counts within a sliding window enforce throttling.
+/// No user relation — these protect endpoints reachable before auth.
+model AuthAttempt {
+  id        String   @id @default(cuid())
+  key       String
+  createdAt DateTime @default(now())
+
+  @@index([key, createdAt])
+}
+
 /// Cross-user PDF hash cache. Key = sha256 of uploaded bytes. On hit we reuse
 /// the stored AI pack instead of re-running providers. Standalone (no user rel)
 /// by design — the same content hashed by any user maps to the same pack.

@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, withErrorHandling } from '@/lib/apiHelpers';
 import { HttpError } from '@/lib/httpError';
-import { checkDailyLimit, logUsage } from '@/lib/usage';
+import { checkDailyLimit } from '@/lib/usage';
 import { env, isTestUser } from '@/lib/env';
 import { extractTextFromPdfBuffer, SUPPORTED_MIMES, inferMimeFromFilename } from '@/lib/pdf';
 import { enforceUploadCooldown, MSG_LIMIT_REACHED } from '@/lib/rateLimit';
@@ -55,7 +55,14 @@ export const POST = withErrorHandling(async (req: Request) => {
     await enforceUploadCooldown({ userId: user.id, cooldownSeconds: UPLOAD_COOLDOWN_SECONDS });
   }
 
-  const formData = await req.formData();
+  // A corrupted/oversized multipart body throws here — surface a clean 400
+  // instead of an opaque 500.
+  let formData: FormData;
+  try {
+    formData = await req.formData();
+  } catch {
+    throw new HttpError(400, 'BAD_FORM_DATA', 'Upload could not be read. Please retry.');
+  }
   // Accept either `file` (single) or `files` (multiple) — keeps single-file
   // clients working while enabling drag-multiple from the new upload UI.
   const rawFiles: Blob[] = [];
@@ -160,14 +167,13 @@ export const POST = withErrorHandling(async (req: Request) => {
           tokensUsed: 0,
         },
       });
+      // Count cache-served packs against the daily quota IN THE SAME transaction
+      // as the result, so a partial failure can't create a pack without logging
+      // usage (which would let a FREE user materialize unlimited cached packs).
+      await tx.usageLog.create({ data: { userId: user.id, action: 'UPLOAD' } });
+      await tx.usageLog.create({ data: { userId: user.id, action: 'PROCESS' } });
       return uf;
     });
-    // Count cache-served packs against the daily quota. Without this a FREE
-    // user could materialize unlimited packs by re-uploading PDFs already in
-    // the cross-user cache — the limit check at the top reads UsageLog, which
-    // this populates. (Fresh uploads are logged in the Inngest persist step.)
-    await logUsage(user.id, 'UPLOAD');
-    await logUsage(user.id, 'PROCESS');
     console.log(`[UPLOAD] ${user.id} cross-user cache hit — hash=${contentHash.slice(0, 12)} hitCount=${cacheHit.hitCount} origModel=${cacheHit.pack.originalModel} (0 AI calls)`);
     return NextResponse.json({
       file: {
