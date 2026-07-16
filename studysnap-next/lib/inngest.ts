@@ -184,8 +184,8 @@ export const processFile = inngest.createFunction(
             // observed in run 01KR67K3R7Y0SE6XHDNM0AEYNM (2026-05-09): pass1
             // step took 1m 50s = 2× ~55s, doubling the wall time. Function-
             // level retries:0 only prevents function retries, not step retries.
-            const runPass = (pass: 1 | 3 | 4) =>
-              step.run({ id: `analyze-${providerId}-pass${pass}`, retries: 0 } as any, async () => {
+            const runPass = (pass: 1 | 3 | 4, attempt = '') =>
+              step.run({ id: `analyze-${providerId}-pass${pass}${attempt}`, retries: 0 } as any, async () => {
                 const t0 = Date.now();
                 try {
                   const r = await runOneProvider(providerId, text, plan, {
@@ -208,7 +208,26 @@ export const processFile = inngest.createFunction(
                 }
               });
 
-            const [pass1, pass3, pass4] = await Promise.all([runPass(1), runPass(3), runPass(4)]);
+            let [pass1, pass3, pass4] = await Promise.all([runPass(1), runPass(3), runPass(4)]);
+
+            // PARTIAL-FAILURE RETRY: DeepSeek is the paid provider the user
+            // wants serving packs — one flaky pass must not dump the upload
+            // to Groq/Mistral. If SOME (not all) passes failed and none of
+            // the failures look permanent (4xx config/balance errors,
+            // input-too-large), retry only the failed passes once. All-3-
+            // failed = systemic (outage/no balance) → advance immediately.
+            const failedCount = [pass1, pass3, pass4].filter((p) => !p.ok).length;
+            const anyPermanent = [pass1, pass3, pass4].some(
+              (p) => !p.ok && (/failed: 4\d\d/.test(p.error) || p.error.includes('rejected input as too large')),
+            );
+            if (failedCount > 0 && failedCount < 3 && !anyPermanent) {
+              console.log(`[INNGEST][${providerId}] ${failedCount}/3 passes failed transiently — retrying failed passes once`);
+              [pass1, pass3, pass4] = await Promise.all([
+                pass1.ok ? Promise.resolve(pass1) : runPass(1, '-retry'),
+                pass3.ok ? Promise.resolve(pass3) : runPass(3, '-retry'),
+                pass4.ok ? Promise.resolve(pass4) : runPass(4, '-retry'),
+              ]);
+            }
 
             // All passes must succeed for DeepSeek to "win" this upload.
             // Partial success isn't useful — a pack without a summary or
@@ -244,24 +263,42 @@ export const processFile = inngest.createFunction(
           // Single-pass path (Gemini/Groq/Mistral always; DeepSeek for short tier)
           const useMinimal = providerId === 'deepseek-v4-flash';
 
-          const stepResult = await step.run(`analyze-${providerId}`, async () => {
-            const t0 = Date.now();
-            try {
-              const r = await runOneProvider(providerId, text, plan, {
-                pages,
-                minimal: useMinimal,
-                timeoutMs: PER_PROVIDER_TIMEOUT_MS,
-              });
-              const elapsedMs = Date.now() - t0;
-              console.log(`[INNGEST][${providerId}] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
-              return { ok: true as const, result: r, elapsedMs };
-            } catch (err: any) {
-              const elapsedMs = Date.now() - t0;
-              const message = err?.message ?? String(err);
-              console.log(`[INNGEST][${providerId}] ✗ ${elapsedMs}ms — ${message}`);
-              return { ok: false as const, error: message, elapsedMs };
-            }
-          });
+          const runSingle = (stepId: string) =>
+            step.run(stepId, async () => {
+              const t0 = Date.now();
+              try {
+                const r = await runOneProvider(providerId, text, plan, {
+                  pages,
+                  minimal: useMinimal,
+                  timeoutMs: PER_PROVIDER_TIMEOUT_MS,
+                });
+                const elapsedMs = Date.now() - t0;
+                console.log(`[INNGEST][${providerId}] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
+                return { ok: true as const, result: r, elapsedMs };
+              } catch (err: any) {
+                const elapsedMs = Date.now() - t0;
+                const message = err?.message ?? String(err);
+                console.log(`[INNGEST][${providerId}] ✗ ${elapsedMs}ms — ${message}`);
+                return { ok: false as const, error: message, elapsedMs };
+              }
+            });
+
+          let stepResult = await runSingle(`analyze-${providerId}`);
+
+          // DeepSeek (paid) gets ONE retry on transient failure before the
+          // chain is allowed to fall through to Groq/Mistral — same
+          // "only extreme failures reach the free safety nets" policy as
+          // the multi-pass retry above. Free providers don't retry: the
+          // next chain entry is the better use of the wall clock.
+          if (
+            !stepResult.ok &&
+            providerId === 'deepseek-v4-flash' &&
+            !/failed: 4\d\d/.test(stepResult.error) &&
+            !stepResult.error.includes('rejected input as too large')
+          ) {
+            console.log(`[INNGEST][${providerId}] transient single-pass failure — retrying once`);
+            stepResult = await runSingle(`analyze-${providerId}-retry`);
+          }
 
           if (stepResult.ok) {
             result = stepResult.result;

@@ -24,9 +24,18 @@ const RATE_LIMIT_WAIT_MS = 7_000;
 
 /** Per-provider abort timeout for chat. Chat output is tiny (600-800 tokens),
  *  so 15s is enough for Gemini/Groq (the usual answerers, 2-8s). Kept tight so
- *  the full cascade fits the 60s route cap (see MAX_CHAT_ATTEMPTS math above).
+ *  the full cascade fits the wall budget (see CHAT_BUDGET_MS math above).
  *  Without this a connect-but-hang blocked the route until Vercel's 60s kill. */
 const CHAT_TIMEOUT_MS = 15_000;
+
+/** DeepSeek generates 50-80 tok/s — an 800-token chat reply takes 10-16s,
+ *  which the flat 15s timeout aborted right at the edge, silently handing
+ *  chat to Groq/llama. The paid backup gets the headroom it needs. */
+const DEEPSEEK_CHAT_TIMEOUT_MS = 22_000;
+
+function chatTimeoutFor(id: ModelId): number {
+  return id === 'deepseek-v4-flash' ? DEEPSEEK_CHAT_TIMEOUT_MS : CHAT_TIMEOUT_MS;
+}
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
@@ -71,7 +80,7 @@ export async function chatComplete(
     // Budget gate: only start an attempt if a full timeout's worth of time
     // still fits inside the wall budget. Keeps worst case under the route cap.
     const elapsed = Date.now() - startedAt;
-    if (elapsed + CHAT_TIMEOUT_MS > CHAT_BUDGET_MS) {
+    if (elapsed + chatTimeoutFor(id) > CHAT_BUDGET_MS) {
       console.log(`[CHAT][${reqId}] ⏭ budget exhausted (${Math.round(elapsed / 1000)}s elapsed) — stopping before ${id}`);
       break;
     }
@@ -134,11 +143,12 @@ export async function chatComplete(
 
 async function runChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: string; model: string; tokensUsed: number }> {
   const spec = MODEL_REGISTRY[id];
-  if (id.startsWith('gemini-')) return geminiChat(id, messages);
-  return openaiStyleChat(id, messages, spec.provider);
+  const timeoutMs = chatTimeoutFor(id);
+  if (id.startsWith('gemini-')) return geminiChat(id, messages, timeoutMs);
+  return openaiStyleChat(id, messages, spec.provider, timeoutMs);
 }
 
-async function geminiChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: string; model: string; tokensUsed: number }> {
+async function geminiChat(id: ModelId, messages: ChatMsg[], timeoutMs = CHAT_TIMEOUT_MS): Promise<{ content: string; model: string; tokensUsed: number }> {
   // Map ModelId → actual Gemini API model name. Default falls back to 2.0-flash
   // so an unknown future Gemini id never breaks chat.
   const modelName = id.startsWith('gemini-') ? id : 'gemini-2.0-flash';
@@ -158,11 +168,11 @@ async function geminiChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: 
         contents,
         generationConfig: { temperature: 0.5, maxOutputTokens: 800 },
       }),
-      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err: any) {
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-      throw new TransientAIError('PROVIDER_TIMEOUT', `Gemini ${modelName} did not respond within ${CHAT_TIMEOUT_MS / 1000}s`);
+      throw new TransientAIError('PROVIDER_TIMEOUT', `Gemini ${modelName} did not respond within ${timeoutMs / 1000}s`);
     }
     throw err;
   }
@@ -176,7 +186,7 @@ async function geminiChat(id: ModelId, messages: ChatMsg[]): Promise<{ content: 
   return { content, model: modelName, tokensUsed: tokens };
 }
 
-async function openaiStyleChat(id: ModelId, messages: ChatMsg[], provider: string): Promise<{ content: string; model: string; tokensUsed: number }> {
+async function openaiStyleChat(id: ModelId, messages: ChatMsg[], provider: string, timeoutMs = CHAT_TIMEOUT_MS): Promise<{ content: string; model: string; tokensUsed: number }> {
   const config = getProviderConfig(id, provider);
   if (!config.apiKey) throw new TransientAIError('NO_KEY', `No key for ${id}`);
   let res: Response;
@@ -195,11 +205,11 @@ async function openaiStyleChat(id: ModelId, messages: ChatMsg[], provider: strin
         max_tokens: config.maxOutput ?? 2048,
         ...(config.extraBody ?? {}),
       }),
-      signal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err: any) {
     if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-      throw new TransientAIError('PROVIDER_TIMEOUT', `${id} did not respond within ${CHAT_TIMEOUT_MS / 1000}s`);
+      throw new TransientAIError('PROVIDER_TIMEOUT', `${id} did not respond within ${timeoutMs / 1000}s`);
     }
     throw err;
   }

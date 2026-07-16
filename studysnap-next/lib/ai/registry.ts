@@ -212,7 +212,13 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       // 3500 cap + ultraMinimal (0.5×) counts and pass1 STILL grazed the
       // timeout (run 01KR67K3R7Y0SE6XHDNM0AEYNM); splitting the payload three
       // ways is what buys both fuller counts and bigger timeout margin.
-      maxOutputTokens: opts?.pass ? 2400 : OUTPUT_CAPS['deepseek-v4-flash'],
+      // Single-pass minimal (short-tier docs from the Inngest orchestrator):
+      // 2600 cap = 33-52s at 50-80 tok/s, fits the 55s step timeout. The
+      // unrestrained 8192 cap allowed over-generation up to ~164s — a
+      // guaranteed timeout that then dumped the upload to Groq/llama.
+      maxOutputTokens: opts?.pass ? 2400
+        : opts?.minimal || opts?.ultraMinimal ? 2600
+        : OUTPUT_CAPS['deepseek-v4-flash'],
       // Two thinking-disable flags sent in parallel:
       //   - `thinking: {type: disabled}` — V4-Flash documented format
       //   - `chat_template_kwargs.thinking: false` — V3.1 / vLLM-hosted format
