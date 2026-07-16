@@ -116,7 +116,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
         </div>
         <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 mono text-[10px] text-white/50">
           <span className="h-1.5 w-1.5 rounded-full bg-mint-400" />
-          gemini · llama fallback
+          multi-model · auto fallback
         </div>
       </div>
 

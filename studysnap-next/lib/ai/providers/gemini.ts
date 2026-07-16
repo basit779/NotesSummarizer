@@ -1,12 +1,23 @@
 import { env } from '../../env';
-import { SYSTEM_PROMPT, buildUserPrompt, buildUserPromptPass1, buildUserPromptPass2 } from '../../prompts';
+import {
+  SYSTEM_PROMPT,
+  buildUserPrompt,
+  buildUserPromptPass1,
+  buildUserPromptPass2,
+  buildUserPromptPass3,
+  buildUserPromptPass4,
+} from '../../prompts';
 import {
   STUDY_MATERIAL_SCHEMA,
   PASS1_SCHEMA,
   PASS2_SCHEMA,
+  PASS3_SCHEMA,
+  PASS4_SCHEMA,
   validateStudyMaterial,
   validatePass1,
   validatePass2,
+  validatePass3,
+  validatePass4,
 } from '../schema';
 import { ProviderResult, TransientAIError } from '../types';
 import { isInputTooLargeBody } from '../errorClassify';
@@ -62,35 +73,40 @@ export async function geminiProvider(
   modelName: string,
   text: string,
   plan: 'FREE' | 'PRO',
-  opts: { minimal?: boolean; ultraMinimal?: boolean; pages?: number; pass?: 1 | 2; timeoutMs?: number } = {},
+  opts: { minimal?: boolean; ultraMinimal?: boolean; pages?: number; pass?: 1 | 2 | 3 | 4; timeoutMs?: number } = {},
 ): Promise<ProviderResult> {
   const key = env.googleApiKey;
   if (!key) throw new TransientAIError('NO_KEY', `GOOGLE_API_KEY not configured for ${modelName}`);
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${key}`;
 
-  // Pass selection — XL 2-pass uses narrower schema + narrower prompt each call,
-  // so the 8192 output-token ceiling serves one half of the pack instead of both.
-  const userPromptText = opts.pass === 1
-    ? buildUserPromptPass1(text, { minimal: opts.minimal, ultraMinimal: opts.ultraMinimal, pages: opts.pages })
-    : opts.pass === 2
-    ? buildUserPromptPass2(text, { minimal: opts.minimal, ultraMinimal: opts.ultraMinimal, pages: opts.pages })
-    : buildUserPrompt(text, plan, { minimal: opts.minimal, ultraMinimal: opts.ultraMinimal, pages: opts.pages });
+  // Pass selection — multi-pass uses a narrower schema + narrower prompt each
+  // call, so the output-token ceiling serves one slice of the pack at a time.
+  const passOpts = { minimal: opts.minimal, ultraMinimal: opts.ultraMinimal, pages: opts.pages };
+  const userPromptText =
+    opts.pass === 1 ? buildUserPromptPass1(text, passOpts)
+    : opts.pass === 2 ? buildUserPromptPass2(text, passOpts)
+    : opts.pass === 3 ? buildUserPromptPass3(text, passOpts)
+    : opts.pass === 4 ? buildUserPromptPass4(text, passOpts)
+    : buildUserPrompt(text, plan, passOpts);
 
-  const responseSchema = opts.pass === 1 ? PASS1_SCHEMA
+  const responseSchema =
+    opts.pass === 1 ? PASS1_SCHEMA
     : opts.pass === 2 ? PASS2_SCHEMA
+    : opts.pass === 3 ? PASS3_SCHEMA
+    : opts.pass === 4 ? PASS4_SCHEMA
     : STUDY_MATERIAL_SCHEMA;
 
-  // Pass 2 only generates flashcards + MCQs + tips + connections — well
-  // under 4K tokens at the reduced XL counts. Capping at 4096 stops 2.5-flash
-  // from drifting into MAX_TOKENS truncation and cascading to flash-lite.
+  // Passes 2/3/4 only generate a slice of the pack — well under 4K tokens
+  // each. Capping at 4096 stops 2.5-flash from drifting into MAX_TOKENS
+  // truncation and cascading to flash-lite.
   //
   // Single-pass: 2.5 family supports 64K output, so 16384 gives massive
   // headroom (needed after the medium-tier TIER_COUNTS bump pushed output to
   // ~5.6K and prod hit finish=MAX_TOKENS at 8K). Gemini 2.0 Flash caps at
   // 8192 output — requesting more can be rejected, so clamp it per-model.
   const singlePassCap = modelName.startsWith('gemini-2.0') ? 8192 : 16384;
-  const maxOutputTokens = opts.pass === 2 ? 4096 : singlePassCap;
+  const maxOutputTokens = opts.pass && opts.pass >= 2 ? 4096 : singlePassCap;
 
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
@@ -166,8 +182,11 @@ export async function geminiProvider(
     throw new TransientAIError('BAD_JSON', `Gemini ${modelName} returned invalid JSON (finish=${finishReason})`);
   }
 
-  const material = opts.pass === 1 ? validatePass1(parsed, modelName)
+  const material =
+    opts.pass === 1 ? validatePass1(parsed, modelName)
     : opts.pass === 2 ? validatePass2(parsed, modelName)
+    : opts.pass === 3 ? validatePass3(parsed, modelName)
+    : opts.pass === 4 ? validatePass4(parsed, modelName)
     : validateStudyMaterial(parsed, modelName);
   return { material, model: modelName, tokensUsed: promptTok + completionTok };
 }

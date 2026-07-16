@@ -50,10 +50,20 @@ export interface ProviderRunOptions {
   /** Number of PDF pages (if known). Used by the prompt builder for tier
    *  selection — slide-heavy PDFs need page signal, not just char count. */
   pages?: number;
-  /** XL 2-pass signal. 1 = notes half (summary + keyPoints + definitions +
-   *  connections + tips). 2 = practice half (flashcards + examQuestions).
-   *  Undefined = single-pass mode (default for SHORT/MEDIUM/LONG). */
-  pass?: 1 | 2;
+  /** Multi-pass signal. Undefined = single-pass mode (the default).
+   *
+   *  Legacy 2-way split (XL 2-pass system, still valid):
+   *    1 = core notes (summary + keyPoints + definitions)
+   *    2 = practice half (flashcards + examQuestions + connections + tips)
+   *
+   *  3-way split (DeepSeek parallel orchestration in lib/inngest.ts —
+   *  passes 1, 3 and 4 run simultaneously as separate Inngest steps):
+   *    3 = flashcards ONLY
+   *    4 = examQuestions + topicConnections + studyTips
+   *  Splitting pass 2's payload across passes 3+4 halves each call's output
+   *  so DeepSeek's 50-80 tok/s can generate FULL-quality counts inside the
+   *  50s per-step timeout, instead of ultra-trimmed counts in one fat pass. */
+  pass?: 1 | 2 | 3 | 4;
   /** Per-call abort timeout in milliseconds. Default 25_000 (25s) preserves
    *  shared-budget behavior used by chat + legacy single-step paths. The
    *  per-provider Inngest steps in lib/inngest.ts pass 55_000 since each

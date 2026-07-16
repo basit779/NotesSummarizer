@@ -31,11 +31,12 @@ const CHUNK_THRESHOLD = 120_000;
  *  always aborted. */
 const PER_PROVIDER_TIMEOUT_MS = 55_000;
 
-/** Tighter timeout for DeepSeek 2-pass calls. 50s gives 10s margin under
- *  Vercel's 60s wall — needed because pass1 was still hitting the 55s edge
- *  and getting killed mid-cleanup (run 01KR67K3R7Y0SE6XHDNM0AEYNM, 2026-05-09).
- *  With ultraMinimal output (~1.5K tokens) + 3500-token cap, pass1/2 should
- *  finish in 19-30s anyway, so 50s is plenty of headroom. */
+/** Tighter timeout for DeepSeek pass calls. 50s gives 10s margin under
+ *  Vercel's 60s wall — needed because the old 2-pass pass1 was still hitting
+ *  the 55s edge and getting killed mid-cleanup (run 01KR67K3R7Y0SE6XHDNM0AEYNM,
+ *  2026-05-09). The 3-way split targets ~1.5-1.8K tokens per pass with a
+ *  2400-token hard cap (registry.ts), so each pass finishes in 19-36s
+ *  typical, 48s absolute worst — always inside this timeout. */
 const DEEPSEEK_PASS_TIMEOUT_MS = 50_000;
 
 /** Reject a promise that runs longer than `ms`. Used to bound document text
@@ -154,22 +155,28 @@ export const processFile = inngest.createFunction(
         for (const providerId of configured) {
           if (result) break;
 
-          // DeepSeek + medium/long/xl tier → 2-pass PARALLEL orchestration.
+          // DeepSeek + medium/long/xl tier → 3-pass PARALLEL orchestration.
           // Each pass runs as its own Inngest step = its own 60s Vercel
-          // function invocation, so DeepSeek's 50-80 tok/s × ~3K tokens per
-          // pass = 37-60s fits comfortably. Without 2-pass, DeepSeek's full
-          // ~6K output tokens at 50-80 tok/s = 75-120s blows Hobby's 60s wall.
+          // function invocation. The pack is split three ways:
+          //   pass 1 → summary + keyPoints + definitions (minimal 0.7× counts)
+          //   pass 3 → flashcards (full split counts, 16-20 cards)
+          //   pass 4 → examQuestions + topicConnections + studyTips
+          // Each pass generates ~1.5-1.8K tokens = 19-36s at DeepSeek's
+          // 50-80 tok/s, far from the 50s timeout. The OLD 2-pass design had
+          // to run ultraMinimal (0.5×) counts to fit and still grazed the
+          // timeout — the paid provider was producing the THINNEST packs in
+          // the chain. Three smaller passes = fuller pack AND bigger margin.
           //
           // Short tier uses single-pass DeepSeek — output already fits 55s
-          // budget, no point paying for 2 API calls.
+          // budget, no point paying for 3 API calls.
           //
           // Other providers (Gemini/Groq/Mistral) always single-pass — their
           // per-token speed isn't the binding constraint.
-          const useDeepSeekTwoPass = providerId === 'deepseek-v4-flash' && tier !== 'short';
+          const useDeepSeekSplit = providerId === 'deepseek-v4-flash' && tier !== 'short';
 
-          if (useDeepSeekTwoPass) {
-            // Pass 1 + Pass 2 via Promise.all — Inngest dispatches each
-            // step.run() as its own function invocation in parallel.
+          if (useDeepSeekSplit) {
+            // All passes via Promise.all — Inngest dispatches each step.run()
+            // as its own function invocation in parallel.
             //
             // Step-level `retries: 0` (passed via `as any` since v4's
             // StepOptions type doesn't expose it but the runtime accepts it).
@@ -177,79 +184,59 @@ export const processFile = inngest.createFunction(
             // observed in run 01KR67K3R7Y0SE6XHDNM0AEYNM (2026-05-09): pass1
             // step took 1m 50s = 2× ~55s, doubling the wall time. Function-
             // level retries:0 only prevents function retries, not step retries.
-            const [pass1, pass2] = await Promise.all([
-              step.run({ id: `analyze-${providerId}-pass1`, retries: 0 } as any, async () => {
+            const runPass = (pass: 1 | 3 | 4) =>
+              step.run({ id: `analyze-${providerId}-pass${pass}`, retries: 0 } as any, async () => {
                 const t0 = Date.now();
                 try {
                   const r = await runOneProvider(providerId, text, plan, {
                     pages,
-                    pass: 1,
-                    // ultraMinimal (0.5×) instead of minimal (0.7×): DeepSeek
-                    // pass1 was hitting the 55s timeout on medium docs even
-                    // with minimal — physics edge. Ultra trims output to ~1.5K
-                    // tokens, finishing in 19-30s reliably.
-                    ultraMinimal: true,
+                    pass,
+                    // Pass 1 carries three sections — trim its counts by 0.7×
+                    // so its output lands in the same ~1.5-1.8K token band as
+                    // passes 3/4 (which use purpose-sized split counts).
+                    minimal: pass === 1,
                     timeoutMs: DEEPSEEK_PASS_TIMEOUT_MS,
                   });
                   const elapsedMs = Date.now() - t0;
-                  console.log(`[INNGEST][${providerId}/pass1] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
+                  console.log(`[INNGEST][${providerId}/pass${pass}] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
                   return { ok: true as const, result: r, elapsedMs };
                 } catch (err: any) {
                   const elapsedMs = Date.now() - t0;
                   const message = err?.message ?? String(err);
-                  console.log(`[INNGEST][${providerId}/pass1] ✗ ${elapsedMs}ms — ${message}`);
+                  console.log(`[INNGEST][${providerId}/pass${pass}] ✗ ${elapsedMs}ms — ${message}`);
                   return { ok: false as const, error: message, elapsedMs };
                 }
-              }),
-              step.run({ id: `analyze-${providerId}-pass2`, retries: 0 } as any, async () => {
-                const t0 = Date.now();
-                try {
-                  const r = await runOneProvider(providerId, text, plan, {
-                    pages,
-                    pass: 2,
-                    // ultraMinimal: see pass1 comment.
-                    ultraMinimal: true,
-                    timeoutMs: DEEPSEEK_PASS_TIMEOUT_MS,
-                  });
-                  const elapsedMs = Date.now() - t0;
-                  console.log(`[INNGEST][${providerId}/pass2] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
-                  return { ok: true as const, result: r, elapsedMs };
-                } catch (err: any) {
-                  const elapsedMs = Date.now() - t0;
-                  const message = err?.message ?? String(err);
-                  console.log(`[INNGEST][${providerId}/pass2] ✗ ${elapsedMs}ms — ${message}`);
-                  return { ok: false as const, error: message, elapsedMs };
-                }
-              }),
-            ]);
+              });
 
-            // Both passes must succeed for DeepSeek to "win" this upload.
+            const [pass1, pass3, pass4] = await Promise.all([runPass(1), runPass(3), runPass(4)]);
+
+            // All passes must succeed for DeepSeek to "win" this upload.
             // Partial success isn't useful — a pack without a summary or
-            // without flashcards isn't a complete pack. If either pass
-            // fails, advance to the next provider in the chain.
-            if (pass1.ok && pass2.ok) {
+            // without flashcards isn't a complete pack. If any pass fails,
+            // advance to the next provider in the chain.
+            if (pass1.ok && pass3.ok && pass4.ok) {
               const merged: StudyMaterial = {
                 title: pass1.result.material.title,
                 summary: pass1.result.material.summary,
                 keyPoints: pass1.result.material.keyPoints,
                 definitions: pass1.result.material.definitions,
-                flashcards: pass2.result.material.flashcards,
-                examQuestions: pass2.result.material.examQuestions,
-                topicConnections: pass2.result.material.topicConnections,
-                studyTips: pass2.result.material.studyTips,
+                flashcards: pass3.result.material.flashcards,
+                examQuestions: pass4.result.material.examQuestions,
+                topicConnections: pass4.result.material.topicConnections,
+                studyTips: pass4.result.material.studyTips,
               };
               result = {
                 material: merged,
                 model: providerId,
-                tokensUsed: pass1.result.tokensUsed + pass2.result.tokensUsed,
+                tokensUsed: pass1.result.tokensUsed + pass3.result.tokensUsed + pass4.result.tokensUsed,
               };
               usedProvider = providerId;
               attempted.push({ id: providerId });
-              console.log(`[INNGEST][${providerId}] 2-pass merged: pass1=${pass1.elapsedMs}ms pass2=${pass2.elapsedMs}ms`);
+              console.log(`[INNGEST][${providerId}] 3-pass merged: pass1=${pass1.elapsedMs}ms pass3=${pass3.elapsedMs}ms pass4=${pass4.elapsedMs}ms`);
             } else {
-              const errSummary = `pass1=${pass1.ok ? 'ok' : pass1.error}; pass2=${pass2.ok ? 'ok' : pass2.error}`;
-              attempted.push({ id: providerId, error: `2-pass failed: ${errSummary}` });
-              console.log(`[INNGEST][${providerId}] 2-pass FAILED — ${errSummary}, advancing chain`);
+              const errSummary = `pass1=${pass1.ok ? 'ok' : pass1.error}; pass3=${pass3.ok ? 'ok' : pass3.error}; pass4=${pass4.ok ? 'ok' : pass4.error}`;
+              attempted.push({ id: providerId, error: `3-pass failed: ${errSummary}` });
+              console.log(`[INNGEST][${providerId}] 3-pass FAILED — ${errSummary}, advancing chain`);
             }
             continue;
           }

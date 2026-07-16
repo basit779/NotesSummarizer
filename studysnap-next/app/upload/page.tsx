@@ -57,7 +57,7 @@ async function pollUntilDone(fileId: string): Promise<{ id: string }> {
 
 const BENEFITS = [
   { icon: Brain,    label: 'Structured notes', hint: 'Markdown with headings, bullets, examples.' },
-  { icon: Sparkles, label: 'Flashcards',       hint: '22–40 cards. CSV export on Pro.' },
+  { icon: Sparkles, label: 'Flashcards',       hint: 'Up to ~38 cards. CSV export on Pro.' },
   { icon: Zap,      label: 'Quiz questions',   hint: 'MCQs with explained answers.' },
 ];
 

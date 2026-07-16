@@ -6,11 +6,20 @@ import { HttpError } from '../httpError';
 export interface ChatMsg { role: 'user' | 'assistant' | 'system'; content: string; }
 
 /** Worst-case wall time MUST stay under the chat route's maxDuration (60s) or
- *  Vercel kills the connection with a 504 mid-response. With one rate-limit
- *  wait-retry the worst path is:
- *    429 fast-fail (~2s) + RATE_LIMIT_WAIT (7s) + 3 × CHAT_TIMEOUT (3×15s) = 54s.
- *  That fits 60s. The OLD values (4 attempts × 20s = 80s+) blew the cap. */
-const MAX_CHAT_ATTEMPTS = 3;
+ *  Vercel kills the connection with a 504 mid-response.
+ *
+ *  Instead of a fixed attempt cap we enforce a WALL-CLOCK BUDGET: before each
+ *  attempt, check there's still room for a full CHAT_TIMEOUT_MS try. Slow
+ *  failures (15s timeouts) naturally limit attempts to ~3; fast failures
+ *  (429s in 1-2s) let the cascade reach 5-6 providers.
+ *
+ *  Why this matters: the chain starts with 3 Gemini variants that all share
+ *  ONE GOOGLE_API_KEY. The old `slice(0, 3)` meant that when Google quota was
+ *  exhausted, all 3 attempts burned on fast 429s and chat returned "rate
+ *  limited" — while paid DeepSeek + Groq + Mistral sat configured but
+ *  unreachable. Budget-based cascading fixes exactly that path:
+ *  3 × ~1.5s Gemini 429s + DeepSeek 15s try ≈ 20s, well inside budget. */
+const CHAT_BUDGET_MS = 42_000;
 const RATE_LIMIT_WAIT_MS = 7_000;
 
 /** Per-provider abort timeout for chat. Chat output is tiny (600-800 tokens),
@@ -25,10 +34,12 @@ function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
  * Non-streaming chat completion with automatic provider fallback.
  *
  * Behaviors matched to runWithFallback for consistency:
- *  - MAX_ATTEMPTS=3 cap per request
+ *  - Wall-clock budget (CHAT_BUDGET_MS) instead of a fixed attempt cap, so
+ *    fast 429 failures don't exhaust the request before reaching the paid
+ *    DeepSeek backup / Groq safety net
  *  - On the FIRST 429 in the request, sleep 7s and retry the same provider
  *    before cascading (free-tier per-minute buckets usually refill within
- *    that window)
+ *    that window) — only when the remaining budget allows it
  *  - On complete failure, throws ALL_RATE_LIMITED (429) if every attempt
  *    was rate-limited, otherwise ALL_PROVIDERS_FAILED (502)
  *
@@ -40,15 +51,16 @@ export async function chatComplete(
   preferred?: ModelId,
 ): Promise<{ content: string; model: string; tokensUsed: number; attempted: { id: ModelId; error?: string }[] }> {
   const reqId = Math.random().toString(36).slice(2, 8);
+  const startedAt = Date.now();
   const chain: ModelId[] = [];
   if (preferred && MODEL_REGISTRY[preferred]) chain.push(preferred);
   for (const id of DEFAULT_FALLBACK_ORDER) if (!chain.includes(id)) chain.push(id);
-  const configured = chain.filter((id) => MODEL_REGISTRY[id].isConfigured()).slice(0, MAX_CHAT_ATTEMPTS);
+  const configured = chain.filter((id) => MODEL_REGISTRY[id].isConfigured());
   if (configured.length === 0) {
     throw new HttpError(503, 'NO_AI_PROVIDER', 'No AI provider configured.');
   }
 
-  console.log(`[CHAT][${reqId}] start — will try up to ${configured.length} providers: ${configured.join(', ')}`);
+  console.log(`[CHAT][${reqId}] start — budget ${CHAT_BUDGET_MS / 1000}s across up to ${configured.length} providers: ${configured.join(', ')}`);
 
   const attempted: { id: ModelId; error?: string }[] = [];
   let lastErr: Error | undefined;
@@ -56,6 +68,13 @@ export async function chatComplete(
 
   for (let i = 0; i < configured.length; i++) {
     const id = configured[i];
+    // Budget gate: only start an attempt if a full timeout's worth of time
+    // still fits inside the wall budget. Keeps worst case under the route cap.
+    const elapsed = Date.now() - startedAt;
+    if (elapsed + CHAT_TIMEOUT_MS > CHAT_BUDGET_MS) {
+      console.log(`[CHAT][${reqId}] ⏭ budget exhausted (${Math.round(elapsed / 1000)}s elapsed) — stopping before ${id}`);
+      break;
+    }
     const t0 = Date.now();
     try {
       console.log(`[CHAT][${reqId}] attempt ${i + 1}/${configured.length} — ${id}`);
@@ -69,9 +88,14 @@ export async function chatComplete(
       const msg = err instanceof TransientAIError ? `${err.code}: ${err.message}` : String(err?.message ?? err);
       console.log(`[CHAT][${reqId}] ✗ ${id} failed in ${Date.now() - t0}ms: ${msg}`);
 
-      // Wait-retry ONCE per request when the first provider rate-limits.
+      // Wait-retry ONCE per request when the first provider rate-limits —
+      // but only if the wait + a full retry still fits the wall budget.
+      // When several providers remain it's cheaper to advance than to wait.
       const isRateLimit = code === 'RATE_LIMIT' || status === 429;
-      if (isRateLimit && rateLimitedCount === 0) {
+      const budgetForWaitRetry =
+        Date.now() - startedAt + RATE_LIMIT_WAIT_MS + CHAT_TIMEOUT_MS <= CHAT_BUDGET_MS;
+      const isLastConfigured = i === configured.length - 1;
+      if (isRateLimit && rateLimitedCount === 0 && budgetForWaitRetry && isLastConfigured) {
         rateLimitedCount++;
         console.log(`[CHAT][${reqId}] ⏱ ${id} rate-limited — sleeping ${RATE_LIMIT_WAIT_MS}ms then retrying`);
         await sleep(RATE_LIMIT_WAIT_MS);

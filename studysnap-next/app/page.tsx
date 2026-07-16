@@ -58,15 +58,15 @@ function MockupFrame({ children }: { children: ReactNode }) {
 const features = [
   { icon: Brain,         title: 'Structured Notes',   desc: 'Markdown-formatted study notes with headings, bullets, examples — not a wall of prose.' },
   { icon: Target,        title: 'Exam Questions',     desc: 'MCQs with 4 options, correct answer, and explanation that grades why distractors are wrong.' },
-  { icon: Zap,           title: 'Flashcards',         desc: '22-40 cards per pack, spaced-repetition ready, CSV export for Anki.' },
+  { icon: Zap,           title: 'Flashcards',         desc: 'Up to ~38 cards per pack, spaced-repetition ready, CSV export for Anki.' },
   { icon: FileText,      title: 'Every Definition',   desc: 'Ten+ precise definitions per pack. No glossary gaps, no jargon left unexplained.' },
   { icon: MessageSquare, title: 'Chat With Your PDF', desc: 'Ask questions about the exact document you uploaded. Grounded answers, zero hallucinations.' },
-  { icon: Layers,        title: 'Multi-Model AI',     desc: 'Gemini 2.0 Flash primary, Groq Llama and OpenRouter fallback. Never locked to one vendor.' },
+  { icon: Layers,        title: 'Multi-Model AI',     desc: 'Gemini 2.5 primary with DeepSeek, Llama, and Mistral fallbacks. Your pack always ships.' },
 ];
 
 const HOW_STEPS = [
-  { n: '01', title: 'Drop a PDF',   desc: 'Any lecture slide, textbook chapter, or research paper up to 15 MB.' },
-  { n: '02', title: 'AI extracts it',  desc: 'Gemini 2.0 Flash extracts every concept, term, and testable fact in ~20 seconds.' },
+  { n: '01', title: 'Drop a file',   desc: 'Any lecture slide, textbook chapter, or research paper — PDF, DOCX, PPTX, XLSX up to 15 MB.' },
+  { n: '02', title: 'AI extracts it',  desc: 'A multi-model chain reads every concept, term, and testable fact — with automatic fallback so it always completes.' },
   { n: '03', title: 'Study faster', desc: 'Structured notes, flashcards, quiz, definitions. Plus an AI tutor grounded in your document.' },
 ];
 
@@ -185,10 +185,10 @@ function Hero() {
 
 function ProofStrip() {
   const facts = [
-    { icon: Gauge,  label: '~20s',   hint: 'Processing Time' },
+    { icon: Gauge,  label: '~30s',   hint: 'Typical processing' },
     { icon: Layers, label: '30+',    hint: 'Flashcards per pack' },
     { icon: Lock,   label: '0',      hint: 'Required Setup' },
-    { icon: Zap,    label: 'Gemini', hint: '2.0 Flash Engine' },
+    { icon: Zap,    label: '4×',     hint: 'AI fallback chain' },
   ];
 
   return (

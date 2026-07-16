@@ -55,7 +55,7 @@ const OUTPUT_CAPS: Record<string, number> = {
  * to stay concise. Pass 2 keeps 7500 since flashcards + MCQs + secondary
  * sections use nearly all of it without truncating.
  */
-const MISTRAL_PASS_CAPS: Record<1 | 2, number> = { 1: 6500, 2: 7500 };
+const MISTRAL_PASS_CAPS: Record<number, number> = { 1: 6500, 2: 7500, 3: 7500, 4: 7500 };
 
 export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
   'gemini-2.5-pro': {
@@ -202,15 +202,17 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       pages: opts?.pages,
       pass: opts?.pass,
       timeoutMs: opts?.timeoutMs,
-      // Pass-call output cap: 3500 tokens hard ceiling (vs 8192 for non-pass).
-      // Belt-and-suspenders alongside ultraMinimal — even if the prompt's
-      // smaller targets are ignored, the model can't generate more than 3500
-      // tokens. At DeepSeek's 50-80 tok/s, 3500 tokens = 44-70s. Combined with
-      // ultraMinimal asking for ~1500 tokens, real output should land 19-30s.
-      // Tightened from 4000 → 3500 after run 01KR67K3R7Y0SE6XHDNM0AEYNM
-      // (2026-05-09) showed pass1 still hitting 55s timeout — the 4K cap was
-      // letting model generate too many tokens despite ultraMinimal targeting.
-      maxOutputTokens: opts?.pass ? 3500 : OUTPUT_CAPS['deepseek-v4-flash'],
+      // Pass-call output cap: 2400 tokens hard ceiling (vs 8192 for non-pass).
+      // Belt-and-suspenders alongside the pass prompts' targets — even if the
+      // requested counts are ignored, the model physically can't generate more
+      // than 2400 tokens = 30-48s at DeepSeek's 50-80 tok/s, which always fits
+      // the 50s per-step timeout. The 3-way split (passes 1/3/4 in
+      // lib/inngest.ts) targets ~1.5-1.8K tokens per pass, so this cap only
+      // bites on over-generation. History: the old 2-pass design needed a
+      // 3500 cap + ultraMinimal (0.5×) counts and pass1 STILL grazed the
+      // timeout (run 01KR67K3R7Y0SE6XHDNM0AEYNM); splitting the payload three
+      // ways is what buys both fuller counts and bigger timeout margin.
+      maxOutputTokens: opts?.pass ? 2400 : OUTPUT_CAPS['deepseek-v4-flash'],
       // Two thinking-disable flags sent in parallel:
       //   - `thinking: {type: disabled}` — V4-Flash documented format
       //   - `chat_template_kwargs.thinking: false` — V3.1 / vLLM-hosted format

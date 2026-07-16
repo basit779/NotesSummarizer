@@ -1,11 +1,22 @@
-import { SYSTEM_PROMPT, buildUserPrompt, buildUserPromptPass1, buildUserPromptPass2 } from '../../prompts';
+import {
+  SYSTEM_PROMPT,
+  buildUserPrompt,
+  buildUserPromptPass1,
+  buildUserPromptPass2,
+  buildUserPromptPass3,
+  buildUserPromptPass4,
+} from '../../prompts';
 import {
   STUDY_MATERIAL_SCHEMA,
   PASS1_SCHEMA,
   PASS2_SCHEMA,
+  PASS3_SCHEMA,
+  PASS4_SCHEMA,
   validateStudyMaterial,
   validatePass1,
   validatePass2,
+  validatePass3,
+  validatePass4,
 } from '../schema';
 import { ProviderResult, TransientAIError } from '../types';
 import { isInputTooLargeBody } from '../errorClassify';
@@ -39,8 +50,8 @@ export async function openaiCompat(args: {
   ultraMinimal?: boolean;
   /** PDF page count for tier selection — forwarded to buildUserPrompt. */
   pages?: number;
-  /** XL 2-pass signal — see ProviderRunOptions in types.ts. */
-  pass?: 1 | 2;
+  /** Multi-pass signal — see ProviderRunOptions in types.ts. */
+  pass?: 1 | 2 | 3 | 4;
   /**
    * Cap on completion tokens. Honors each provider's actual ceiling.
    * Gemini supports 8192 for FREE+PRO. Groq supports 8192. GitHub Models
@@ -64,14 +75,20 @@ export async function openaiCompat(args: {
 
   if (!apiKey) throw new TransientAIError('NO_KEY', `API key missing for ${displayName}`);
 
-  const effectiveSchema = pass === 1 ? PASS1_SCHEMA : pass === 2 ? PASS2_SCHEMA : STUDY_MATERIAL_SCHEMA;
+  const effectiveSchema =
+    pass === 1 ? PASS1_SCHEMA
+    : pass === 2 ? PASS2_SCHEMA
+    : pass === 3 ? PASS3_SCHEMA
+    : pass === 4 ? PASS4_SCHEMA
+    : STUDY_MATERIAL_SCHEMA;
   const schemaInstruction = `Respond with ONLY a JSON object matching this schema (no prose, no code fences):
 ${JSON.stringify(effectiveSchema)}`;
 
-  const userPromptText = pass === 1
-    ? buildUserPromptPass1(text, { minimal, ultraMinimal, pages })
-    : pass === 2
-    ? buildUserPromptPass2(text, { minimal, ultraMinimal, pages })
+  const userPromptText =
+    pass === 1 ? buildUserPromptPass1(text, { minimal, ultraMinimal, pages })
+    : pass === 2 ? buildUserPromptPass2(text, { minimal, ultraMinimal, pages })
+    : pass === 3 ? buildUserPromptPass3(text, { minimal, ultraMinimal, pages })
+    : pass === 4 ? buildUserPromptPass4(text, { minimal, ultraMinimal, pages })
     : buildUserPrompt(text, plan, { minimal, ultraMinimal, pages });
   const userPrompt = userPromptText + '\n\n' + schemaInstruction;
 
@@ -165,8 +182,11 @@ ${JSON.stringify(effectiveSchema)}`;
     }
   }
 
-  const material = pass === 1 ? validatePass1(parsed, displayName)
+  const material =
+    pass === 1 ? validatePass1(parsed, displayName)
     : pass === 2 ? validatePass2(parsed, displayName)
+    : pass === 3 ? validatePass3(parsed, displayName)
+    : pass === 4 ? validatePass4(parsed, displayName)
     : validateStudyMaterial(parsed, displayName);
   return { material, model: modelName, tokensUsed: promptTok + completionTok };
 }

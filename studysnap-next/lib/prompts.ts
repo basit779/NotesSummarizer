@@ -266,6 +266,81 @@ ${text}
 }
 
 /**
+ * 3-way parallel split counts (passes 3 + 4) — used by the DeepSeek
+ * orchestration in lib/inngest.ts. Each pass is sized so its output lands
+ * ~1.5-1.8K tokens: at DeepSeek's 50-80 tok/s that's 19-36s, comfortably
+ * inside the 50s per-step timeout WITHOUT starving the counts the way the
+ * old ultraMinimal (0.5×) 2-pass did. Fuller pack, lower timeout risk.
+ */
+const SPLIT_PASS3_COUNTS = { cards: '16-20' };
+const SPLIT_PASS4_COUNTS = { exam: '8-10', tips: '3-4', connections: '3-4' };
+
+/** Shared quality bars for practice items — identical wording across pass 2
+ *  (legacy 2-way) and passes 3/4 (3-way split) so output quality is uniform. */
+const FLASHCARD_RULES = (cards: string) =>
+  `flashcards: ${cards} items. BANNED: trivial "What is X?"/"X is Y" pairs — every card must be unsolvable without having read this specific source. Mix: ~25% recall of non-obvious facts, ~30% cause/effect or mechanism, ~25% compare/contrast, ~20% apply-to-scenario. Front: specific probing question. Back: 2-3 sentences with answer + one implication.`;
+const MCQ_RULES = (exam: string) =>
+  `examQuestions: AT LEAST ${exam.split('-')[0]} MCQs (target ${exam}). DO NOT stop early — produce the full count even if explanations get tight. Each MCQ: exactly 4 options A-D, a correct letter (A/B/C/D), and an explanation. Explanation MUST be ONE concise sentence per option (~15-25 words each, ~80 words total) — NOT paragraphs. State briefly why the correct answer is right and why each distractor fails. Mix ~30% easy / 40% understanding / 30% application.`;
+
+/**
+ * Pass 3 — flashcards ONLY. One of three parallel passes in the DeepSeek
+ * split (1 = core notes, 3 = flashcards, 4 = quiz + secondary).
+ */
+export function buildUserPromptPass3(text: string, opts: { minimal?: boolean; ultraMinimal?: boolean; pages?: number } = {}) {
+  const { pages } = opts;
+  const factor = resolveScaleFactor(opts);
+  const cards = factor === 1.0 ? SPLIT_PASS3_COUNTS.cards : scaleRange(SPLIT_PASS3_COUNTS.cards, factor);
+  const pageInfo = pages ? `${pages} pages, ${text.length} chars` : `${text.length} chars`;
+
+  return `Analyze this source and produce ONLY THE FLASHCARDS of a study pack as JSON. Source is a large document (${pageInfo}).
+
+This is one of THREE parallel passes. Other passes handle notes, quiz questions, and study tips — DO NOT produce those. Output ONLY a "flashcards" array.
+
+Aim for coverage across every distinct topic in the source — roughly 1 flashcard per concept.
+
+- ${FLASHCARD_RULES(cards)}
+
+DO NOT include summary, keyPoints, definitions, examQuestions, topicConnections, or studyTips.
+
+SOURCE:
+"""
+${text}
+"""`;
+}
+
+/**
+ * Pass 4 — quiz + secondary sections (examQuestions + topicConnections +
+ * studyTips). One of three parallel passes in the DeepSeek split.
+ */
+export function buildUserPromptPass4(text: string, opts: { minimal?: boolean; ultraMinimal?: boolean; pages?: number } = {}) {
+  const { pages } = opts;
+  const factor = resolveScaleFactor(opts);
+  const base = factor === 1.0 ? SPLIT_PASS4_COUNTS : {
+    exam: scaleRange(SPLIT_PASS4_COUNTS.exam, factor),
+    tips: scaleRange(SPLIT_PASS4_COUNTS.tips, factor),
+    connections: scaleRange(SPLIT_PASS4_COUNTS.connections, factor),
+  };
+  const pageInfo = pages ? `${pages} pages, ${text.length} chars` : `${text.length} chars`;
+
+  return `Analyze this source and produce THE QUIZ + STUDY-STRATEGY PART of a study pack as JSON. Source is a large document (${pageInfo}).
+
+This is one of THREE parallel passes. Other passes handle notes and flashcards — DO NOT produce those. Output ONLY examQuestions, topicConnections, and studyTips.
+
+Aim for coverage across every major section of the source — roughly 1 MCQ per major section.
+
+- ${MCQ_RULES(base.exam)}
+- topicConnections: ${base.connections} one-sentence items (cross-concept links — dependencies, contrasts, progressions)
+- studyTips: ${base.tips} items. Each tip must be so specific that it would only make sense for THIS document — if it could apply to any subject, discard it and write a better one.
+
+DO NOT include summary, keyPoints, definitions, or flashcards.
+
+SOURCE:
+"""
+${text}
+"""`;
+}
+
+/**
  * XL Pass 2 — practice + secondary sections. Produces flashcards +
  * examQuestions + topicConnections + studyTips. Pass 1 handled core notes
  * (summary/keyPoints/definitions).
