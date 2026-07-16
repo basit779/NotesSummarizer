@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import {
   Copy, Download, Lock, Clock, FileText, ArrowLeft, Play, Zap,
   BookOpen, ListOrdered, Library, Layers, HelpCircle, Lightbulb, MessageSquare,
-  CheckCircle2, Hash, PanelRightClose, PanelRightOpen,
+  CheckCircle2, Hash, PanelRightClose, PanelRightOpen, Cpu,
 } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { useAuth } from '@/lib/client/auth';
@@ -40,6 +40,9 @@ interface ResultData {
   flashcards: { front: string; back: string }[];
   topicConnections?: string[];
   studyTips?: string[];
+  /** AI model that generated this pack ('pdf_cache' = served from cross-user cache). */
+  model?: string;
+  fallbackUsed?: string | null;
   file: { filename: string; pageCount: number | null };
   createdAt: string;
 }
@@ -267,6 +270,17 @@ function ResultsInner() {
                   <span className="text-white/60">{stats.cards} cards</span>
                   <span className="text-white/20">·</span>
                   <span className="text-white/60">{stats.qs} questions</span>
+                </>)}
+                {result.model && (<>
+                  <span className="text-white/20">·</span>
+                  {/* Temporary debug chip: which model generated this pack */}
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full border border-mint-500/20 bg-mint-500/[0.06] px-2 py-0.5 text-mint-300/90"
+                    title={result.fallbackUsed ? `fallback used: ${result.fallbackUsed}` : 'primary model'}
+                  >
+                    <Cpu className="h-3 w-3" />
+                    {result.model === 'pdf_cache' ? 'cached pack' : result.model}
+                  </span>
                 </>)}
               </div>
             </div>
