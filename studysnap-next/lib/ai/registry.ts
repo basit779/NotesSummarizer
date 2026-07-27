@@ -236,31 +236,31 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * STACKED GEMINI FAMILY FIRST. This is the key to NOT always falling through
- * to Groq/llama. Google's free-tier quotas are PER MODEL — each Gemini variant
- * has its own independent RPM/RPD bucket, all on the same GOOGLE_API_KEY:
- *   1. gemini-2.5-flash      — best quality. ~250 RPD, 10 RPM.
- *   2. gemini-2.5-flash-lite — same 2.5 family, near-equal quality, FAST.
- *                              ~1000 RPD (highest free quota) — the workhorse
- *                              fallback that catches 2.5-flash's quota wall.
- *   3. gemini-2.0-flash      — solid. ~200 RPD, separate bucket again.
- *   --- combined ~1450 Gemini-quality requests/day before any non-Gemini ---
- *   4. deepseek-v4-flash     — Paid backup ($4). Fires only when ALL Gemini
- *                              quota is exhausted. Medium+ docs use the 2-pass
- *                              parallel Inngest orchestration (lib/inngest.ts)
- *                              so it fits Hobby's 60s wall. Short docs single-pass.
- *   5. groq-llama-3.3-70b    — Fast safety net (~15s LPU) when even DeepSeek
- *                              fails/times out. Lower quality but always finishes.
+ * DEEPSEEK-PRIMARY (2026-07-16, deliberate test config — see _AI_HANDOFF.md).
+ * User is testing DeepSeek V4 Flash as the main generation model now that
+ * the 3-pass parallel split (lib/inngest.ts) makes it produce full-quality
+ * packs inside the timeout. Order:
+ *   1. deepseek-v4-flash     — PRIMARY. Paid, ~50-80 tok/s. Medium+ docs use
+ *                              the 3-pass parallel Inngest split (notes /
+ *                              flashcards / quiz+tips), each pass ~19-36s,
+ *                              well inside the 50s per-step timeout. Short
+ *                              docs single-pass (~30-50s, 55s timeout).
+ *                              Gets one same-provider retry on transient
+ *                              failure before the chain advances (lib/inngest.ts)
+ *                              — a real model outage/balance issue still
+ *                              fails over, a single flaky pass doesn't.
+ *   2. gemini-2.5-flash      — First fallback if DeepSeek fails outright.
+ *   3. gemini-2.5-flash-lite — ~1000 RPD, catches 2.5-flash's quota wall.
+ *   4. gemini-2.0-flash      — Third independent Gemini quota bucket.
+ *   5. groq-llama-3.3-70b    — Fast safety net (~15s LPU) — extreme-failure only.
  *   6. mistral-small         — Last resort. 500K TPM.
  *
- * Why this order:
- *   - The OLD chain (gemini-2.5-flash → deepseek → groq) fell through to Groq
- *     constantly during heavy testing: one Gemini model's 250 RPD burns fast,
- *     then DeepSeek is slow/flaky on Hobby, so Groq mopped up = "always llama".
- *   - Stacking 3 Gemini variants (3 independent quotas) means Gemini-quality
- *     serves virtually every upload before anything weaker is reached.
- *   - DeepSeek stays in as the paid insurance it was meant to be: it fires when
- *     Google is genuinely exhausted/down, and Groq still catches its failures.
+ * COST NOTE: every upload that isn't a cache hit now calls the paid DeepSeek
+ * key first, not just when Google quota is exhausted. Fine for a deliberate
+ * test window; if the paid balance needs to stretch further for daily use,
+ * flip position 1 back to a gemini-2.5-flash entry (or add a config flag) to
+ * return to Gemini-primary. The exact prior Gemini-first order is preserved
+ * in git history (this file, commit history around 2026-05 to 2026-07).
  *
  * Registered but NOT in active chains:
  *   - gemini-2.5-pro     — stricter free quota than flash; flash family is plenty.
@@ -273,22 +273,23 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  * checkpoints between steps so failed providers don't re-burn quota on retry.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
+  'deepseek-v4-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
-  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];
 
-// XL uses the same stacked-Gemini order. Gemini 2.5/2.0 Flash all have 1M
-// context so large single-call docs fit; the >120K chunked path (runWithFallback)
-// skips DeepSeek since its 50-80 tok/s can't finish inside that path's 25s budget.
+// XL uses the same DeepSeek-primary order. Gemini 2.5/2.0 Flash all have 1M
+// context so large single-call docs fit as fallback; the >120K chunked path
+// (runWithFallback) skips DeepSeek since its 50-80 tok/s can't finish inside
+// that path's 25s budget.
 const XL_FALLBACK_ORDER: ModelId[] = [
+  'deepseek-v4-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
-  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];

@@ -1,6 +1,18 @@
 # Study Snap — AI handoff context
 
-> Last updated 2026-07-16. When you open Claude Code in this folder, point it at this file first so it has full context without re-discovering everything.
+> Last updated 2026-07-16 (later same day). When you open Claude Code in this folder, point it at this file first so it has full context without re-discovering everything.
+
+## 2026-07-16 — DEEPSEEK IS CURRENTLY PRIMARY (deliberate, user-requested test)
+
+`DEFAULT_FALLBACK_ORDER` and `XL_FALLBACK_ORDER` in [lib/ai/registry.ts](lib/ai/registry.ts) currently start with `deepseek-v4-flash`, ahead of the Gemini family. **This is intentional** — user explicitly asked to make DeepSeek the main generation model to test it live now that the 3-pass split makes its output full-quality. It is NOT a bug and NOT the result of Gemini quota exhaustion.
+
+Effects of this ordering:
+- Pack generation AND chat (both read `DEFAULT_FALLBACK_ORDER`) now call the paid DeepSeek key FIRST on every non-cached request.
+- Medium+ docs run DeepSeek's 3-pass parallel split as the primary path, not a fallback.
+- The `>120K` char chunked path (`runWithFallback.ts`) still explicitly filters out `deepseek-v4-flash` regardless of chain order — that's a hard 25s-budget/physics constraint, not a preference, so very large docs still go straight to Gemini.
+- **Cost:** every generation/chat request burns DeepSeek balance now, not just overflow. If the user reports the balance draining fast or wants to go back to free-tier-first, revert by moving a `gemini-2.5-*` entry back to index 0 in both arrays (full prior Gemini-first order + reasoning is in git history / the previous version of this comment block).
+
+Don't "fix" this back to Gemini-primary on your own initiative — it was a direct, explicit instruction. Only revert if the user asks.
 
 ## 2026-07-16 session — DeepSeek 3-pass + chat budget cascade
 
