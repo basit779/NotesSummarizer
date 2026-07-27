@@ -12,12 +12,11 @@ export const maxDuration = 10;
 
 /** If a /process started within this many ms and hasn't finished, reject duplicate calls.
  *
- *  300s (5 min) matches STALE_PROCESSING_MS in the status route. Sized for the
- *  post-Inngest worst case: Gemini timeout (55s) + DeepSeek 2-pass parallel
- *  (~55s) + Groq + Mistral + persist + cache+RAG ≈ 180-200s realistic ceiling.
- *  The OLD 90s window was pre-Inngest and rejected legit duplicate-defense
- *  during ~130s 2-pass runs. */
-const PROCESSING_LOCK_MS = 300_000;
+ *  600s (10 min) — MUST match STALE_PROCESSING_MS in the status route. Sized
+ *  for the Fluid Compute worst case: DeepSeek 3-pass (≤90s) + retry (≤90s) +
+ *  Gemini fallback steps + chunked ceiling (240s) + persist + RAG. See the
+ *  status route's comment for the full breakdown. */
+const PROCESSING_LOCK_MS = 600_000;
 
 /**
  * Async kick-off. Returns 202 in <1s with `{ jobId, status: 'processing' }`,

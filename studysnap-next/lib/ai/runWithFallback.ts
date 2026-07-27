@@ -66,6 +66,12 @@ const FALLBACK_NO_HINT_WAIT_MS = 5_000;
 
 function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
 
+/** Per-provider timeout for this legacy runner. Only the chunked (>120K
+ *  char) path reaches it, inside the analyze-chunked step's 240s deadline
+ *  (Fluid Compute wall is 300s). 40s per attempt — up from the pre-Fluid
+ *  25s — lets Gemini finish big chunk calls it used to abort. */
+const CHUNK_PROVIDER_TIMEOUT_MS = 40_000;
+
 /** Returns true when the winning provider IS the active chain's primary
  *  (first provider we'd actually try after filtering for isConfigured). A
  *  primary win reports `fallbackUsed: null`; anything else reports its ID so
@@ -129,11 +135,12 @@ export async function runWithFallback(
   const configured = chain
     .filter((id) => MODEL_REGISTRY[id].isConfigured())
     // This legacy runner is only reached by the chunked (>120K char) path,
-    // where each provider gets the DEFAULT 25s timeout inside a shared 60s
-    // Vercel function. DeepSeek (50-80 tok/s) physically can't finish in 25s,
-    // so including it just burns 25s per chunk and risks a 60s function-kill.
-    // Skip it here — the per-provider Inngest path (≤120K docs) still uses
-    // DeepSeek with its proper 50s 2-pass budget.
+    // where each provider gets CHUNK_PROVIDER_TIMEOUT_MS (40s) per attempt
+    // and 3 chunks run in parallel inside one 240s-bounded step. DeepSeek
+    // (50-80 tok/s) needs 60-100s+ for a full chunk pack — it would burn its
+    // 40s window on every chunk and never finish. Skip it here; the
+    // per-provider Inngest path (≤120K docs) gives DeepSeek its proper
+    // 90s-per-pass split budget.
     .filter((id) => id !== 'deepseek-v4-flash')
     .slice(0, MAX_ATTEMPTS);
   if (configured.length === 0) {
@@ -178,7 +185,7 @@ export async function runWithFallback(
     const t0 = Date.now();
     try {
       console.log(`[AI][${reqId}] attempt ${i + 1}/${configured.length} — ${id}${pass ? ` pass=${pass}` : ''}`);
-      const result = await spec.run(text, plan, { pages, pass });
+      const result = await spec.run(text, plan, { pages, pass, timeoutMs: CHUNK_PROVIDER_TIMEOUT_MS });
       const elapsed = Date.now() - t0;
       console.log(`[AI][${reqId}] ✓ ${id} succeeded in ${elapsed}ms (${result.tokensUsed} tokens) — TOTAL API CALLS: ${i + 1}`);
       logProviderEvent({ reqId, providerId: id, outcome: 'success', elapsedMs: elapsed, tokensUsed: result.tokensUsed });
@@ -268,7 +275,7 @@ export async function runWithFallback(
         const t1 = Date.now();
         try {
           console.log(`[AI][${reqId}] ↻ ${id} wait-retry`);
-          const result = await spec.run(text, plan, { pages, pass });
+          const result = await spec.run(text, plan, { pages, pass, timeoutMs: CHUNK_PROVIDER_TIMEOUT_MS });
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} wait-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           providerCooldownUntil.delete(id);  // clear cooldown on success
@@ -293,7 +300,7 @@ export async function runWithFallback(
         const t1 = Date.now();
         try {
           console.log(`[AI][${reqId}] ↻ ${id} retrying with minimal prompt`);
-          const result = await spec.run(text, plan, { minimal: true, pages, pass });
+          const result = await spec.run(text, plan, { minimal: true, pages, pass, timeoutMs: CHUNK_PROVIDER_TIMEOUT_MS });
           const elapsed2 = Date.now() - t1;
           console.log(`[AI][${reqId}] ✓ ${id} minimal-retry succeeded in ${elapsed2}ms (${result.tokensUsed} tokens)`);
           attempted.push({ id, error: `${msg} → recovered via minimal retry` });

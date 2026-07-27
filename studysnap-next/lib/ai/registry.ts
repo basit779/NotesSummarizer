@@ -202,22 +202,17 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       pages: opts?.pages,
       pass: opts?.pass,
       timeoutMs: opts?.timeoutMs,
-      // Pass-call output cap: 2200 tokens hard ceiling (vs 8192 for non-pass).
-      // Belt-and-suspenders alongside the pass prompts' targets — even if the
-      // requested counts are ignored, the model physically can't generate more
-      // than 2200 tokens = 28-44s at DeepSeek's 50-80 tok/s, which always fits
-      // the 45s per-pass timeout (DEEPSEEK_PASS_TIMEOUT_MS in lib/inngest.ts —
-      // sized so pass + ~3-5s invocation overhead clears Vercel's 60s wall;
-      // a 504 at 58.7s was observed 2026-07-27 with the old 50/55s values).
-      // The 3-way split targets ~1.5-1.8K tokens per pass, so this cap only
-      // bites on over-generation. History: the old 2-pass design needed a
-      // 3500 cap + ultraMinimal (0.5×) counts and pass1 STILL grazed the
-      // timeout (run 01KR67K3R7Y0SE6XHDNM0AEYNM); splitting the payload three
-      // ways is what buys both fuller counts and bigger timeout margin.
-      // minimal/ultraMinimal non-pass kept at the same 2200 for the legacy
-      // callers (chat never hits this; chunked path excludes DeepSeek).
-      maxOutputTokens: opts?.pass ? 2200
-        : opts?.minimal || opts?.ultraMinimal ? 2200
+      // Pass-call output cap: 3500 tokens (vs 8192 for non-pass). Belt-and-
+      // suspenders alongside the pass prompts' targets — even if requested
+      // counts are ignored, the model physically can't generate more than
+      // 3500 tokens = 44-70s at DeepSeek's 50-80 tok/s, inside the 90s
+      // per-pass timeout (DEEPSEEK_PASS_TIMEOUT_MS) under Fluid Compute's
+      // 300s invocation wall. The 3-way split targets ~2-2.4K tokens per
+      // pass at FULL counts, so this cap only bites on over-generation.
+      // minimal/ultraMinimal non-pass kept at 3500 for legacy callers
+      // (chat never hits this; the chunked path excludes DeepSeek).
+      maxOutputTokens: opts?.pass ? 3500
+        : opts?.minimal || opts?.ultraMinimal ? 3500
         : OUTPUT_CAPS['deepseek-v4-flash'],
       // Two thinking-disable flags sent in parallel:
       //   - `thinking: {type: disabled}` — V4-Flash documented format
@@ -236,31 +231,28 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
 /**
  * Cross-provider fallback chain. Invisible to the user. No picker UI.
  *
- * DEEPSEEK-PRIMARY (2026-07-16, deliberate test config — see _AI_HANDOFF.md).
- * User is testing DeepSeek V4 Flash as the main generation model now that
- * the 3-pass parallel split (lib/inngest.ts) makes it produce full-quality
- * packs inside the timeout. Order:
- *   1. deepseek-v4-flash     — PRIMARY. Paid, ~50-80 tok/s. Medium+ docs use
- *                              the 3-pass parallel Inngest split (notes /
- *                              flashcards / quiz+tips), each pass ~19-36s,
- *                              well inside the 50s per-step timeout. Short
- *                              docs single-pass (~30-50s, 55s timeout).
- *                              Gets one same-provider retry on transient
- *                              failure before the chain advances (lib/inngest.ts)
- *                              — a real model outage/balance issue still
- *                              fails over, a single flaky pass doesn't.
- *   2. gemini-2.5-flash      — First fallback if DeepSeek fails outright.
- *   3. gemini-2.5-flash-lite — ~1000 RPD, catches 2.5-flash's quota wall.
- *   4. gemini-2.0-flash      — Third independent Gemini quota bucket.
- *   5. groq-llama-3.3-70b    — Fast safety net (~15s LPU) — extreme-failure only.
+ * RELIABILITY-FIRST ORDER (2026-07-27). User's standing instruction: "make
+ * the app fully working no matter what — gemini, deepseek, whichever."
+ * Gemini leads because it's the fastest proven path to a complete pack
+ * (single call, 5-30s, free, three independent quota buckets ≈ 1450
+ * requests/day). DeepSeek (paid) is the heavy backup — with the 3-pass
+ * parallel split at FULL counts + partial-pass retry + Fluid's 300s wall,
+ * it now genuinely delivers when Google is exhausted instead of timing out.
+ *   1. gemini-2.5-flash      — best quality, ~250 RPD, 10 RPM.
+ *   2. gemini-2.5-flash-lite — ~1000 RPD (highest free quota), fast — the
+ *                              workhorse fallback behind 2.5-flash's wall.
+ *   3. gemini-2.0-flash      — solid, ~200 RPD, third independent bucket.
+ *   --- combined ~1450 Gemini-quality requests/day before paid spend ---
+ *   4. deepseek-v4-flash     — Paid backup. Medium+ docs: 3-pass parallel
+ *                              split (notes / flashcards / quiz+tips) at
+ *                              full counts, 90s per pass, partial-failure
+ *                              retry. Short docs: same split at 0.5× counts.
+ *   5. groq-llama-3.3-70b    — Fast safety net (~15s LPU), extreme-failure only.
  *   6. mistral-small         — Last resort. 500K TPM.
  *
- * COST NOTE: every upload that isn't a cache hit now calls the paid DeepSeek
- * key first, not just when Google quota is exhausted. Fine for a deliberate
- * test window; if the paid balance needs to stretch further for daily use,
- * flip position 1 back to a gemini-2.5-flash entry (or add a config flag) to
- * return to Gemini-primary. The exact prior Gemini-first order is preserved
- * in git history (this file, commit history around 2026-05 to 2026-07).
+ * History: DeepSeek was briefly primary (user test, earlier 2026-07-27) —
+ * superseded the same day by the standing "reliability first, you pick"
+ * instruction after a prod 504. Flip index 0 if the user asks again.
  *
  * Registered but NOT in active chains:
  *   - gemini-2.5-pro     — stricter free quota than flash; flash family is plenty.
@@ -269,27 +261,27 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
  *   - github-* models    — 8K total context cap 413s.
  *
  * Per-provider step orchestration (lib/inngest.ts) means each entry runs in
- * its own Vercel function, so worst-case = N × ~60s across N steps. Inngest
- * checkpoints between steps so failed providers don't re-burn quota on retry.
+ * its own Vercel function invocation (Fluid: 300s each). Inngest checkpoints
+ * between steps so failed providers don't re-burn quota on retry.
  */
 export const DEFAULT_FALLBACK_ORDER: ModelId[] = [
-  'deepseek-v4-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
+  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];
 
-// XL uses the same DeepSeek-primary order. Gemini 2.5/2.0 Flash all have 1M
-// context so large single-call docs fit as fallback; the >120K chunked path
-// (runWithFallback) skips DeepSeek since its 50-80 tok/s can't finish inside
-// that path's 25s budget.
+// XL uses the same order. Gemini 2.5/2.0 Flash all have 1M context so large
+// single-call docs fit; the >120K chunked path (runWithFallback) skips
+// DeepSeek — its 50-80 tok/s can't finish a full chunk pack inside that
+// path's 40s-per-attempt budget.
 const XL_FALLBACK_ORDER: ModelId[] = [
-  'deepseek-v4-flash',
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
+  'deepseek-v4-flash',
   'groq-llama-3.3-70b',
   'mistral-small',
 ];

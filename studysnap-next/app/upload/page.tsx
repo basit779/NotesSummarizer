@@ -30,13 +30,14 @@ function fileTypeLabel(file: File | undefined): string {
   return 'document';
 }
 
-/** Poll cadence + timeout. 3s × 120 = 6 min hard client ceiling.
- *  Sized for the post-Inngest architecture: a worst-case medium+ doc with
- *  DeepSeek 2-pass + Gemini fallback + Groq tail can run ~3-4 min wall time.
- *  6 min on the client matches the 5 min server-side STALE_PROCESSING_MS with
- *  some margin. After this we surface an error rather than spinning forever. */
+/** Poll cadence + timeout. 3s × 220 = 11 min hard client ceiling.
+ *  Sized for the Fluid Compute architecture: a worst-case full-cascade run
+ *  (DeepSeek 3-pass + retry + Gemini fallbacks + chunked ceiling) can run
+ *  several minutes; the server's STALE_PROCESSING_MS is 10 min, and the
+ *  client ceiling sits just above it so the SERVER verdict (real error
+ *  message) always arrives before the client gives up on its own. */
 const POLL_INTERVAL_MS = 3000;
-const POLL_MAX_ATTEMPTS = 120;
+const POLL_MAX_ATTEMPTS = 220;
 
 async function pollUntilDone(fileId: string): Promise<{ id: string }> {
   for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
@@ -107,6 +108,8 @@ function UploadInner() {
       return;
     }
     lockRef.current = true;
+    // Hoisted so the ALREADY_PROCESSING catch branch can attach to the job.
+    let uploadedFileId: string | null = null;
 
     try {
       setStage('uploading');
@@ -117,6 +120,7 @@ function UploadInner() {
       // normal user hitting /upload?fresh=1 gets 403.
       const isFresh = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('fresh') === '1';
       const uploaded = await api.postForm(isFresh ? '/upload?fresh=1' : '/upload', form);
+      uploadedFileId = uploaded.file.id;
       if (isFresh) toast.info('Fresh regen mode — bypassing cache');
 
       if (uploaded.cacheSource === 'cross-user') {
@@ -144,7 +148,22 @@ function UploadInner() {
         if (retryAfter) cooldown.start(retryAfter);
         toast.info(err.message ?? 'Please wait.', { duration: Math.min(6000, (retryAfter ?? 5) * 1000) });
       } else if (err?.code === 'ALREADY_PROCESSING') {
-        toast.info('Already processing — hold on…');
+        // The job is already running server-side (double-submit race) —
+        // attach to it and poll instead of stranding the user on idle.
+        if (uploadedFileId) {
+          toast.info('Already processing — attaching to the running job…');
+          setStage('processing');
+          try {
+            const existing = await pollUntilDone(uploadedFileId);
+            toast.success('Study pack ready');
+            router.push(`/results/${existing.id}`);
+            return;
+          } catch (pollErr: any) {
+            toast.error(pollErr?.message ?? 'Processing did not finish. Try again.');
+          }
+        } else {
+          toast.info('Already processing — hold on…');
+        }
       } else if (err?.code === 'UPLOAD_COOLDOWN') {
         // A previous upload is still processing. Don't strand the user on the
         // idle screen — attach to that job's id and poll it to completion.

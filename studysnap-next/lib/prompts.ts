@@ -267,13 +267,14 @@ ${text}
 
 /**
  * 3-way parallel split counts (passes 3 + 4) — used by the DeepSeek
- * orchestration in lib/inngest.ts. Each pass is sized so its output lands
- * ~1.5-1.8K tokens: at DeepSeek's 50-80 tok/s that's 19-36s, comfortably
- * inside the 50s per-step timeout WITHOUT starving the counts the way the
- * old ultraMinimal (0.5×) 2-pass did. Fuller pack, lower timeout risk.
+ * orchestration in lib/inngest.ts. Sized for ~2-2.2K output tokens per pass:
+ * at DeepSeek's 50-80 tok/s that's 28-45s, comfortably inside the 90s
+ * per-pass timeout under Fluid Compute's 300s wall. These are FULL-quality
+ * counts, matching what medium/long TIER_COUNTS ask of Gemini — the paid
+ * provider no longer produces thinner packs than the free ones.
  */
-const SPLIT_PASS3_COUNTS = { cards: '16-20' };
-const SPLIT_PASS4_COUNTS = { exam: '8-10', tips: '3-4', connections: '3-4' };
+const SPLIT_PASS3_COUNTS = { cards: '18-24' };
+const SPLIT_PASS4_COUNTS = { exam: '10-12', tips: '3-5', connections: '3-5' };
 
 /** Shared quality bars for practice items — identical wording across pass 2
  *  (legacy 2-way) and passes 3/4 (3-way split) so output quality is uniform. */

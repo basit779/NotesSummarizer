@@ -2,6 +2,19 @@
 
 > Last updated 2026-07-16 (later same day). When you open Claude Code in this folder, point it at this file first so it has full context without re-discovering everything.
 
+## 2026-07-27 (latest) — Fluid Compute refactor + chain back to Gemini-first
+
+**Fluid Compute is ENABLED on the Vercel project** (user confirmed). `/api/inngest` maxDuration is now **300**. Everything re-sized for the new wall:
+- `PER_PROVIDER_TIMEOUT_MS` 48s → 55s (UX choice now, not survival)
+- `DEEPSEEK_PASS_TIMEOUT_MS` 45s → **90s**; pass output caps 2200 → **3500**
+- DeepSeek passes run **FULL counts** now (no `minimal` on pass1; pass3 cards 18-24; pass4 MCQs 10-12) — paid packs match Gemini-tier fullness
+- Chunked step deadline 48s → **240s**; chunk per-provider attempts 25s → **40s** (`CHUNK_PROVIDER_TIMEOUT_MS` in runWithFallback.ts)
+- extract-text deadline 45s → 90s
+- `STALE_PROCESSING_MS` + `PROCESSING_LOCK_MS` 300s → **600s** (must stay equal); client poll ceiling → 11 min (220 × 3s) so the server verdict always lands first
+- Upload page now attaches to the running job on ALREADY_PROCESSING instead of stranding the user
+
+**Chain is GEMINI-FIRST again** (gemini-2.5-flash → lite → 2.0 → deepseek → groq → mistral). The DeepSeek-primary test lasted part of 2026-07-27 and was superseded by the user's standing instruction: *"make the app fully working no matter what — gemini, deepseek, whichever."* Reliability-first = Gemini leads, DeepSeek is the (now genuinely working) paid backup. If the user asks to test DeepSeek-primary again, flip index 0 of both arrays in registry.ts.
+
 ## 2026-07-27 — 504-at-the-wall fix (the "Your server returned HTTP 504" Inngest error)
 
 Observed in prod: an analyze invocation ran 58.675s → Vercel killed it at the 60s Hobby wall BEFORE the Inngest SDK responded → whole run failed with "no step output", no ERROR row, file stuck in PROCESSING for 5 min. Root cause: 55s provider timeout + ~3-5s invocation overhead ≈ 59s ≈ the wall. DeepSeek-primary made this constant (DeepSeek routinely uses the full window; Gemini rarely did). Fixes shipped:
@@ -13,18 +26,6 @@ Observed in prod: an analyze invocation ran 58.675s → Vercel killed it at the 
 - **load-file step now returns metadata only** (no `storagePath`): step outputs are memoized and replayed in every /api/inngest request — a 10MB PDF's base64 would blow Vercel's ~4.5MB request-body cap. extract-text reads the blob itself.
 
 Future option: enable Fluid Compute (Vercel dashboard → Project → Settings → Functions) → Hobby maxDuration can go to 300s → all these ceilings can be relaxed massively. Not done blind because toggling and raising maxDuration must be verified against the account's actual plan/settings.
-
-## 2026-07-16 — DEEPSEEK IS CURRENTLY PRIMARY (deliberate, user-requested test)
-
-`DEFAULT_FALLBACK_ORDER` and `XL_FALLBACK_ORDER` in [lib/ai/registry.ts](lib/ai/registry.ts) currently start with `deepseek-v4-flash`, ahead of the Gemini family. **This is intentional** — user explicitly asked to make DeepSeek the main generation model to test it live now that the 3-pass split makes its output full-quality. It is NOT a bug and NOT the result of Gemini quota exhaustion.
-
-Effects of this ordering:
-- Pack generation AND chat (both read `DEFAULT_FALLBACK_ORDER`) now call the paid DeepSeek key FIRST on every non-cached request.
-- Medium+ docs run DeepSeek's 3-pass parallel split as the primary path, not a fallback.
-- The `>120K` char chunked path (`runWithFallback.ts`) still explicitly filters out `deepseek-v4-flash` regardless of chain order — that's a hard 25s-budget/physics constraint, not a preference, so very large docs still go straight to Gemini.
-- **Cost:** every generation/chat request burns DeepSeek balance now, not just overflow. If the user reports the balance draining fast or wants to go back to free-tier-first, revert by moving a `gemini-2.5-*` entry back to index 0 in both arrays (full prior Gemini-first order + reasoning is in git history / the previous version of this comment block).
-
-Don't "fix" this back to Gemini-primary on your own initiative — it was a direct, explicit instruction. Only revert if the user asks.
 
 ## 2026-07-16 session — DeepSeek 3-pass + chat budget cascade
 

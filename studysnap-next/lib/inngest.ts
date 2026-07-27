@@ -25,24 +25,22 @@ export const inngest = new Inngest({ id: 'studysnap' });
  *  which internally chunks + parallel-merges via runWithFallback. */
 const CHUNK_THRESHOLD = 120_000;
 
-/** Per-provider client-side abort timeout.
- *
- *  48s, NOT 55s: each step's Vercel invocation carries ~3-5s of overhead
- *  (SDK dispatch, prisma connect, memoized-state replay, response
- *  serialization) on top of the provider fetch. At 55s the total invocation
- *  ran 58-59s against the 60s Hobby wall — observed 2026-07-27: a run 504'd
- *  at 58.675s ("Your server returned HTTP 504 before the SDK responded"),
- *  which kills the WHOLE run with no step output, no ERROR row, and leaves
- *  the file stuck in PROCESSING until the 5-min stale check. A 48s abort
- *  returns a clean step failure instead, and the chain advances. */
-const PER_PROVIDER_TIMEOUT_MS = 48_000;
+/** Per-provider client-side abort timeout for SINGLE-PASS providers
+ *  (Gemini/Groq/Mistral). With Fluid Compute the invocation wall is 300s
+ *  (app/api/inngest/route.ts), so this timeout is now a UX choice, not a
+ *  survival constraint: a fast provider that hasn't answered in 55s is
+ *  quota-stalled or hung, and advancing the chain beats waiting. History:
+ *  under the old 60s wall, 55s + ~4s overhead 504'd the whole run
+ *  (observed 2026-07-27 at 58.675s) — that class is gone with Fluid. */
+const PER_PROVIDER_TIMEOUT_MS = 55_000;
 
-/** Tighter timeout for DeepSeek pass calls. 45s + ~3-5s invocation overhead
- *  stays clear of the 60s wall (see PER_PROVIDER_TIMEOUT_MS note — the old
- *  50s value was part of the 58.7s → 504 equation observed 2026-07-27). The
- *  3-way split targets ~1.5-1.8K tokens per pass with a 2200-token hard cap
- *  (registry.ts) = 44s absolute worst at 50 tok/s — inside this timeout. */
-const DEEPSEEK_PASS_TIMEOUT_MS = 45_000;
+/** Timeout for DeepSeek pass calls. Fluid Compute's 300s wall lets the paid
+ *  provider actually breathe: 90s covers the 3500-token hard cap at worst-
+ *  case 50 tok/s (70s) with margin, so passes can run FULL counts (pass1 no
+ *  longer needs `minimal`, pass3/4 counts bumped in prompts.ts) instead of
+ *  the starved values the old 60s wall forced. Typical pass is still
+ *  30-45s; the three passes run in parallel so wall time ≈ slowest pass. */
+const DEEPSEEK_PASS_TIMEOUT_MS = 90_000;
 
 /** Reject a promise that runs longer than `ms`. Used to bound document text
  *  extraction — pdf-parse / mammoth / xlsx can hang on malformed input, which
@@ -142,10 +140,11 @@ export const processFile = inngest.createFunction(
         const storagePath = blob?.storagePath ?? '';
         if (storagePath.startsWith('mem:base64:')) {
           const buffer = Buffer.from(storagePath.slice('mem:base64:'.length), 'base64');
-          // 45s deadline leaves 15s margin under Vercel's 60s cap for this step.
+          // 90s deadline (Fluid 300s wall) — huge scanned PDFs parse slowly;
+          // a hang on malformed input still dies cleanly instead of stalling.
           const extracted = await withTimeout(
             extractTextFromBuffer(buffer, file.mimeType),
-            45_000,
+            90_000,
             'Document extraction',
           );
           return { text: extracted.text, pages: extracted.pages };
@@ -169,15 +168,14 @@ export const processFile = inngest.createFunction(
         // would explode the step count without proportional benefit. Most
         // uploads are <120K chars and hit the per-provider path below.
         const r = await step.run('analyze-chunked', async () => {
-          // Hard 48s deadline: the chunked runner can chain multiple 25s
-          // provider attempts + rate-limit waits inside this ONE step. Left
-          // unbounded it rides past the 60s invocation wall → Vercel 504s
-          // the request before the Inngest SDK responds → the run dies with
-          // no ERROR row. A clean timeout here hits the outer catch, which
-          // marks the file ERROR with a real message instead.
+          // 240s deadline (Fluid 300s wall, ~60s margin): the chunked runner
+          // chains multiple provider attempts + rate-limit waits inside this
+          // ONE step. Bounding it means a pathological cascade dies cleanly
+          // via the outer catch (file marked ERROR with a real message)
+          // instead of Vercel 504ing the invocation with no step output.
           return withTimeout(
             analyzeText(text, plan, requestedModel, pages),
-            48_000,
+            240_000,
             'Large-document analysis',
           );
         });
@@ -245,12 +243,11 @@ export const processFile = inngest.createFunction(
                   const r = await runOneProvider(providerId, text, plan, {
                     pages,
                     pass,
-                    // Pass 1 carries three sections — trim its counts by 0.7×
-                    // so its output lands in the same ~1.5-1.8K token band as
-                    // passes 3/4 (which use purpose-sized split counts).
-                    minimal: pass === 1 && tier !== 'short',
+                    // Medium+ docs run FULL pass counts — the 90s pass
+                    // timeout under Fluid's 300s wall has room for ~2-2.4K
+                    // output tokens per pass, no trimming needed.
                     // Short docs: 0.5× counts across all passes — a 3-page
-                    // doc doesn't need 16-20 cards, and small passes finish
+                    // doc doesn't need 20+ cards, and small passes finish
                     // in 10-20s.
                     ultraMinimal: tier === 'short',
                     timeoutMs: DEEPSEEK_PASS_TIMEOUT_MS,

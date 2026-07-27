@@ -9,15 +9,16 @@ export const runtime = 'nodejs';
  *  is older than this, treat the worker as dead and surface ERROR rather than
  *  letting the client poll forever.
  *
- *  300s (5 min) sized for the post-Inngest architecture worst case:
- *  Gemini timeout (55s) + DeepSeek 2-pass parallel (~55s, see lib/inngest.ts) +
- *  Groq fallback (~15s) + Mistral last resort (~30s) + persist (~2s) +
- *  cache-and-rag (~15s) + Inngest dispatch overhead (~10-30s) = ~180-200s
- *  realistic ceiling. 300s gives ~100s safety margin and matches the
- *  POST route's PROCESSING_LOCK_MS exactly. The OLD 90s value was sized for
- *  the pre-Inngest single-function pipeline and was firing FALSE-POSITIVE
- *  errors on legitimate 2-pass DeepSeek runs (~130s observed in prod). */
-const STALE_PROCESSING_MS = 300_000;
+ *  600s (10 min), sized for the Fluid Compute architecture worst case:
+ *  DeepSeek 3-pass (≤90s) + partial-failure retry (≤90s) + three Gemini
+ *  fallback steps (≤55s each) + Groq/Mistral (≤55s each) + chunked path
+ *  ceiling (240s) + persist + cache-and-rag + Inngest dispatch overhead.
+ *  A pathological full-cascade run can legitimately exceed the old 300s
+ *  window, which would have fired FALSE-POSITIVE "timed out" errors while
+ *  the run was still working (same failure mode the old 90s value had).
+ *  The Inngest onFailure handler marks true infra deaths as ERROR
+ *  immediately, so this window is only the backstop for zombie runs. */
+const STALE_PROCESSING_MS = 600_000;
 
 /**
  * Poll endpoint for the async process pipeline.
