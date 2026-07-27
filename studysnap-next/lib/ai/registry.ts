@@ -202,22 +202,22 @@ export const MODEL_REGISTRY: Record<ModelId, ModelSpec> = {
       pages: opts?.pages,
       pass: opts?.pass,
       timeoutMs: opts?.timeoutMs,
-      // Pass-call output cap: 2400 tokens hard ceiling (vs 8192 for non-pass).
+      // Pass-call output cap: 2200 tokens hard ceiling (vs 8192 for non-pass).
       // Belt-and-suspenders alongside the pass prompts' targets — even if the
       // requested counts are ignored, the model physically can't generate more
-      // than 2400 tokens = 30-48s at DeepSeek's 50-80 tok/s, which always fits
-      // the 50s per-step timeout. The 3-way split (passes 1/3/4 in
-      // lib/inngest.ts) targets ~1.5-1.8K tokens per pass, so this cap only
+      // than 2200 tokens = 28-44s at DeepSeek's 50-80 tok/s, which always fits
+      // the 45s per-pass timeout (DEEPSEEK_PASS_TIMEOUT_MS in lib/inngest.ts —
+      // sized so pass + ~3-5s invocation overhead clears Vercel's 60s wall;
+      // a 504 at 58.7s was observed 2026-07-27 with the old 50/55s values).
+      // The 3-way split targets ~1.5-1.8K tokens per pass, so this cap only
       // bites on over-generation. History: the old 2-pass design needed a
       // 3500 cap + ultraMinimal (0.5×) counts and pass1 STILL grazed the
       // timeout (run 01KR67K3R7Y0SE6XHDNM0AEYNM); splitting the payload three
       // ways is what buys both fuller counts and bigger timeout margin.
-      // Single-pass minimal (short-tier docs from the Inngest orchestrator):
-      // 2600 cap = 33-52s at 50-80 tok/s, fits the 55s step timeout. The
-      // unrestrained 8192 cap allowed over-generation up to ~164s — a
-      // guaranteed timeout that then dumped the upload to Groq/llama.
-      maxOutputTokens: opts?.pass ? 2400
-        : opts?.minimal || opts?.ultraMinimal ? 2600
+      // minimal/ultraMinimal non-pass kept at the same 2200 for the legacy
+      // callers (chat never hits this; chunked path excludes DeepSeek).
+      maxOutputTokens: opts?.pass ? 2200
+        : opts?.minimal || opts?.ultraMinimal ? 2200
         : OUTPUT_CAPS['deepseek-v4-flash'],
       // Two thinking-disable flags sent in parallel:
       //   - `thinking: {type: disabled}` — V4-Flash documented format

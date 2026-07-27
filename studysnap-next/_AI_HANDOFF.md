@@ -2,6 +2,18 @@
 
 > Last updated 2026-07-16 (later same day). When you open Claude Code in this folder, point it at this file first so it has full context without re-discovering everything.
 
+## 2026-07-27 — 504-at-the-wall fix (the "Your server returned HTTP 504" Inngest error)
+
+Observed in prod: an analyze invocation ran 58.675s → Vercel killed it at the 60s Hobby wall BEFORE the Inngest SDK responded → whole run failed with "no step output", no ERROR row, file stuck in PROCESSING for 5 min. Root cause: 55s provider timeout + ~3-5s invocation overhead ≈ 59s ≈ the wall. DeepSeek-primary made this constant (DeepSeek routinely uses the full window; Gemini rarely did). Fixes shipped:
+
+- `PER_PROVIDER_TIMEOUT_MS` 55s → **48s**; `DEEPSEEK_PASS_TIMEOUT_MS` 50s → **45s**; DeepSeek pass/minimal output cap → **2200** tokens (44s worst @ 50 tok/s). Every step now answers Inngest with margin.
+- **DeepSeek splits on ALL tiers now** (short tier uses ultraMinimal pass counts, ~10-20s/pass). Single-pass DeepSeek no longer exists in the orchestrator — that was the 55s wall-rider.
+- `analyze-chunked` step body wrapped in `withTimeout(48s)` — the >120K path chains multiple 25s attempts inside ONE step and could ride past the wall.
+- **`onFailure` handler** on processFile: marks the file ERROR (guarded `updateMany` on status=PROCESSING) when the run dies at the infra level, so 504s no longer strand files in 5-min limbo.
+- **load-file step now returns metadata only** (no `storagePath`): step outputs are memoized and replayed in every /api/inngest request — a 10MB PDF's base64 would blow Vercel's ~4.5MB request-body cap. extract-text reads the blob itself.
+
+Future option: enable Fluid Compute (Vercel dashboard → Project → Settings → Functions) → Hobby maxDuration can go to 300s → all these ceilings can be relaxed massively. Not done blind because toggling and raising maxDuration must be verified against the account's actual plan/settings.
+
 ## 2026-07-16 — DEEPSEEK IS CURRENTLY PRIMARY (deliberate, user-requested test)
 
 `DEFAULT_FALLBACK_ORDER` and `XL_FALLBACK_ORDER` in [lib/ai/registry.ts](lib/ai/registry.ts) currently start with `deepseek-v4-flash`, ahead of the Gemini family. **This is intentional** — user explicitly asked to make DeepSeek the main generation model to test it live now that the 3-pass split makes its output full-quality. It is NOT a bug and NOT the result of Gemini quota exhaustion.

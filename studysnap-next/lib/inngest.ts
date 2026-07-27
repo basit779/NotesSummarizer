@@ -25,19 +25,24 @@ export const inngest = new Inngest({ id: 'studysnap' });
  *  which internally chunks + parallel-merges via runWithFallback. */
 const CHUNK_THRESHOLD = 120_000;
 
-/** Per-provider client-side abort timeout. 5s margin under Vercel's 60s
- *  function cap — gives DeepSeek (50-80 tok/s × ~4K minimal-flag tokens =
- *  50-80s) room to actually finish where the legacy shared-25s timeout
- *  always aborted. */
-const PER_PROVIDER_TIMEOUT_MS = 55_000;
+/** Per-provider client-side abort timeout.
+ *
+ *  48s, NOT 55s: each step's Vercel invocation carries ~3-5s of overhead
+ *  (SDK dispatch, prisma connect, memoized-state replay, response
+ *  serialization) on top of the provider fetch. At 55s the total invocation
+ *  ran 58-59s against the 60s Hobby wall — observed 2026-07-27: a run 504'd
+ *  at 58.675s ("Your server returned HTTP 504 before the SDK responded"),
+ *  which kills the WHOLE run with no step output, no ERROR row, and leaves
+ *  the file stuck in PROCESSING until the 5-min stale check. A 48s abort
+ *  returns a clean step failure instead, and the chain advances. */
+const PER_PROVIDER_TIMEOUT_MS = 48_000;
 
-/** Tighter timeout for DeepSeek pass calls. 50s gives 10s margin under
- *  Vercel's 60s wall — needed because the old 2-pass pass1 was still hitting
- *  the 55s edge and getting killed mid-cleanup (run 01KR67K3R7Y0SE6XHDNM0AEYNM,
- *  2026-05-09). The 3-way split targets ~1.5-1.8K tokens per pass with a
- *  2400-token hard cap (registry.ts), so each pass finishes in 19-36s
- *  typical, 48s absolute worst — always inside this timeout. */
-const DEEPSEEK_PASS_TIMEOUT_MS = 50_000;
+/** Tighter timeout for DeepSeek pass calls. 45s + ~3-5s invocation overhead
+ *  stays clear of the 60s wall (see PER_PROVIDER_TIMEOUT_MS note — the old
+ *  50s value was part of the 58.7s → 504 equation observed 2026-07-27). The
+ *  3-way split targets ~1.5-1.8K tokens per pass with a 2200-token hard cap
+ *  (registry.ts) = 44s absolute worst at 50 tok/s — inside this timeout. */
+const DEEPSEEK_PASS_TIMEOUT_MS = 45_000;
 
 /** Reject a promise that runs longer than `ms`. Used to bound document text
  *  extraction — pdf-parse / mammoth / xlsx can hang on malformed input, which
@@ -78,13 +83,41 @@ export const processFile = inngest.createFunction(
     // same model with the same input and fail the same way, so disable
     // automatic retries — the user can re-trigger a fresh upload.
     retries: 0,
-  },
+    // Fires when the RUN ITSELF dies at the infra level — e.g. Vercel kills
+    // the invocation at the 60s wall (HTTP 504 before the SDK responds), so
+    // the in-function catch below never executes. Observed 2026-07-27: such
+    // a run left the file stuck in PROCESSING until the client's 5-minute
+    // stale check. This marks it ERROR immediately. updateMany guarded on
+    // status=PROCESSING so a completed pack can never be clobbered.
+    onFailure: async ({ event }: any) => {
+      const orig = event?.data?.event?.data ?? {};
+      const failedFileId: string | undefined = orig.fileId;
+      if (!failedFileId) return;
+      console.error(`[INNGEST][onFailure] ${failedFileId} — run failed at infra level, marking ERROR`);
+      await prisma.uploadedFile.updateMany({
+        where: { id: failedFileId, status: 'PROCESSING' },
+        data: {
+          processingAt: null,
+          status: 'ERROR',
+          errorMessage: 'Generation was cut off by the platform time limit. Please try again — the retry usually succeeds.',
+        },
+      }).catch(() => {});
+    },
+  } as any,
   async ({ event, step }) => {
     const { fileId, userId, plan, requestedModel } = event.data as ProcessFileEventData;
 
     try {
       const file = await step.run('load-file', async () => {
-        return prisma.uploadedFile.findUnique({ where: { id: fileId } });
+        // METADATA ONLY — deliberately no storagePath. Step outputs are
+        // memoized and shipped back to /api/inngest in EVERY subsequent
+        // step request; a 10MB PDF's base64 (~13MB) would blow Vercel's
+        // ~4.5MB request-body limit and kill the run for large uploads.
+        // extract-text reads the blob itself, inside its own step.
+        return prisma.uploadedFile.findUnique({
+          where: { id: fileId },
+          select: { id: true, userId: true, mimeType: true, pageCount: true, contentHash: true, filename: true },
+        });
       });
       if (!file) {
         console.warn(`[INNGEST] ${fileId} disappeared before background work started`);
@@ -99,8 +132,16 @@ export const processFile = inngest.createFunction(
       }
 
       const { text, pages } = await step.run('extract-text', async () => {
-        if (file.storagePath.startsWith('mem:base64:')) {
-          const buffer = Buffer.from(file.storagePath.slice('mem:base64:'.length), 'base64');
+        // The blob is read HERE, not in load-file — see the load-file step
+        // comment. Only the extracted text (bounded ~500K chars) becomes
+        // step output.
+        const blob = await prisma.uploadedFile.findUnique({
+          where: { id: fileId },
+          select: { storagePath: true },
+        });
+        const storagePath = blob?.storagePath ?? '';
+        if (storagePath.startsWith('mem:base64:')) {
+          const buffer = Buffer.from(storagePath.slice('mem:base64:'.length), 'base64');
           // 45s deadline leaves 15s margin under Vercel's 60s cap for this step.
           const extracted = await withTimeout(
             extractTextFromBuffer(buffer, file.mimeType),
@@ -109,9 +150,9 @@ export const processFile = inngest.createFunction(
           );
           return { text: extracted.text, pages: extracted.pages };
         }
-        if (file.storagePath.startsWith('mem:text:')) {
+        if (storagePath.startsWith('mem:text:')) {
           return {
-            text: Buffer.from(file.storagePath.slice('mem:text:'.length), 'base64').toString('utf8'),
+            text: Buffer.from(storagePath.slice('mem:text:'.length), 'base64').toString('utf8'),
             pages: file.pageCount ?? 0,
           };
         }
@@ -128,7 +169,17 @@ export const processFile = inngest.createFunction(
         // would explode the step count without proportional benefit. Most
         // uploads are <120K chars and hit the per-provider path below.
         const r = await step.run('analyze-chunked', async () => {
-          return analyzeText(text, plan, requestedModel, pages);
+          // Hard 48s deadline: the chunked runner can chain multiple 25s
+          // provider attempts + rate-limit waits inside this ONE step. Left
+          // unbounded it rides past the 60s invocation wall → Vercel 504s
+          // the request before the Inngest SDK responds → the run dies with
+          // no ERROR row. A clean timeout here hits the outer catch, which
+          // marks the file ERROR with a real message instead.
+          return withTimeout(
+            analyzeText(text, plan, requestedModel, pages),
+            48_000,
+            'Large-document analysis',
+          );
         });
         analysis = { ...r, fallbackUsed: r.fallbackUsed ?? null };
       } else {
@@ -167,12 +218,15 @@ export const processFile = inngest.createFunction(
           // timeout — the paid provider was producing the THINNEST packs in
           // the chain. Three smaller passes = fuller pack AND bigger margin.
           //
-          // Short tier uses single-pass DeepSeek — output already fits 55s
-          // budget, no point paying for 3 API calls.
+          // ALL tiers split for DeepSeek — short docs included (they use
+          // ultraMinimal pass counts, so each pass is tiny and fast). The
+          // old short-tier single-pass ran with a 55s timeout that rode the
+          // 60s invocation wall and 504'd the whole run (2026-07-27).
+          // Three ~15-25s passes cost 3 API calls but never touch the wall.
           //
           // Other providers (Gemini/Groq/Mistral) always single-pass — their
           // per-token speed isn't the binding constraint.
-          const useDeepSeekSplit = providerId === 'deepseek-v4-flash' && tier !== 'short';
+          const useDeepSeekSplit = providerId === 'deepseek-v4-flash';
 
           if (useDeepSeekSplit) {
             // All passes via Promise.all — Inngest dispatches each step.run()
@@ -194,7 +248,11 @@ export const processFile = inngest.createFunction(
                     // Pass 1 carries three sections — trim its counts by 0.7×
                     // so its output lands in the same ~1.5-1.8K token band as
                     // passes 3/4 (which use purpose-sized split counts).
-                    minimal: pass === 1,
+                    minimal: pass === 1 && tier !== 'short',
+                    // Short docs: 0.5× counts across all passes — a 3-page
+                    // doc doesn't need 16-20 cards, and small passes finish
+                    // in 10-20s.
+                    ultraMinimal: tier === 'short',
                     timeoutMs: DEEPSEEK_PASS_TIMEOUT_MS,
                   });
                   const elapsedMs = Date.now() - t0;
@@ -260,45 +318,27 @@ export const processFile = inngest.createFunction(
             continue;
           }
 
-          // Single-pass path (Gemini/Groq/Mistral always; DeepSeek for short tier)
-          const useMinimal = providerId === 'deepseek-v4-flash';
-
-          const runSingle = (stepId: string) =>
-            step.run(stepId, async () => {
-              const t0 = Date.now();
-              try {
-                const r = await runOneProvider(providerId, text, plan, {
-                  pages,
-                  minimal: useMinimal,
-                  timeoutMs: PER_PROVIDER_TIMEOUT_MS,
-                });
-                const elapsedMs = Date.now() - t0;
-                console.log(`[INNGEST][${providerId}] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
-                return { ok: true as const, result: r, elapsedMs };
-              } catch (err: any) {
-                const elapsedMs = Date.now() - t0;
-                const message = err?.message ?? String(err);
-                console.log(`[INNGEST][${providerId}] ✗ ${elapsedMs}ms — ${message}`);
-                return { ok: false as const, error: message, elapsedMs };
-              }
-            });
-
-          let stepResult = await runSingle(`analyze-${providerId}`);
-
-          // DeepSeek (paid) gets ONE retry on transient failure before the
-          // chain is allowed to fall through to Groq/Mistral — same
-          // "only extreme failures reach the free safety nets" policy as
-          // the multi-pass retry above. Free providers don't retry: the
-          // next chain entry is the better use of the wall clock.
-          if (
-            !stepResult.ok &&
-            providerId === 'deepseek-v4-flash' &&
-            !/failed: 4\d\d/.test(stepResult.error) &&
-            !stepResult.error.includes('rejected input as too large')
-          ) {
-            console.log(`[INNGEST][${providerId}] transient single-pass failure — retrying once`);
-            stepResult = await runSingle(`analyze-${providerId}-retry`);
-          }
+          // Single-pass path — Gemini/Groq/Mistral only. DeepSeek always
+          // takes the split branch above, so no retry logic is needed here:
+          // free providers don't retry (the next chain entry is the better
+          // use of the wall clock).
+          const stepResult = await step.run(`analyze-${providerId}`, async () => {
+            const t0 = Date.now();
+            try {
+              const r = await runOneProvider(providerId, text, plan, {
+                pages,
+                timeoutMs: PER_PROVIDER_TIMEOUT_MS,
+              });
+              const elapsedMs = Date.now() - t0;
+              console.log(`[INNGEST][${providerId}] ✓ ${elapsedMs}ms tokens=${r.tokensUsed}`);
+              return { ok: true as const, result: r, elapsedMs };
+            } catch (err: any) {
+              const elapsedMs = Date.now() - t0;
+              const message = err?.message ?? String(err);
+              console.log(`[INNGEST][${providerId}] ✗ ${elapsedMs}ms — ${message}`);
+              return { ok: false as const, error: message, elapsedMs };
+            }
+          });
 
           if (stepResult.ok) {
             result = stepResult.result;
