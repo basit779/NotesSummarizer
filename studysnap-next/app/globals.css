@@ -38,6 +38,10 @@
     font-family: 'Geist', 'Satoshi', ui-sans-serif, system-ui, -apple-system, sans-serif;
     font-feature-settings: 'ss01', 'cv01', 'cv11';
   }
+  /* Full-screen hero landing page opts out of the dark app chrome */
+  body[data-landing='true'] {
+    background: #ffffff;
+  }
   ::selection { background: rgba(16,185,129,0.3); color: #fff; }
 }
 
@@ -61,8 +65,8 @@
     100% { background-position: 350% 50%, 350% 50%; }
   }
 
-  /* Refined, cinematic grain overlay applied to the entire body */
-  body::before {
+  /* Refined, cinematic grain overlay applied to the entire body (skipped on the hero landing page) */
+  body:not([data-landing='true'])::before {
     content: '';
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;

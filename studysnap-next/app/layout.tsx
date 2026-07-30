@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Toaster } from 'sonner';
 import './globals.css';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
-import { GridBackground } from '@/components/fx/GridBackground';
+import { ChromeGate } from '@/components/ChromeGate';
 import { AuthInit } from '@/components/AuthInit';
 import { KeepAlive } from '@/components/KeepAlive';
 import { RouteProgress } from '@/components/RouteProgress';
@@ -45,10 +43,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <KeepAlive />
         <RouteProgress />
         <div className="relative min-h-screen flex flex-col text-white">
-          <GridBackground />
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <ChromeGate>
+            <main className="flex-1">{children}</main>
+          </ChromeGate>
           <Toaster
             theme="dark"
             position="bottom-right"

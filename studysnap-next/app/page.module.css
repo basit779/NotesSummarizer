@@ -1,0 +1,384 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* ————————————————————————————————————————— Navbar ————————————————————————————————————————— */
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  pointer-events: none;
+  padding: 16px;
+}
+
+.navbarInner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.navLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.logoGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.logoIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brandText {
+  display: none;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #000;
+  white-space: nowrap;
+}
+
+.menuButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #000;
+  border-radius: 999px;
+  padding: 4px 14px 4px 4px;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  transition: opacity 0.2s ease;
+}
+
+.menuButton:hover {
+  opacity: 0.85;
+}
+
+.menuButton:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
+.menuCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.menuLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.tagsPill {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  background: #F4F4F6;
+  border-radius: 999px;
+  padding: 10px 18px;
+}
+
+.tagText {
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+.tagDivider {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+}
+
+.navRight {
+  display: none;
+  align-items: center;
+}
+
+.rightPill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #F4F4F6;
+  border-radius: 999px;
+  padding: 4px 16px 4px 4px;
+  cursor: pointer;
+  min-height: 44px;
+  transition: opacity 0.2s ease;
+}
+
+.rightPill:hover {
+  opacity: 0.85;
+}
+
+.rightPill:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
+.rightCircle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #000;
+  flex-shrink: 0;
+}
+
+.rightLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.75);
+  white-space: nowrap;
+}
+
+/* ————————————————————————————————————————— Video ————————————————————————————————————————— */
+
+.videoLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.videoWrapper {
+  position: relative;
+  width: 80%;
+  height: 80%;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #000;
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* ————————————————————————————————————————— Footer ————————————————————————————————————————— */
+
+.footerWrapper {
+  position: relative;
+  z-index: 30;
+  margin-top: auto;
+  background: linear-gradient(to top, #ffffff 0%, rgba(255, 255, 255, 0.8) 50%, transparent 100%);
+  padding: 96px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.footerLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.subtitleLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #000;
+  flex-shrink: 0;
+}
+
+.subtitleText {
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+.heading {
+  margin: 0;
+  font-weight: 300;
+  font-size: clamp(2rem, 8vw, 4.5rem);
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: #000;
+}
+
+.buttonsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  border: none;
+  padding: 0 22px;
+  height: 44px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.btnPrimary:hover {
+  opacity: 0.85;
+}
+
+.btnPrimary:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #000;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  padding: 0 22px;
+  height: 44px;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.btnSecondary:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.5);
+}
+
+.btnSecondary:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
+}
+
+.footerRight {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.rightTagPill {
+  font-size: 11px;
+  font-weight: 400;
+  color: rgba(0, 0, 0, 0.65);
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+/* ————————————————————————————————————————— Desktop (768px+) ————————————————————————————————————————— */
+
+@media (min-width: 768px) {
+  .navbar {
+    padding: 24px 32px;
+  }
+
+  .navLeft {
+    gap: 16px;
+  }
+
+  .brandText {
+    display: block;
+  }
+
+  .menuCircle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .tagsPill {
+    display: flex;
+  }
+
+  .navRight {
+    display: flex;
+  }
+
+  .rightCircle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .videoWrapper {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+  }
+
+  .footerWrapper {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 160px 32px 40px;
+    gap: 40px;
+  }
+
+  .heading {
+    font-size: clamp(2.5rem, 5.5vw, 4.5rem);
+  }
+
+  .footerRight {
+    justify-content: flex-end;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menuButton,
+  .rightPill,
+  .btnPrimary,
+  .btnSecondary {
+    transition: none;
+  }
+}
