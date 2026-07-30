@@ -42,6 +42,7 @@
   align-items: center;
   gap: 8px;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .logoIcon {
@@ -60,6 +61,10 @@
   white-space: nowrap;
 }
 
+.menuWrapper {
+  position: relative;
+}
+
 .menuButton {
   display: flex;
   align-items: center;
@@ -71,6 +76,48 @@
   cursor: pointer;
   min-height: 44px;
   transition: opacity 0.2s ease;
+}
+
+.menuDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  min-width: 180px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menuDropdownLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  color: #000;
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  min-height: 40px;
+}
+
+.menuDropdownLink:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.menuDropdownLink:focus-visible {
+  outline: 2px solid #000;
+  outline-offset: 2px;
 }
 
 .menuButton:hover {
@@ -137,18 +184,7 @@
   background: #F4F4F6;
   border-radius: 999px;
   padding: 4px 16px 4px 4px;
-  cursor: pointer;
   min-height: 44px;
-  transition: opacity 0.2s ease;
-}
-
-.rightPill:hover {
-  opacity: 0.85;
-}
-
-.rightPill:focus-visible {
-  outline: 2px solid #000;
-  outline-offset: 2px;
 }
 
 .rightCircle {
@@ -263,6 +299,7 @@
   padding: 0 22px;
   height: 44px;
   cursor: pointer;
+  text-decoration: none;
   transition: opacity 0.2s ease;
 }
 
@@ -288,6 +325,7 @@
   padding: 0 22px;
   height: 44px;
   cursor: pointer;
+  text-decoration: none;
   transition: background 0.2s ease, border-color 0.2s ease;
 }
 

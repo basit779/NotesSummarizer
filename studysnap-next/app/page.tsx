@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Inter } from 'next/font/google';
 import { motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, LayoutDashboard, LogOut } from 'lucide-react';
+import { useAuth } from '@/lib/client/auth';
+import { StudySnapLogo } from '@/components/brand/StudySnapLogo';
 import styles from './page.module.css';
 
 const inter = Inter({
@@ -17,15 +21,6 @@ const EASE = [0.16, 1, 0.3, 1] as const;
 const VIDEO_URL =
   'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260508_215831_c6a8989c-d716-4d8d-8745-e972a2eec711.mp4';
 
-function LogoMark() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="6.5" width="20" height="5" rx="2.5" fill="#000" transform="rotate(-35 12 12)" />
-      <rect x="2" y="14.5" width="20" height="5" rx="2.5" fill="#000" transform="rotate(-35 12 12)" />
-    </svg>
-  );
-}
-
 function GridIcon() {
   return (
     <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
@@ -34,6 +29,69 @@ function GridIcon() {
       <circle cx="2.25" cy="7.75" r="1.5" fill="#fff" />
       <circle cx="7.75" cy="7.75" r="1.5" fill="#fff" />
     </svg>
+  );
+}
+
+function MenuDropdown() {
+  const { user, loading, logout } = useAuth();
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [open]);
+
+  return (
+    <div className={styles.menuWrapper} ref={wrapperRef}>
+      <button
+        type="button"
+        className={styles.menuButton}
+        aria-label="Open menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className={styles.menuCircle}>
+          <Plus size={12} strokeWidth={3} style={{ transform: open ? 'rotate(45deg)' : undefined, transition: 'transform 0.2s ease' }} />
+        </span>
+        <span className={styles.menuLabel}>Menu</span>
+      </button>
+
+      {open && (
+        <div className={styles.menuDropdown}>
+          {!loading && user ? (
+            <>
+              <Link href="/dashboard" className={styles.menuDropdownLink} onClick={() => setOpen(false)}>
+                <LayoutDashboard size={14} /> Dashboard
+              </Link>
+              <button
+                type="button"
+                className={styles.menuDropdownLink}
+                onClick={() => { logout(); setOpen(false); router.push('/'); }}
+              >
+                <LogOut size={14} /> Log out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" className={styles.menuDropdownLink} onClick={() => setOpen(false)}>
+                Log in
+              </Link>
+              <Link href="/signup" className={styles.menuDropdownLink} onClick={() => setOpen(false)}>
+                Get started
+              </Link>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -56,34 +114,29 @@ export default function LandingPage() {
       >
         <div className={styles.navbarInner}>
           <div className={styles.navLeft}>
-            <div className={styles.logoGroup}>
+            <Link href="/" className={styles.logoGroup} aria-label="StudySnap home">
               <span className={styles.logoIcon}>
-                <LogoMark />
+                <StudySnapLogo size={22} color="#000" cutoutColor="#fff" />
               </span>
-              <span className={styles.brandText}>NeuralKinetics</span>
-            </div>
+              <span className={styles.brandText}>StudySnap</span>
+            </Link>
 
-            <button type="button" className={styles.menuButton} aria-label="Open menu">
-              <span className={styles.menuCircle}>
-                <Plus size={12} strokeWidth={3} />
-              </span>
-              <span className={styles.menuLabel}>Menu</span>
-            </button>
+            <MenuDropdown />
 
             <div className={styles.tagsPill}>
-              <span className={styles.tagText}>Advanced Bionics</span>
+              <span className={styles.tagText}>Study Packs</span>
               <span className={styles.tagDivider} />
-              <span className={styles.tagText}>Cognitive AI</span>
+              <span className={styles.tagText}>AI Tutor</span>
             </div>
           </div>
 
           <div className={styles.navRight}>
-            <button type="button" className={styles.rightPill} aria-label="Adaptive systems">
+            <div className={styles.rightPill}>
               <span className={styles.rightCircle}>
                 <GridIcon />
               </span>
-              <span className={styles.rightLabel}>Adaptive Systems</span>
-            </button>
+              <span className={styles.rightLabel}>Multi-Model AI</span>
+            </div>
           </div>
         </div>
       </motion.nav>
@@ -121,7 +174,7 @@ export default function LandingPage() {
             transition={{ delay: 0.6, duration: 0.8, ease: EASE }}
           >
             <span className={styles.dot} />
-            <span className={styles.subtitleText}>Best digital banking card 2026</span>
+            <span className={styles.subtitleText}>10 free AI study packs, every day</span>
           </motion.div>
 
           <motion.h1
@@ -130,9 +183,9 @@ export default function LandingPage() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.8, duration: 0.8, ease: EASE }}
           >
-            One Card, Zero
+            Study at the speed
             <br />
-            Limits. Worldwide.
+            of thought.
           </motion.h1>
 
           <motion.div
@@ -141,19 +194,19 @@ export default function LandingPage() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 1.0, duration: 0.8, ease: EASE }}
           >
-            <button type="button" className={styles.btnPrimary}>
-              See Features
-            </button>
-            <button type="button" className={styles.btnSecondary}>
-              How It Works
-            </button>
+            <Link href="/signup" className={styles.btnPrimary}>
+              Start Free
+            </Link>
+            <Link href="/login" className={styles.btnSecondary}>
+              I have an account
+            </Link>
           </motion.div>
         </div>
 
         <div className={styles.footerRight}>
-          <span className={styles.rightTagPill}>Neuromorphic</span>
-          <span className={styles.rightTagPill}>AGI</span>
-          <span className={styles.rightTagPill}>Cybernetics</span>
+          <span className={styles.rightTagPill}>Flashcards</span>
+          <span className={styles.rightTagPill}>Quizzes</span>
+          <span className={styles.rightTagPill}>AI Chat</span>
         </div>
       </motion.div>
     </div>
