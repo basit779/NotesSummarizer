@@ -17,17 +17,17 @@ export function Flashcard({ front, back, index }: { front: string; back: string;
       >
         <div className="absolute inset-0 rounded-2xl border border-black/[0.08] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-5 [backface-visibility:hidden] group-hover:border-black/25 transition-colors">
           <div className="flex items-center justify-between">
-            <div className="mono text-[10px] text-black/60">
-              CARD{typeof index === 'number' ? ` · ${String(index + 1).padStart(2, '0')}` : ''}
+            <div className="text-[11px] font-medium text-black/45 uppercase tracking-wide">
+              Card{typeof index === 'number' ? ` ${index + 1}` : ''}
             </div>
-            <div className="mono text-[10px] text-black/30">tap to flip</div>
+            <div className="text-[11px] text-black/30">Tap to flip</div>
           </div>
           <div className="mt-5 text-[15px] font-medium leading-relaxed text-black">{front}</div>
         </div>
         <div className="absolute inset-0 rounded-2xl border border-black bg-black p-5 [backface-visibility:hidden] [transform:rotateY(180deg)]">
           <div className="flex items-center justify-between">
-            <div className="mono text-[10px] text-white/70">ANSWER</div>
-            <div className="mono text-[10px] text-white/40">tap to flip back</div>
+            <div className="text-[11px] font-medium text-white/70 uppercase tracking-wide">Answer</div>
+            <div className="text-[11px] text-white/40">Tap to flip back</div>
           </div>
           <div className="mt-5 text-[15px] leading-relaxed text-white/90">{back}</div>
         </div>

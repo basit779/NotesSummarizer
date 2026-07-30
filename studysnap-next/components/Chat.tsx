@@ -110,27 +110,26 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
           </div>
           <div className="min-w-0">
             <div className="text-sm font-medium text-black leading-tight truncate">Ask about this pack</div>
-            <div className="mono text-[10.5px] text-black/40 truncate">{title ?? 'grounded in your notes'}</div>
+            <div className="text-[13px] text-black/40 truncate">{title ?? 'grounded in your notes'}</div>
           </div>
         </div>
-        <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] bg-black/[0.03] px-2.5 py-1 mono text-[10px] text-black/50">
+        <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] bg-black/[0.03] px-2.5 py-1 text-[11px] text-black/50">
           <span className="h-1.5 w-1.5 rounded-full bg-black" />
-          multi-model · auto fallback
+          Multi-model · auto fallback
         </div>
       </div>
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-5 scroll-smooth">
         {initialLoading ? (
-          <div className="flex justify-center items-center h-full text-black/30 mono text-xs">loading…</div>
+          <div className="flex justify-center items-center h-full text-black/30 text-sm">Loading…</div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center gap-8">
             <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-black">
               <Sparkles className="h-6 w-6 text-white" />
             </div>
             <div>
-              <div className="mono text-xs text-black/50">// ask anything</div>
-              <h3 className="mt-2 mono text-xl font-semibold text-black">Your private study tutor.</h3>
+              <h3 className="mt-2 text-xl font-semibold text-black">Your private study tutor.</h3>
               <p className="mt-1.5 text-sm text-black/50 max-w-sm mx-auto">Grounded in the PDF you uploaded — no hallucinations, no fluff.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-xl w-full">
@@ -196,7 +195,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
             aria-label={cooldown.active ? `Wait ${cooldown.secondsLeft} seconds` : 'Send'}
           >
             {cooldown.active ? (
-              <span className="inline-flex items-center gap-1 mono text-[11px]">
+              <span className="inline-flex items-center gap-1 text-[12px]">
                 <Clock className="h-3.5 w-3.5" />
                 {cooldown.secondsLeft}s
               </span>
@@ -205,8 +204,8 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
             )}
           </motion.button>
         </form>
-        <div className="mt-2 text-center mono text-[10px] text-black/30">
-          enter to send · shift+enter for new line
+        <div className="mt-2 text-center text-[11px] text-black/30">
+          Enter to send · Shift+Enter for new line
         </div>
       </div>
     </div>
@@ -224,7 +223,7 @@ function MessageBubble({ message }: { message: Message }) {
     >
       <div
         className={cn(
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] mono',
+          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px]',
           isUser
             ? 'bg-black/[0.06] border border-black/[0.08] text-black/70'
             : 'bg-black text-white',
@@ -253,9 +252,9 @@ function MessageBubble({ message }: { message: Message }) {
           )}
         </div>
         {(message.cached || message.degraded) && !isUser && (
-          <div className="mt-1 ml-1 mono text-[10px] text-black/35 flex items-center gap-1.5">
-            {message.cached && <span className="inline-flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-black/40" /> cached · 0 API calls</span>}
-            {message.degraded && <span className="inline-flex items-center gap-1 text-amber-700"><span className="h-1 w-1 rounded-full bg-amber-500" /> fallback response</span>}
+          <div className="mt-1 ml-1 text-[11px] text-black/35 flex items-center gap-1.5">
+            {message.cached && <span className="inline-flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-black/40" /> Cached · 0 API calls</span>}
+            {message.degraded && <span className="inline-flex items-center gap-1 text-amber-700"><span className="h-1 w-1 rounded-full bg-amber-500" /> Fallback response</span>}
           </div>
         )}
       </div>

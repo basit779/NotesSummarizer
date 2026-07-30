@@ -10,9 +10,9 @@ export function UsageBar({ used, limit }: { used: number; limit: number | null }
       <GlassCard className="relative overflow-hidden !bg-black !border-black">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-white" />
-          <div className="mono text-xs text-white/70">PRO · UNLIMITED</div>
+          <div className="text-[12px] font-medium text-white/70 uppercase tracking-wide">Pro · Unlimited</div>
         </div>
-        <div className="mt-4 text-2xl mono font-semibold text-white">∞ uploads</div>
+        <div className="mt-4 text-2xl font-semibold text-white">∞ uploads</div>
         <div className="mt-1 text-xs text-white/50">Process as many PDFs as you need.</div>
       </GlassCard>
     );
@@ -21,8 +21,8 @@ export function UsageBar({ used, limit }: { used: number; limit: number | null }
   return (
     <GlassCard>
       <div className="flex items-center justify-between">
-        <div className="mono text-xs text-black/50">DAILY USAGE</div>
-        <div className="mono text-xs text-black/70">{used} / {limit}</div>
+        <div className="text-[12px] font-medium text-black/45 uppercase tracking-wide">Daily usage</div>
+        <div className="text-xs text-black/70">{used} / {limit}</div>
       </div>
       <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-black/[0.08]">
         <motion.div

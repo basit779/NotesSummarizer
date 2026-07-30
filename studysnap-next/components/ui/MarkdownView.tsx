@@ -36,23 +36,23 @@ export function MarkdownView({ content, className }: MarkdownViewProps) {
         rehypePlugins={[rehypeHighlight]}
         components={{
           h1: ({ children }) => (
-            <h1 className="mono text-[26px] md:text-[30px] leading-tight font-semibold tracking-tightest text-black mt-8 first:mt-0 mb-4">
+            <h1 className="text-[26px] md:text-[30px] leading-tight font-semibold tracking-[-0.02em] text-black mt-8 first:mt-0 mb-4">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="mono text-[20px] md:text-[22px] leading-tight font-semibold tracking-tight text-black mt-8 first:mt-0 mb-3 flex items-center gap-2.5">
+            <h2 className="text-[20px] md:text-[22px] leading-tight font-semibold tracking-tight text-black mt-8 first:mt-0 mb-3 flex items-center gap-2.5">
               <span className="inline-block h-4 w-[3px] rounded-full bg-black" />
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="mono text-[16.5px] font-semibold text-black/90 mt-6 mb-2 tracking-tight">
+            <h3 className="text-[16.5px] font-semibold text-black/90 mt-6 mb-2 tracking-tight">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="mono text-[14.5px] font-semibold text-black/70 mt-5 mb-1.5 uppercase tracking-wider">
+            <h4 className="text-[13.5px] font-semibold text-black/70 mt-5 mb-1.5 uppercase tracking-wide">
               {children}
             </h4>
           ),
@@ -123,7 +123,7 @@ export function MarkdownView({ content, className }: MarkdownViewProps) {
           ),
           thead: ({ children }) => <thead className="bg-black/[0.03]">{children}</thead>,
           th: ({ children }) => (
-            <th className="border-b border-black/[0.08] px-4 py-2.5 text-left text-[12px] mono font-semibold text-black/70 tracking-wider uppercase">
+            <th className="border-b border-black/[0.08] px-4 py-2.5 text-left text-[12px] font-semibold text-black/70 tracking-wide uppercase">
               {children}
             </th>
           ),

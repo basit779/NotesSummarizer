@@ -64,6 +64,15 @@ const TABS: TabDef[] = [
   { id: 'tips',  label: 'Study tips',    icon: Lightbulb,   count: (r) => (r.studyTips?.length ?? 0) + (r.topicConnections?.length ?? 0) },
 ];
 
+const TAB_COPY: Record<TabId, string> = {
+  notes: 'Your structured notes.',
+  key: 'What matters most.',
+  defs: 'Every term, explained.',
+  flash: 'Active recall in seconds.',
+  exam: 'Test what you know.',
+  tips: 'Learn smarter, not harder.',
+};
+
 function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -91,12 +100,12 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
       <div className="rounded-2xl border border-black/[0.08] bg-white p-5 md:p-6 hover:border-black/[0.15] transition-colors">
         <div className="flex items-start justify-between gap-3 mb-5">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <span className="mono text-[11px] text-black/40 shrink-0 pt-1">Q{String(index + 1).padStart(2, '0')}</span>
+            <span className="text-[13px] text-black/35 shrink-0 pt-0.5">{index + 1}</span>
             <div className="min-w-0 flex-1">
               <div className="text-black font-medium leading-relaxed text-[14.5px] md:text-[15px]">{q.question}</div>
             </div>
           </div>
-          <span className={cn('mono shrink-0 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wider', tone)}>{q.difficulty}</span>
+          <span className={cn('shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium uppercase tracking-wide', tone)}>{q.difficulty}</span>
         </div>
 
         {options.length > 0 ? (
@@ -121,7 +130,7 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
                   )}
                 >
                   <span className={cn(
-                    'mono text-[11px] shrink-0 flex h-6 w-6 items-center justify-center rounded-md border',
+                    'text-[12px] font-medium shrink-0 flex h-6 w-6 items-center justify-center rounded-md border',
                     !revealed && 'border-black/[0.1] bg-black/[0.02] text-black/50',
                     revealed && !showState && 'border-black/[0.06] bg-black/[0.01] text-black/25',
                     showState && isCorrect && 'border-emerald-400 bg-emerald-100 text-emerald-700',
@@ -141,7 +150,7 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
                   className="overflow-hidden"
                 >
                   <div className="rounded-xl border border-black/[0.1] bg-black/[0.02] p-4 mt-3">
-                    <div className="mono text-[11px] text-black/60 mb-1.5 tracking-wider">EXPLANATION</div>
+                    <div className="text-[12px] font-medium text-black/60 mb-1.5 uppercase tracking-wide">Explanation</div>
                     <div className="text-[13.5px] text-black/80 leading-relaxed">{q.explanation}</div>
                   </div>
                 </motion.div>
@@ -150,11 +159,11 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
           </div>
         ) : (
           <details className="group">
-            <summary className="mono cursor-pointer list-none inline-flex items-center gap-1.5 rounded-lg border border-black/[0.1] bg-black/[0.03] px-3 py-1.5 text-[11px] text-black/60 hover:text-black hover:border-black/20 transition-colors">
-              reveal answer
+            <summary className="cursor-pointer list-none inline-flex items-center gap-1.5 rounded-lg border border-black/[0.1] bg-black/[0.03] px-3 py-1.5 text-[12px] font-medium text-black/60 hover:text-black hover:border-black/20 transition-colors">
+              Reveal answer
             </summary>
             <p className="mt-3 text-[14px] text-black/80 leading-relaxed">{q.answer}</p>
-            {q.explanation && <p className="mt-2 text-[13px] text-black/60 leading-relaxed"><span className="mono text-[11px] text-black/50">why: </span>{q.explanation}</p>}
+            {q.explanation && <p className="mt-2 text-[13px] text-black/60 leading-relaxed"><span className="font-medium text-black/50">Why: </span>{q.explanation}</p>}
           </details>
         )}
       </div>
@@ -228,9 +237,9 @@ function ResultsInner() {
       {/* Breadcrumb */}
       <Link
         href="/history"
-        className="mono text-[11px] text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+        className="text-[13px] text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer"
       >
-        <ArrowLeft className="h-3 w-3" /> back to history
+        <ArrowLeft className="h-3 w-3" /> Back to history
       </Link>
 
       {/* Hero */}
@@ -246,8 +255,8 @@ function ResultsInner() {
               <FileText className="h-6 w-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="mono text-[11px] text-black/50 tracking-widest">STUDY PACK</div>
-              <h1 className="mt-1 mono text-[24px] md:text-[30px] leading-[1.1] font-semibold tracking-tightest text-black break-words">
+              <div className="text-[12px] font-medium text-black/45 uppercase tracking-wide">Study pack</div>
+              <h1 className="mt-1 text-[24px] md:text-[30px] leading-[1.1] font-semibold tracking-[-0.02em] text-black break-words">
                 {result.title || result.file.filename}
               </h1>
               {result.title && (
@@ -255,7 +264,7 @@ function ResultsInner() {
                   <Hash className="h-3 w-3" /> {result.file.filename}
                 </div>
               )}
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 mono text-[11px] text-black/45">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-black/45">
                 <span className="inline-flex items-center gap-1.5"><Clock className="h-3 w-3" />{new Date(result.createdAt).toLocaleString()}</span>
                 <span className="text-black/20">·</span>
                 <span>{result.file.pageCount ?? '?'} pages</span>
@@ -315,7 +324,7 @@ function ResultsInner() {
         {/* Sidebar */}
         <aside className="lg:sticky lg:top-24 lg:self-start order-2 lg:order-1">
           <div className="rounded-2xl border border-black/[0.08] bg-black/[0.02] p-2">
-            <div className="px-3 py-2 mono text-[10px] text-black/40 tracking-widest">CONTENTS</div>
+            <div className="px-3 py-2 text-[12px] font-medium text-black/40 uppercase tracking-wide">Contents</div>
             <nav className="space-y-0.5">
               {TABS.map((t) => {
                 const active = t.id === tab;
@@ -342,7 +351,7 @@ function ResultsInner() {
                     <span className="flex-1 text-left truncate">{t.label}</span>
                     {typeof count === 'number' && count > 0 && (
                       <span className={cn(
-                        'mono text-[10px] rounded px-1.5 py-0.5 transition-colors',
+                        'text-[11px] rounded px-1.5 py-0.5 transition-colors',
                         active ? 'bg-black/10 text-black/70' : 'bg-black/[0.04] text-black/40',
                       )}>{count}</span>
                     )}
@@ -360,7 +369,7 @@ function ResultsInner() {
           </div>
 
           <div className="mt-3 rounded-2xl border border-black/[0.06] bg-black/[0.015] p-4">
-            <div className="mono text-[10px] text-black/50 tracking-widest">PRO TIP</div>
+            <div className="text-[12px] font-medium text-black/50 uppercase tracking-wide">Pro tip</div>
             <div className="mt-1.5 text-[12.5px] text-black/70 leading-relaxed">
               Use <span className="text-black">Flashcards</span> + <span className="text-black">Quiz</span> for active recall — 2× more effective than re-reading.
             </div>
@@ -380,10 +389,7 @@ function ResultsInner() {
               {tab === 'notes' && (
                 <article className="rounded-3xl border border-black/[0.08] bg-white p-6 md:p-10">
                   <div className="flex items-center justify-between mb-5">
-                    <div>
-                      <div className="mono text-[11px] text-black/50 tracking-widest">// study notes</div>
-                      <h2 className="mt-1 mono text-xl font-semibold text-black">Your structured notes.</h2>
-                    </div>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-black">{TAB_COPY.notes}</h2>
                   </div>
                   <MarkdownView content={result.summary} />
                 </article>
@@ -392,8 +398,7 @@ function ResultsInner() {
               {tab === 'key' && (
                 <div className="rounded-3xl border border-black/[0.08] bg-white p-6 md:p-10">
                   <div className="mb-6">
-                    <div className="mono text-[11px] text-black/50 tracking-widest">// key points</div>
-                    <h2 className="mt-1 mono text-xl font-semibold text-black">What matters most.</h2>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-black">{TAB_COPY.key}</h2>
                   </div>
                   <ul className="space-y-3">
                     {result.keyPoints.map((p, i) => (
@@ -404,8 +409,8 @@ function ResultsInner() {
                         transition={{ delay: i * 0.035, duration: 0.4 }}
                         className="group flex gap-4 rounded-2xl px-3 py-3 hover:bg-black/[0.02] transition-colors"
                       >
-                        <span className="mono flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-black/[0.1] bg-black/[0.03] text-[11px] text-black/60">
-                          {String(i + 1).padStart(2, '0')}
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-black/[0.1] bg-black/[0.03] text-[13px] font-medium text-black/60">
+                          {i + 1}
                         </span>
                         <span className="text-[15px] text-black/80 leading-relaxed pt-1">{p}</span>
                       </motion.li>
@@ -417,8 +422,7 @@ function ResultsInner() {
               {tab === 'defs' && (
                 <div>
                   <div className="mb-6 px-1">
-                    <div className="mono text-[11px] text-black/50 tracking-widest">// definitions</div>
-                    <h2 className="mt-1 mono text-xl font-semibold text-black">Every term, explained.</h2>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-black">{TAB_COPY.defs}</h2>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     {result.definitions.map((d, i) => (
@@ -429,8 +433,7 @@ function ResultsInner() {
                         transition={{ delay: i * 0.035, duration: 0.45 }}
                         className="group relative overflow-hidden rounded-2xl border border-black/[0.08] bg-white p-5 hover:border-black/20 transition-all"
                       >
-                        <div className="mono text-[10px] text-black/40 tracking-widest">DEF · {String(i + 1).padStart(2, '0')}</div>
-                        <div className="mt-2 font-semibold text-black text-[15px] leading-tight">{d.term}</div>
+                        <div className="font-semibold text-black text-[15px] leading-tight">{d.term}</div>
                         <div className="mt-2 text-[13.5px] text-black/60 leading-relaxed">{d.definition}</div>
                       </motion.div>
                     ))}
@@ -441,10 +444,7 @@ function ResultsInner() {
               {tab === 'flash' && (
                 <div>
                   <div className="mb-6 flex items-end justify-between flex-wrap gap-3 px-1">
-                    <div>
-                      <div className="mono text-[11px] text-black/50 tracking-widest">// flashcards</div>
-                      <h2 className="mt-1 mono text-xl font-semibold text-black">Active recall in seconds.</h2>
-                    </div>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-black">{TAB_COPY.flash}</h2>
                     <div className="flex gap-2">
                       <Link href={`/study/${result.id}`}>
                         <MotionButton size="sm">
@@ -475,10 +475,7 @@ function ResultsInner() {
               {tab === 'exam' && (
                 <div>
                   <div className="mb-6 flex items-end justify-between flex-wrap gap-3 px-1">
-                    <div>
-                      <div className="mono text-[11px] text-black/50 tracking-widest">// quiz</div>
-                      <h2 className="mt-1 mono text-xl font-semibold text-black">Test what you know.</h2>
-                    </div>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-black">{TAB_COPY.exam}</h2>
                     {result.examQuestions.some((q) => q.options && q.options.length >= 2) && (
                       <Link href={`/quiz/${result.id}`}>
                         <MotionButton size="sm">
@@ -498,12 +495,11 @@ function ResultsInner() {
               {tab === 'tips' && (
                 <div className="space-y-5">
                   <div className="px-1">
-                    <div className="mono text-[11px] text-black/50 tracking-widest">// study tips</div>
-                    <h2 className="mt-1 mono text-xl font-semibold text-black">Learn smarter, not harder.</h2>
+                    <h2 className="text-xl font-semibold tracking-[-0.01em] text-black">{TAB_COPY.tips}</h2>
                   </div>
                   {result.studyTips && result.studyTips.length > 0 && (
                     <div className="rounded-3xl border border-black/[0.08] bg-white p-6 md:p-8">
-                      <div className="mono text-[11px] text-black/50 mb-4 tracking-widest">// tactics for THIS content</div>
+                      <div className="text-[12px] font-medium text-black/50 mb-4 uppercase tracking-wide">Tactics for this content</div>
                       <ul className="space-y-3">
                         {result.studyTips.map((t, i) => (
                           <motion.li
@@ -513,7 +509,7 @@ function ResultsInner() {
                             transition={{ delay: i * 0.04 }}
                             className="flex gap-3 text-[14.5px] text-black/75 leading-relaxed"
                           >
-                            <span className="mono text-black/40 shrink-0">▸</span>
+                            <span className="text-black/30 shrink-0">—</span>
                             <span>{t}</span>
                           </motion.li>
                         ))}
@@ -522,7 +518,7 @@ function ResultsInner() {
                   )}
                   {result.topicConnections && result.topicConnections.length > 0 && (
                     <div className="rounded-3xl border border-black/[0.08] bg-white p-6 md:p-8">
-                      <div className="mono text-[11px] text-black/50 mb-4 tracking-widest">// how this connects</div>
+                      <div className="text-[12px] font-medium text-black/50 mb-4 uppercase tracking-wide">How this connects</div>
                       <ul className="space-y-3">
                         {result.topicConnections.map((t, i) => (
                           <motion.li
@@ -532,7 +528,7 @@ function ResultsInner() {
                             transition={{ delay: i * 0.04 }}
                             className="flex gap-3 text-[14.5px] text-black/75 leading-relaxed"
                           >
-                            <span className="mono text-black/40 shrink-0">◇</span>
+                            <span className="text-black/30 shrink-0">—</span>
                             <span>{t}</span>
                           </motion.li>
                         ))}
@@ -541,7 +537,7 @@ function ResultsInner() {
                   )}
                   {!result.studyTips?.length && !result.topicConnections?.length && (
                     <GlassCard className="text-center !py-14">
-                      <div className="mono text-xs text-black/40">no study tips for this pack</div>
+                      <div className="text-[13px] text-black/40">No study tips for this pack</div>
                     </GlassCard>
                   )}
                 </div>

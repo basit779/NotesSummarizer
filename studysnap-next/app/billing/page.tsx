@@ -50,13 +50,13 @@ function PlanCard({
       <div className="relative px-6 pt-6 pb-5">
         {badge && (
           <div className={cn(
-            'absolute right-4 top-4 rounded-full px-2.5 py-0.5 mono text-[10px] tracking-[0.1em]',
+            'absolute right-4 top-4 rounded-full px-2.5 py-0.5 text-[11px] font-medium tracking-wide',
             highlight ? 'border border-white/25 bg-white/10 text-white' : 'border border-black/20 bg-black/5 text-black/70',
           )}>
             {badge}
           </div>
         )}
-        <div className={cn('mono text-[11px] tracking-[0.18em] uppercase', highlight ? 'text-white/60' : 'text-black/50')}>
+        <div className={cn('text-[12px] font-medium tracking-wide uppercase', highlight ? 'text-white/60' : 'text-black/50')}>
           {plan}
         </div>
         <div className="mt-2 flex items-baseline gap-1.5">
@@ -82,7 +82,7 @@ function PlanCard({
           ))}
         </ul>
         {children}
-        {footer && <div className={cn('mt-6 mono text-[11px] tracking-[0.08em]', highlight ? 'text-white/40' : 'text-black/35')}>{footer}</div>}
+        {footer && <div className={cn('mt-6 text-[12px] font-medium tracking-wide', highlight ? 'text-white/40' : 'text-black/35')}>{footer}</div>}
       </div>
     </div>
   );
@@ -136,7 +136,7 @@ function BillingInner() {
   return (
     <div className="mx-auto max-w-3xl px-5 md:px-6 py-12 md:py-16">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="mono text-[10.5px] text-black/50 tracking-[0.22em] uppercase">// billing</div>
+        <div className="text-[12px] font-medium text-black/45 uppercase tracking-wide">Billing</div>
         <h1 className="mt-3 text-[34px] md:text-[40px] font-semibold tracking-[-0.025em] leading-[1.05] text-black">
           {isPro ? "You're on Pro." : 'Upgrade when it clicks.'}
         </h1>
@@ -150,7 +150,7 @@ function BillingInner() {
           <div className="relative overflow-hidden rounded-xl border border-black bg-black px-6 py-5">
             <div className="relative flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-white" />
-              <div className="mono text-sm tracking-[0.08em] text-white">PRO · ACTIVE</div>
+              <div className="text-sm font-medium text-white">Pro · Active</div>
             </div>
             {sub?.currentPeriodEnd && (
               <div className="relative mt-3 text-sm text-white/60">
@@ -167,7 +167,7 @@ function BillingInner() {
             plan="Free"
             price="$0"
             features={freeFeatures}
-            footer={!isPro ? 'YOUR CURRENT PLAN' : undefined}
+            footer={!isPro ? 'Your current plan' : undefined}
           />
         </motion.div>
 
@@ -176,9 +176,9 @@ function BillingInner() {
             plan="Pro"
             price="$9"
             highlight
-            badge="RECOMMENDED"
+            badge="Recommended"
             features={PRO_FEATURES}
-            footer={isPro ? 'YOUR CURRENT PLAN' : undefined}
+            footer={isPro ? 'Your current plan' : undefined}
           >
             {!isPro && (
               <MotionButton className="mt-6 w-full !bg-white !text-black hover:!opacity-85" onClick={upgrade} loading={loading}>
@@ -189,8 +189,8 @@ function BillingInner() {
         </motion.div>
       </div>
 
-      <p className="mt-6 text-center mono text-[10.5px] tracking-[0.1em] text-black/30">
-        no real payments in mock mode · stripe activates when account is connected
+      <p className="mt-6 text-center text-[12px] text-black/35">
+        No real payments in mock mode · Stripe activates when account is connected
       </p>
 
       {process.env.NODE_ENV !== 'production' && (
@@ -205,9 +205,9 @@ function BillingInner() {
                 toast.error(err?.message ?? 'Reset failed');
               }
             }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] bg-black/[0.02] px-3 py-1.5 mono text-[11px] text-black/50 transition-colors duration-150 hover:border-black/20 hover:bg-black/[0.05] hover:text-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 cursor-pointer"
+            className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] bg-black/[0.02] px-3 py-1.5 text-[12px] text-black/50 transition-colors duration-150 hover:border-black/20 hover:bg-black/[0.05] hover:text-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 cursor-pointer"
           >
-            <RotateCcw className="h-3 w-3" /> reset today's usage (dev)
+            <RotateCcw className="h-3 w-3" /> Reset today's usage (dev)
           </button>
         </div>
       )}

@@ -25,7 +25,7 @@ export function UsageIndicator() {
     return (
       <div className="flex items-center gap-1.5 rounded-full bg-black px-3 py-1 text-xs text-white">
         <Sparkles className="h-3 w-3" />
-        <span className="mono">PRO · unlimited</span>
+        <span>Pro · unlimited</span>
       </div>
     );
   }
@@ -41,7 +41,7 @@ export function UsageIndicator() {
           className="h-full bg-black"
         />
       </div>
-      <span className="mono">{used}/{limit}</span>
+      <span>{used}/{limit}</span>
     </div>
   );
 }

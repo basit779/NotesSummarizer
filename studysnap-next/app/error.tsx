@@ -19,15 +19,15 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="mono text-[11px] text-amber-600 tracking-widest">// 500</div>
-        <h1 className="mt-3 mono text-[40px] md:text-[56px] leading-[1.05] font-semibold tracking-tightest text-black text-balance">
+        <div className="text-[12px] font-medium text-amber-600 uppercase tracking-wide">500</div>
+        <h1 className="mt-3 text-[40px] md:text-[56px] leading-[1.05] font-semibold tracking-[-0.02em] text-black text-balance">
           Something went sideways.
         </h1>
         <p className="mt-4 text-black/55 text-[15px] md:text-[16px] max-w-md mx-auto">
           We&rsquo;re on it. Try again, or head back and pick up where you left off.
         </p>
         {error?.digest && (
-          <div className="mt-4 mono text-[10.5px] text-black/30 tracking-wider">
+          <div className="mt-4 text-[12px] text-black/30">
             ref: {error.digest}
           </div>
         )}

@@ -200,9 +200,9 @@ function UploadInner() {
       <div className="mx-auto w-full max-w-3xl px-5 md:px-6 py-14 md:py-24 relative z-10 flex flex-col pt-32">
       <div>
         <BlurFade delay={0}>
-          <div className="flex items-center gap-2.5 mono text-[10.5px] text-black/50 tracking-[0.22em] uppercase">
-            <span className="inline-block h-1 w-1 rounded-full bg-black" />
-            <span>// New pack</span>
+          <div className="flex items-center gap-2 text-[12px] font-medium text-black/45 tracking-[0.08em] uppercase">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-black" />
+            <span>New pack</span>
           </div>
         </BlurFade>
         <BlurFade delay={0.08}>
@@ -281,7 +281,7 @@ function UploadInner() {
                     ? 'Release to upload'
                     : 'Drop a file here, or click to browse'}
                 </h3>
-                <p className="mono text-[10.5px] text-black/40 tracking-[0.18em] uppercase">
+                <p className="text-[12px] text-black/40 tracking-[0.04em] uppercase">
                   PDF, DOCX, PPTX, XLSX · max 15 MB
                 </p>
               </div>
@@ -299,8 +299,8 @@ function UploadInner() {
               transition={{ duration: 0.2 }}
               className="mt-4 flex flex-col gap-2"
             >
-              <div className="flex items-center justify-between px-1 mono text-[10px] text-black/35 tracking-[0.2em] uppercase">
-                <span>// Queued · {files.length}</span>
+              <div className="flex items-center justify-between px-1 text-[12px] font-medium text-black/40 tracking-[0.04em] uppercase">
+                <span>Queued · {files.length}</span>
                 {files.length > 1 && (
                   <button
                     onClick={() => setFiles([])}
@@ -328,7 +328,7 @@ function UploadInner() {
                       </div>
                       <div className="min-w-0">
                         <div className="truncate text-[14px] font-medium text-black">{file.name}</div>
-                        <div className="mono text-[10.5px] text-black/40 tracking-[0.1em] uppercase">
+                        <div className="text-[12px] text-black/40">
                           {(file.size / 1024 / 1024).toFixed(2)} MB
                           <span className="text-black/15 mx-1.5">·</span>
                           <span>{i + 1}/{files.length}</span>
@@ -380,12 +380,12 @@ function UploadInner() {
               transition={{ duration: 0.22 }}
               className="mt-4 rounded-xl border border-black/[0.08] bg-black/[0.015] px-4 py-4"
             >
-              <div className="flex items-center justify-between mono text-[10.5px] text-black/55 tracking-[0.16em] uppercase">
+              <div className="flex items-center justify-between text-[13px] text-black/55">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-3 w-3 text-black/60" />
-                  <span>{`// Reading your ${fileTypeLabel(files[0])}`}</span>
+                  <Sparkles className="h-3.5 w-3.5 text-black/60" />
+                  <span>{`Reading your ${fileTypeLabel(files[0])}…`}</span>
                 </div>
-                <span className="text-black/30 tracking-[0.1em]">~15–40s</span>
+                <span className="text-black/30">~15–40s</span>
               </div>
               <div className="mt-3 h-[2px] w-full rounded-full bg-black/[0.08] overflow-hidden relative">
                 <motion.div
@@ -403,8 +403,8 @@ function UploadInner() {
       {stage === 'idle' && (
         <BlurFade delay={0.36} className="mt-14">
           <div className="border-t border-black/[0.08] pt-6">
-            <div className="mono text-[10px] text-black/35 tracking-[0.22em] uppercase mb-4">
-              // What you get
+            <div className="text-[12px] font-medium text-black/40 tracking-[0.08em] uppercase mb-4">
+              What you get
             </div>
             <div className="space-y-1">
               {BENEFITS.map((b) => (
@@ -412,7 +412,7 @@ function UploadInner() {
                   <b.icon className="h-[14px] w-[14px] text-black/45 shrink-0" />
                   <span className="text-black/85 shrink-0">{b.label}</span>
                   <span className="text-black/15">·</span>
-                  <span className="mono text-[11px] text-black/40 tracking-[0.05em] truncate">{b.hint}</span>
+                  <span className="text-[13px] text-black/40 truncate">{b.hint}</span>
                 </div>
               ))}
             </div>

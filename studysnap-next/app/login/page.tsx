@@ -128,7 +128,7 @@ export default function LoginPage() {
           </Link>
         </p>
 
-        <p className="mt-4 text-center mono text-[10.5px] uppercase tracking-[0.15em] text-black/30">
+        <p className="mt-4 text-center text-[12px] uppercase tracking-wide text-black/30">
           10 free PDFs daily · No card required
         </p>
       </motion.div>

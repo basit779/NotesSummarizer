@@ -113,12 +113,12 @@ function StudyInner() {
   }, [next, prev, mark, finished]);
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[80vh] mono text-sm text-black/40">loading cards…</div>;
+    return <div className="flex items-center justify-center min-h-[80vh] text-sm text-black/40">Loading cards…</div>;
   }
   if (!cards.length) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <div className="mono text-xs text-black/40">no flashcards in this pack</div>
+        <div className="text-sm text-black/40">No flashcards in this pack</div>
         <Link href={`/results/${id}`} className="mt-6 inline-block">
           <MotionButton variant="outline">Back to results</MotionButton>
         </Link>
@@ -135,7 +135,7 @@ function StudyInner() {
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-black">
               <Trophy className="h-6 w-6 text-white" />
             </div>
-            <h2 className="mt-5 mono text-2xl font-semibold text-black">Session complete</h2>
+            <h2 className="mt-5 text-2xl font-semibold text-black">Session complete</h2>
             <p className="mt-1 text-sm text-black/55">{mastered} mastered · {missed} still learning · {total} total</p>
 
             <div className="mx-auto mt-8 max-w-sm flex flex-col gap-2">
@@ -161,15 +161,15 @@ function StudyInner() {
     <div className="mx-auto max-w-3xl px-6 py-6 md:py-10">
       {/* Top bar */}
       <div className="flex items-center justify-between mb-6">
-        <Link href={`/results/${id}`} className="mono text-xs text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer">
-          <ArrowLeft className="h-3 w-3" /> exit
+        <Link href={`/results/${id}`} className="text-[13px] text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer">
+          <ArrowLeft className="h-3 w-3" /> Exit
         </Link>
-        <div className="mono text-xs text-black/50">{cursor + 1} / {total}</div>
+        <div className="text-[13px] text-black/50">{cursor + 1} / {total}</div>
         <button
           onClick={doShuffle}
-          className="mono text-xs text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+          className="text-[13px] text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer"
         >
-          <Shuffle className="h-3 w-3" /> shuffle
+          <Shuffle className="h-3 w-3" /> Shuffle
         </button>
       </div>
 
@@ -181,7 +181,7 @@ function StudyInner() {
           className="h-full bg-black"
         />
       </div>
-      <div className="flex justify-between mono text-[10px] text-black/40 mb-6">
+      <div className="flex justify-between text-[12px] text-black/40 mb-6">
         <span>{mastered} mastered</span>
         <span>{learning} learning</span>
       </div>
@@ -207,8 +207,8 @@ function StudyInner() {
               {/* front */}
               <div className="absolute inset-0 rounded-2xl border border-black/[0.08] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-8 md:p-12 [backface-visibility:hidden] flex flex-col">
                 <div className="flex items-center justify-between">
-                  <div className="mono text-[11px] text-black/50">CARD · {String(cursor + 1).padStart(2, '0')}</div>
-                  <div className="mono text-[11px] text-black/30">space to flip</div>
+                  <div className="text-[12px] font-medium text-black/45 uppercase tracking-wide">Card {cursor + 1}</div>
+                  <div className="text-[12px] text-black/30">Space to flip</div>
                 </div>
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-xl md:text-2xl font-medium leading-relaxed text-black text-balance text-center">
@@ -219,8 +219,8 @@ function StudyInner() {
               {/* back */}
               <div className="absolute inset-0 rounded-2xl border border-black bg-black p-8 md:p-12 [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col">
                 <div className="flex items-center justify-between">
-                  <div className="mono text-[11px] text-white/70">ANSWER</div>
-                  <div className="mono text-[11px] text-white/40">space to flip back</div>
+                  <div className="text-[12px] font-medium text-white/70 uppercase tracking-wide">Answer</div>
+                  <div className="text-[12px] text-white/40">Space to flip back</div>
                 </div>
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-lg md:text-xl leading-relaxed text-white/95 text-balance text-center">
@@ -239,13 +239,13 @@ function StudyInner() {
           onClick={() => mark('learning')}
           className="group flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 transition-colors px-4 py-3.5 text-sm text-rose-700 cursor-pointer"
         >
-          <X className="h-4 w-4" /> Still learning <span className="mono text-[10px] text-rose-500 ml-1">1</span>
+          <X className="h-4 w-4" /> Still learning <span className="text-[11px] text-rose-500 ml-1">1</span>
         </button>
         <button
           onClick={() => mark('mastered')}
           className="group flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 transition-colors px-4 py-3.5 text-sm text-emerald-700 cursor-pointer"
         >
-          <Check className="h-4 w-4" /> Got it <span className="mono text-[10px] text-emerald-500 ml-1">2</span>
+          <Check className="h-4 w-4" /> Got it <span className="text-[11px] text-emerald-500 ml-1">2</span>
         </button>
       </div>
 
@@ -253,16 +253,16 @@ function StudyInner() {
         <button
           onClick={prev}
           disabled={cursor === 0}
-          className="mono text-xs text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-30"
+          className="text-[13px] text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-30"
         >
-          <ChevronLeft className="h-3.5 w-3.5" /> previous
+          <ChevronLeft className="h-3.5 w-3.5" /> Previous
         </button>
-        <div className="mono text-[10px] text-black/30">space = flip · ← → = navigate · 1/2 = rate</div>
+        <div className="text-[12px] text-black/30">Space = flip · ← → = navigate · 1/2 = rate</div>
         <button
           onClick={next}
-          className="mono text-xs text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+          className="text-[13px] text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer"
         >
-          skip <ChevronRight className="h-3.5 w-3.5" />
+          Skip <ChevronRight className="h-3.5 w-3.5" />
         </button>
       </div>
     </div>

@@ -137,12 +137,12 @@ function QuizInner() {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[80vh] mono text-sm text-black/40">loading quiz…</div>;
+    return <div className="flex items-center justify-center min-h-[80vh] text-sm text-black/40">Loading quiz…</div>;
   }
   if (!questions.length) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <div className="mono text-xs text-black/40">this pack doesn't have multiple-choice questions yet</div>
+        <div className="text-sm text-black/40">This pack doesn't have multiple-choice questions yet</div>
         <Link href={`/results/${id}`} className="mt-6 inline-block">
           <MotionButton variant="outline">Back to results</MotionButton>
         </Link>
@@ -160,8 +160,8 @@ function QuizInner() {
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-black">
               <Trophy className="h-6 w-6 text-white" />
             </div>
-            <h2 className="mt-5 mono text-2xl font-semibold text-black">Quiz complete</h2>
-            <div className="mt-6 mono text-6xl font-semibold text-black">{pct}%</div>
+            <h2 className="mt-5 text-2xl font-semibold text-black">Quiz complete</h2>
+            <div className="mt-6 text-6xl font-semibold tracking-tight text-black">{pct}%</div>
             <p className="mt-1 text-sm text-black/55">
               {correctCount} / {total} correct · <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(elapsed)}</span>
             </p>
@@ -190,11 +190,11 @@ function QuizInner() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-6 md:py-10">
       <div className="flex items-center justify-between mb-6">
-        <Link href={`/results/${id}`} className="mono text-xs text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer">
-          <ArrowLeft className="h-3 w-3" /> exit
+        <Link href={`/results/${id}`} className="text-[13px] text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer">
+          <ArrowLeft className="h-3 w-3" /> Exit
         </Link>
-        <div className="mono text-xs text-black/50">{cursor + 1} / {total}</div>
-        <div className="mono text-xs text-black/50 inline-flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(elapsed)}</div>
+        <div className="text-[13px] text-black/50">{cursor + 1} / {total}</div>
+        <div className="text-[13px] text-black/50 inline-flex items-center gap-1"><Clock className="h-3 w-3" />{formatTime(elapsed)}</div>
       </div>
 
       <div className="h-1 w-full overflow-hidden rounded-full bg-black/[0.08] mb-8">
@@ -214,7 +214,7 @@ function QuizInner() {
           transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
         >
           <GlassCard className="!p-8 md:!p-10">
-            <div className="mono text-[11px] text-black/50 mb-4">QUESTION {String(cursor + 1).padStart(2, '0')}</div>
+            <div className="text-[12px] font-medium text-black/45 uppercase tracking-wide mb-4">Question {cursor + 1}</div>
             <h2 className="text-xl md:text-2xl text-black font-medium leading-relaxed">{current.question}</h2>
 
             <div className="mt-8 space-y-2.5">
@@ -238,7 +238,7 @@ function QuizInner() {
                       showWrong && 'border-rose-400 bg-rose-50 text-rose-800',
                     )}
                   >
-                    <span className="mono text-xs text-black/40 mr-3">{letter}</span>
+                    <span className="text-[13px] font-medium text-black/40 mr-3">{letter}</span>
                     {text}
                   </motion.button>
                 );
@@ -254,7 +254,7 @@ function QuizInner() {
                   className="overflow-hidden"
                 >
                   <div className="mt-6 rounded-xl border border-black/[0.1] bg-black/[0.03] p-4">
-                    <div className="mono text-[11px] text-black/60 mb-2">EXPLANATION</div>
+                    <div className="text-[12px] font-medium text-black/55 uppercase tracking-wide mb-2">Explanation</div>
                     <div className="text-sm text-black/75 leading-relaxed">{current.explanation}</div>
                   </div>
                 </motion.div>
@@ -276,8 +276,8 @@ function QuizInner() {
         </motion.div>
       </AnimatePresence>
 
-      <div className="mt-4 text-center mono text-[10px] text-black/30">
-        {revealed ? 'space / enter = next' : '1/2/3/4 or A/B/C/D to pick'}
+      <div className="mt-4 text-center text-[12px] text-black/30">
+        {revealed ? 'Space / Enter = next' : '1/2/3/4 or A/B/C/D to pick'}
       </div>
     </div>
   );

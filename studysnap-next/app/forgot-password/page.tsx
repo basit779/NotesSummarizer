@@ -54,15 +54,15 @@ export default function ForgotPasswordPage() {
         className="w-full max-w-md"
       >
         <div className="mb-6 text-center">
-          <div className="mono text-xs text-black/50">// forgot password</div>
-          <h1 className="mt-2 mono text-3xl font-semibold tracking-tightest text-black">Reset your password</h1>
+          <div className="text-[12px] font-medium text-black/45 uppercase tracking-wide">Forgot password</div>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.02em] text-black">Reset your password</h1>
           <p className="mt-2 text-sm text-black/50">Enter your email to get a reset link.</p>
         </div>
         <GlassCard className="!p-8">
           {!result ? (
             <form onSubmit={onSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email" className="mono text-xs text-black/60">EMAIL</Label>
+                <Label htmlFor="email" className="text-[12px] font-medium text-black/60">Email</Label>
                 <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <MotionButton type="submit" className="w-full" loading={loading}>
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
                 <CheckCircle2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="mono text-lg font-semibold text-black">Check your inbox</h2>
+                <h2 className="text-lg font-semibold text-black">Check your inbox</h2>
                 <p className="mt-2 text-sm text-black/60">
                   If an account exists for <span className="text-black/90">{result.email}</span>, we just sent a reset link.
                 </p>
@@ -88,9 +88,9 @@ export default function ForgotPasswordPage() {
           ) : (
             <div className="space-y-4">
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-[12px] text-amber-900 leading-relaxed">
-                <strong className="mono">DEV MODE:</strong> email delivery isn't configured (<code className="font-mono">RESEND_API_KEY</code> not set). Use the link below to continue. In production this would be emailed.
+                <strong className="font-semibold">Dev mode:</strong> email delivery isn't configured (<code className="font-mono">RESEND_API_KEY</code> not set). Use the link below to continue. In production this would be emailed.
               </div>
-              <div className="mono text-xs text-black/50">// reset link (valid 15 min)</div>
+              <div className="text-[12px] font-medium text-black/45 uppercase tracking-wide">Reset link (valid 15 min)</div>
               <div className="rounded-lg border border-black/[0.1] bg-black/[0.02] p-3 font-mono text-[11px] text-black/80 break-all">
                 {result.resetUrl}
               </div>

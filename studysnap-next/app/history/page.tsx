@@ -47,7 +47,7 @@ function stripMarkdown(md: string): string {
 function KindBadge({ icon: Icon, count, label }: { icon: typeof Layers; count: number; label: string }) {
   if (!count) return null;
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-black/[0.08] bg-black/[0.03] px-2 py-0.5 mono text-[10px] tracking-[0.08em] text-black/50">
+    <span className="inline-flex items-center gap-1 rounded-full border border-black/[0.08] bg-black/[0.03] px-2 py-0.5 text-[11px] text-black/50">
       <Icon className="h-2.5 w-2.5 text-black/60" />
       {count} {label}
     </span>
@@ -76,7 +76,7 @@ function HistoryRow({ item, index }: { item: Item; index: number }) {
             <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-black/25 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-black" />
           </div>
 
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 mono text-[10.5px] tracking-[0.06em] text-black/40">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-black/40">
             <span>{new Date(item.createdAt).toLocaleDateString()}</span>
             <span className="text-black/15">·</span>
             <span>{item.file.pageCount ?? '?'} pages</span>
@@ -89,9 +89,9 @@ function HistoryRow({ item, index }: { item: Item; index: number }) {
           )}
 
           <div className="mt-2.5 flex flex-wrap gap-1.5">
-            <KindBadge icon={Layers} count={item.flashcards?.length ?? 0} label="CARDS" />
-            <KindBadge icon={HelpCircle} count={item.examQuestions?.length ?? 0} label="QUIZ" />
-            <KindBadge icon={Library} count={item.definitions?.length ?? 0} label="DEFS" />
+            <KindBadge icon={Layers} count={item.flashcards?.length ?? 0} label="cards" />
+            <KindBadge icon={HelpCircle} count={item.examQuestions?.length ?? 0} label="quiz" />
+            <KindBadge icon={Library} count={item.definitions?.length ?? 0} label="definitions" />
           </div>
         </div>
       </Link>
@@ -139,7 +139,7 @@ function HistoryInner() {
   return (
     <div className="mx-auto max-w-4xl px-5 md:px-6 py-12 md:py-16">
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <div className="mono text-[10.5px] text-black/50 tracking-[0.22em] uppercase">// history</div>
+        <div className="text-[12px] font-medium text-black/45 uppercase tracking-wide">History</div>
         <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-[34px] md:text-[40px] font-semibold tracking-[-0.025em] leading-[1.05] text-black">
@@ -187,7 +187,7 @@ function HistoryInner() {
               <HistoryRow key={r.id} item={r} index={i} />
             ))}
             {filtered.length === 0 && (
-              <div className="px-5 py-12 text-center mono text-[12px] text-black/40">
+              <div className="px-5 py-12 text-center text-[13px] text-black/40">
                 no packs match "{query}"
               </div>
             )}
