@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 export function Flashcard({ front, back, index }: { front: string; back: string; index?: number }) {
   const [flipped, setFlipped] = useState(false);
@@ -24,7 +25,7 @@ export function Flashcard({ front, back, index }: { front: string; back: string;
           </div>
           <div className="mt-5 text-[15px] font-medium leading-relaxed text-black">{front}</div>
         </div>
-        <div className="absolute inset-0 rounded-2xl border border-black bg-black p-5 [backface-visibility:hidden] [transform:rotateY(180deg)]">
+        <div className={cn('absolute inset-0 rounded-2xl border border-black p-5 [backface-visibility:hidden] [transform:rotateY(180deg)]', GLOSS_BLACK)}>
           <div className="flex items-center justify-between">
             <div className="text-[11px] font-medium text-white/70 uppercase tracking-wide">Answer</div>
             <div className="text-[11px] text-white/40">Tap to flip back</div>

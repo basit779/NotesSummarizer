@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/client/auth';
 import { Protected } from '@/components/Protected';
 import { MotionButton } from '@/components/ui/MotionButton';
 import { UsageBar } from '@/components/UsageBar';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 interface DashboardData {
   usage: { uploads: number; processed: number; limit: number | null; plan: string };
@@ -96,7 +97,7 @@ function DashboardInner() {
 
             {data && data.recent.length === 0 ? (
               <div className="rounded-2xl border border-black/[0.08] px-8 py-16 text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-black">
+                <div className={cn('mx-auto flex h-14 w-14 items-center justify-center rounded-2xl', GLOSS_BLACK)}>
                   <Sparkles className="h-6 w-6 text-white" />
                 </div>
                 <h4 className="mt-5 text-lg font-semibold text-black">Nothing here yet</h4>

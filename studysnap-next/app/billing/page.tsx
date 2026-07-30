@@ -9,7 +9,7 @@ import { api } from '@/lib/client/api';
 import { useAuth } from '@/lib/client/auth';
 import { Protected } from '@/components/Protected';
 import { MotionButton } from '@/components/ui/MotionButton';
-import { cn } from '@/lib/utils';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 const PRO_FEATURES = [
   'Unlimited uploads',
@@ -43,7 +43,7 @@ function PlanCard({
     <div
       className={cn(
         'relative flex h-full flex-col overflow-hidden rounded-xl border',
-        highlight ? 'border-black bg-black' : 'border-black/[0.08] bg-white',
+        highlight ? cn('border-black', GLOSS_BLACK) : 'border-black/[0.08] bg-white shadow-[0_1px_2px_rgba(0,0,0,0.03)]',
       )}
     >
       {/* Header */}
@@ -147,7 +147,7 @@ function BillingInner() {
 
       {isPro && (
         <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.08 }} className="mt-8">
-          <div className="relative overflow-hidden rounded-xl border border-black bg-black px-6 py-5">
+          <div className={cn('relative overflow-hidden rounded-xl border border-black px-6 py-5', GLOSS_BLACK)}>
             <div className="relative flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-white" />
               <div className="text-sm font-medium text-white">Pro · Active</div>

@@ -7,7 +7,7 @@ import { FileText, ArrowRight, Sparkles, Search, Layers, HelpCircle, Library, Lo
 import { api } from '@/lib/client/api';
 import { Protected } from '@/components/Protected';
 import { MotionButton } from '@/components/ui/MotionButton';
-import { cn } from '@/lib/utils';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 interface Item {
   id: string;
@@ -173,7 +173,7 @@ function HistoryInner() {
         </div>
       ) : items.length === 0 ? (
         <div className="mt-8 rounded-xl border border-black/[0.08] bg-black/[0.015] px-8 py-16 text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-black">
+          <div className={cn('mx-auto flex h-14 w-14 items-center justify-center rounded-2xl', GLOSS_BLACK)}>
             <Sparkles className="h-6 w-6 text-white" />
           </div>
           <h3 className="mt-5 text-lg font-semibold text-black">No packs yet</h3>

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Sparkles, Loader2, User, Zap, Clock } from 'lucide-react';
 import { api } from '@/lib/client/api';
-import { cn } from '@/lib/utils';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 import { MarkdownView } from '@/components/ui/MarkdownView';
 import { useCooldown } from '@/lib/client/useCooldown';
 
@@ -105,7 +105,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-black/[0.06]">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-black">
+          <div className={cn('relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', GLOSS_BLACK)}>
             <Sparkles className="h-4 w-4 text-white" />
           </div>
           <div className="min-w-0">
@@ -125,7 +125,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
           <div className="flex justify-center items-center h-full text-black/30 text-sm">Loading…</div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center gap-8">
-            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-black">
+            <div className={cn('relative flex h-16 w-16 items-center justify-center rounded-2xl', GLOSS_BLACK)}>
               <Sparkles className="h-6 w-6 text-white" />
             </div>
             <div>
@@ -189,7 +189,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
               'flex h-9 shrink-0 items-center justify-center rounded-full transition-all cursor-pointer px-2',
               cooldown.active ? 'w-auto min-w-[3rem] bg-black/[0.06] text-black/60' :
               input.trim() && !loading
-                ? 'w-9 bg-black text-white hover:opacity-85'
+                ? cn('w-9 text-white hover:opacity-90', GLOSS_BLACK)
                 : 'w-9 bg-black/[0.06] text-black/30 cursor-not-allowed',
             )}
             aria-label={cooldown.active ? `Wait ${cooldown.secondsLeft} seconds` : 'Send'}
@@ -226,7 +226,7 @@ function MessageBubble({ message }: { message: Message }) {
           'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px]',
           isUser
             ? 'bg-black/[0.06] border border-black/[0.08] text-black/70'
-            : 'bg-black text-white',
+            : cn('text-white', GLOSS_BLACK),
         )}
       >
         {isUser ? <User className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -265,7 +265,7 @@ function MessageBubble({ message }: { message: Message }) {
 function TypingDots() {
   return (
     <div className="flex gap-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black">
+      <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-lg', GLOSS_BLACK)}>
         <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
       </div>
       <div className="rounded-2xl rounded-tl-md bg-black/[0.03] border border-black/[0.06] px-4 py-3 flex items-center gap-1.5">

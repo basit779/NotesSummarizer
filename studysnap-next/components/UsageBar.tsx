@@ -3,11 +3,12 @@
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { GlassCard } from './ui/GlassCard';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 export function UsageBar({ used, limit }: { used: number; limit: number | null }) {
   if (limit === null) {
     return (
-      <GlassCard className="relative overflow-hidden !bg-black !border-black">
+      <GlassCard className={cn('relative overflow-hidden !border-black', GLOSS_BLACK)}>
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-white" />
           <div className="text-[12px] font-medium text-white/70 uppercase tracking-wide">Pro · Unlimited</div>

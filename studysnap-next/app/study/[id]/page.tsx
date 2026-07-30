@@ -9,7 +9,7 @@ import { api } from '@/lib/client/api';
 import { Protected } from '@/components/Protected';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { MotionButton } from '@/components/ui/MotionButton';
-import { cn } from '@/lib/utils';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 interface Card { front: string; back: string; }
 type CardState = 'new' | 'learning' | 'mastered';
@@ -132,7 +132,7 @@ function StudyInner() {
       <div className="mx-auto max-w-2xl px-6 py-16">
         <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}>
           <GlassCard className="text-center !py-12">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-black">
+            <div className={cn('mx-auto flex h-14 w-14 items-center justify-center rounded-2xl', GLOSS_BLACK)}>
               <Trophy className="h-6 w-6 text-white" />
             </div>
             <h2 className="mt-5 text-2xl font-semibold text-black">Session complete</h2>
@@ -217,7 +217,7 @@ function StudyInner() {
                 </div>
               </div>
               {/* back */}
-              <div className="absolute inset-0 rounded-2xl border border-black bg-black p-8 md:p-12 [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col">
+              <div className={cn('absolute inset-0 rounded-2xl border border-black p-8 md:p-12 [backface-visibility:hidden] [transform:rotateY(180deg)] flex flex-col', GLOSS_BLACK)}>
                 <div className="flex items-center justify-between">
                   <div className="text-[12px] font-medium text-white/70 uppercase tracking-wide">Answer</div>
                   <div className="text-[12px] text-white/40">Space to flip back</div>

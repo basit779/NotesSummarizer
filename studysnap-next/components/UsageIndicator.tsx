@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { api } from '@/lib/client/api';
 import { useAuth } from '@/lib/client/auth';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 export function UsageIndicator() {
   const user = useAuth((s) => s.user);
@@ -23,7 +24,7 @@ export function UsageIndicator() {
 
   if (user.plan === 'PRO') {
     return (
-      <div className="flex items-center gap-1.5 rounded-full bg-black px-3 py-1 text-xs text-white">
+      <div className={cn('flex items-center gap-1.5 rounded-full px-3 py-1 text-xs text-white', GLOSS_BLACK)}>
         <Sparkles className="h-3 w-3" />
         <span>Pro · unlimited</span>
       </div>

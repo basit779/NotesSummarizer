@@ -18,7 +18,7 @@ import { MotionButton } from '@/components/ui/MotionButton';
 import { MarkdownView } from '@/components/ui/MarkdownView';
 import { Flashcard } from '@/components/Flashcard';
 import { Chat } from '@/components/Chat';
-import { cn } from '@/lib/utils';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 interface ExamQ {
   question: string;
@@ -251,7 +251,7 @@ function ResultsInner() {
       >
         <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-5">
           <div className="flex items-start gap-4 min-w-0 flex-1">
-            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-black">
+            <div className={cn('relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl', GLOSS_BLACK)}>
               <FileText className="h-6 w-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
@@ -590,7 +590,7 @@ function ResultsInner() {
         {!chatOpen && (
           <button
             onClick={() => setChatOpen(true)}
-            className="xl:hidden fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-black hover:opacity-85 text-white px-4 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.25)] cursor-pointer transition-opacity"
+            className={cn('xl:hidden fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full hover:opacity-90 text-white px-4 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.3)] cursor-pointer transition-opacity', GLOSS_BLACK)}
             aria-label="Open AI chat"
           >
             <MessageSquare className="h-4 w-4" />

@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/Label';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { MotionButton } from '@/components/ui/MotionButton';
 import { api } from '@/lib/client/api';
+import { cn, GLOSS_BLACK } from '@/lib/utils';
 
 type ResultState =
   | { kind: 'sent'; email: string }
@@ -71,7 +72,7 @@ export default function ForgotPasswordPage() {
             </form>
           ) : result.kind === 'sent' ? (
             <div className="space-y-4 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-black">
+              <div className={cn('mx-auto flex h-12 w-12 items-center justify-center rounded-full', GLOSS_BLACK)}>
                 <CheckCircle2 className="h-6 w-6 text-white" />
               </div>
               <div>

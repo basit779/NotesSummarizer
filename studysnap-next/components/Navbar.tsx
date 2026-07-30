@@ -94,7 +94,7 @@ export function Navbar() {
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="mx-auto max-w-6xl px-4"
       >
-        <div className="relative flex h-12 items-center justify-between rounded-full border border-black/[0.08] bg-white/85 pl-2 pr-2 backdrop-blur-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+        <div className="relative flex h-14 items-center justify-between rounded-full border border-black/[0.06] bg-white/80 pl-2 pr-2 backdrop-blur-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(0,0,0,0.04),0_16px_40px_-20px_rgba(0,0,0,0.16)]">
           <Logo />
 
           {loading && !user ? (
