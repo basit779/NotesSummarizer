@@ -13,11 +13,11 @@ export default function NotFound() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <div className="mono text-[11px] text-mint-400 tracking-widest">// 404</div>
-        <h1 className="mt-3 mono text-[40px] md:text-[56px] leading-[1.05] font-semibold tracking-tightest text-white text-balance">
+        <div className="mono text-[11px] text-black/50 tracking-widest">// 404</div>
+        <h1 className="mt-3 mono text-[40px] md:text-[56px] leading-[1.05] font-semibold tracking-tightest text-black text-balance">
           Lost in the notes <span className="inline-block">📚</span>
         </h1>
-        <p className="mt-4 text-white/55 text-[15px] md:text-[16px] max-w-md mx-auto">
+        <p className="mt-4 text-black/55 text-[15px] md:text-[16px] max-w-md mx-auto">
           This page doesn&rsquo;t exist. Might be a stale link, a typo, or a pack that was deleted.
         </p>
       </motion.div>

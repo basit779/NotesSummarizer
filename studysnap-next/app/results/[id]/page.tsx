@@ -19,7 +19,6 @@ import { MarkdownView } from '@/components/ui/MarkdownView';
 import { Flashcard } from '@/components/Flashcard';
 import { Chat } from '@/components/Chat';
 import { cn } from '@/lib/utils';
-import { MouseGlow } from '@/components/ui/MouseGlow';
 
 interface ExamQ {
   question: string;
@@ -73,9 +72,9 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
   const correctLetter = (q.correct ?? '').toUpperCase().trim().replace(/[).]/g, '').charAt(0);
   const diff = q.difficulty.toLowerCase();
   const tone =
-    diff === 'easy' ? 'border-emerald-500/25 bg-emerald-500/[0.07] text-emerald-300' :
-    diff === 'medium' ? 'border-amber-500/25 bg-amber-500/[0.07] text-amber-300' :
-    'border-rose-500/25 bg-rose-500/[0.07] text-rose-300';
+    diff === 'easy' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+    diff === 'medium' ? 'border-amber-200 bg-amber-50 text-amber-700' :
+    'border-rose-200 bg-rose-50 text-rose-700';
 
   function getLetter(opt: string, i: number) {
     const m = opt.match(/^([A-D])[).]\s*(.*)$/i);
@@ -89,12 +88,12 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.035, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-transparent p-5 md:p-6 hover:border-white/[0.09] transition-colors">
+      <div className="rounded-2xl border border-black/[0.08] bg-white p-5 md:p-6 hover:border-black/[0.15] transition-colors">
         <div className="flex items-start justify-between gap-3 mb-5">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <span className="mono text-[11px] text-white/40 shrink-0 pt-1">Q{String(index + 1).padStart(2, '0')}</span>
+            <span className="mono text-[11px] text-black/40 shrink-0 pt-1">Q{String(index + 1).padStart(2, '0')}</span>
             <div className="min-w-0 flex-1">
-              <div className="text-white font-medium leading-relaxed text-[14.5px] md:text-[15px]">{q.question}</div>
+              <div className="text-black font-medium leading-relaxed text-[14.5px] md:text-[15px]">{q.question}</div>
             </div>
           </div>
           <span className={cn('mono shrink-0 rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wider', tone)}>{q.difficulty}</span>
@@ -115,21 +114,21 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
                   disabled={revealed}
                   className={cn(
                     'w-full text-left rounded-xl border px-4 py-3 text-sm transition-all cursor-pointer flex items-start gap-3',
-                    !revealed && 'border-white/[0.06] bg-white/[0.015] hover:bg-white/[0.04] hover:border-white/[0.12] text-white/85',
-                    revealed && !showState && 'border-white/[0.04] bg-white/[0.01] text-white/35',
-                    showState && isCorrect && 'border-emerald-500/40 bg-emerald-500/[0.08] text-emerald-100',
-                    showState && !isCorrect && 'border-rose-500/40 bg-rose-500/[0.08] text-rose-100',
+                    !revealed && 'border-black/[0.08] bg-black/[0.015] hover:bg-black/[0.04] hover:border-black/20 text-black/85',
+                    revealed && !showState && 'border-black/[0.05] bg-black/[0.01] text-black/35',
+                    showState && isCorrect && 'border-emerald-300 bg-emerald-50 text-emerald-800',
+                    showState && !isCorrect && 'border-rose-300 bg-rose-50 text-rose-800',
                   )}
                 >
                   <span className={cn(
                     'mono text-[11px] shrink-0 flex h-6 w-6 items-center justify-center rounded-md border',
-                    !revealed && 'border-white/[0.08] bg-white/[0.02] text-white/50',
-                    revealed && !showState && 'border-white/[0.05] bg-white/[0.01] text-white/25',
-                    showState && isCorrect && 'border-emerald-500/50 bg-emerald-500/15 text-emerald-200',
-                    showState && !isCorrect && 'border-rose-500/50 bg-rose-500/15 text-rose-200',
+                    !revealed && 'border-black/[0.1] bg-black/[0.02] text-black/50',
+                    revealed && !showState && 'border-black/[0.06] bg-black/[0.01] text-black/25',
+                    showState && isCorrect && 'border-emerald-400 bg-emerald-100 text-emerald-700',
+                    showState && !isCorrect && 'border-rose-400 bg-rose-100 text-rose-700',
                   )}>{letter}</span>
                   <span className="pt-0.5 flex-1">{text}</span>
-                  {showState && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />}
+                  {showState && isCorrect && <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />}
                 </button>
               );
             })}
@@ -141,9 +140,9 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="rounded-xl border border-mint-500/20 bg-gradient-to-br from-mint-500/[0.07] to-mint-500/[0.02] p-4 mt-3">
-                    <div className="mono text-[11px] text-mint-300 mb-1.5 tracking-wider">EXPLANATION</div>
-                    <div className="text-[13.5px] text-white/85 leading-relaxed">{q.explanation}</div>
+                  <div className="rounded-xl border border-black/[0.1] bg-black/[0.02] p-4 mt-3">
+                    <div className="mono text-[11px] text-black/60 mb-1.5 tracking-wider">EXPLANATION</div>
+                    <div className="text-[13.5px] text-black/80 leading-relaxed">{q.explanation}</div>
                   </div>
                 </motion.div>
               )}
@@ -151,11 +150,11 @@ function QuizQuestion({ q, index }: { q: ExamQ; index: number }) {
           </div>
         ) : (
           <details className="group">
-            <summary className="mono cursor-pointer list-none inline-flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] text-white/60 hover:text-mint-300 hover:border-mint-500/30 transition-colors">
+            <summary className="mono cursor-pointer list-none inline-flex items-center gap-1.5 rounded-lg border border-black/[0.1] bg-black/[0.03] px-3 py-1.5 text-[11px] text-black/60 hover:text-black hover:border-black/20 transition-colors">
               reveal answer
             </summary>
-            <p className="mt-3 text-[14px] text-white/80 leading-relaxed">{q.answer}</p>
-            {q.explanation && <p className="mt-2 text-[13px] text-white/60 leading-relaxed"><span className="mono text-[11px] text-mint-300">why: </span>{q.explanation}</p>}
+            <p className="mt-3 text-[14px] text-black/80 leading-relaxed">{q.answer}</p>
+            {q.explanation && <p className="mt-2 text-[13px] text-black/60 leading-relaxed"><span className="mono text-[11px] text-black/50">why: </span>{q.explanation}</p>}
           </details>
         )}
       </div>
@@ -167,12 +166,12 @@ function Loading() {
   return (
     <div className="mx-auto max-w-[1600px] px-4 md:px-6 py-8">
       <div className="space-y-6 animate-pulse">
-        <div className="h-4 w-32 rounded bg-white/[0.05]" />
-        <div className="h-16 rounded-3xl bg-white/[0.03]" />
+        <div className="h-4 w-32 rounded bg-black/[0.06]" />
+        <div className="h-16 rounded-3xl bg-black/[0.04]" />
         <div className="grid md:grid-cols-[220px_1fr_380px] gap-5 mt-8">
-          <div className="h-64 rounded-2xl bg-white/[0.03]" />
-          <div className="h-[600px] rounded-3xl bg-white/[0.03]" />
-          <div className="h-[600px] rounded-3xl bg-white/[0.03]" />
+          <div className="h-64 rounded-2xl bg-black/[0.04]" />
+          <div className="h-[600px] rounded-3xl bg-black/[0.04]" />
+          <div className="h-[600px] rounded-3xl bg-black/[0.04]" />
         </div>
       </div>
     </div>
@@ -224,14 +223,12 @@ function ResultsInner() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-ink-950 font-sans">
-      <MouseGlow />
-      <div className="absolute top-0 right-1/4 w-[600px] h-[500px] bg-mint-500/10 blur-[150px] rounded-full pointer-events-none" />
+    <div className="min-h-screen relative overflow-hidden bg-white font-sans">
       <div className="mx-auto max-w-[1600px] px-4 md:px-6 py-6 md:py-8 relative z-10 pt-[100px]">
       {/* Breadcrumb */}
       <Link
         href="/history"
-        className="mono text-[11px] text-white/40 hover:text-white inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+        className="mono text-[11px] text-black/40 hover:text-black inline-flex items-center gap-1.5 transition-colors cursor-pointer"
       >
         <ArrowLeft className="h-3 w-3" /> back to history
       </Link>
@@ -241,41 +238,38 @@ function ResultsInner() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="mt-3 relative overflow-hidden rounded-3xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] via-white/[0.015] to-transparent p-5 md:p-7"
+        className="mt-3 relative overflow-hidden rounded-3xl border border-black/[0.08] bg-white p-5 md:p-7"
       >
-        <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-mint-500/[0.10] blur-3xl" aria-hidden />
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-mint-400/30 to-transparent" aria-hidden />
         <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-5">
           <div className="flex items-start gap-4 min-w-0 flex-1">
-            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-mint-500/25 bg-gradient-to-b from-mint-500/[0.16] to-mint-500/[0.04] shadow-[0_0_30px_-8px_rgba(16,185,129,0.5)]">
-              <FileText className="h-6 w-6 text-mint-400" />
-              <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-mint-400 shadow-[0_0_10px_rgba(16,185,129,0.9)]" />
+            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-black">
+              <FileText className="h-6 w-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="mono text-[11px] text-mint-300 tracking-widest">STUDY PACK</div>
-              <h1 className="mt-1 mono text-[24px] md:text-[30px] leading-[1.1] font-semibold tracking-tightest text-white break-words">
+              <div className="mono text-[11px] text-black/50 tracking-widest">STUDY PACK</div>
+              <h1 className="mt-1 mono text-[24px] md:text-[30px] leading-[1.1] font-semibold tracking-tightest text-black break-words">
                 {result.title || result.file.filename}
               </h1>
               {result.title && (
-                <div className="mt-1 text-[12.5px] text-white/40 truncate flex items-center gap-1.5">
+                <div className="mt-1 text-[12.5px] text-black/40 truncate flex items-center gap-1.5">
                   <Hash className="h-3 w-3" /> {result.file.filename}
                 </div>
               )}
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 mono text-[11px] text-white/45">
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 mono text-[11px] text-black/45">
                 <span className="inline-flex items-center gap-1.5"><Clock className="h-3 w-3" />{new Date(result.createdAt).toLocaleString()}</span>
-                <span className="text-white/20">·</span>
+                <span className="text-black/20">·</span>
                 <span>{result.file.pageCount ?? '?'} pages</span>
                 {stats && (<>
-                  <span className="text-white/20">·</span>
-                  <span className="text-white/60">{stats.cards} cards</span>
-                  <span className="text-white/20">·</span>
-                  <span className="text-white/60">{stats.qs} questions</span>
+                  <span className="text-black/20">·</span>
+                  <span className="text-black/60">{stats.cards} cards</span>
+                  <span className="text-black/20">·</span>
+                  <span className="text-black/60">{stats.qs} questions</span>
                 </>)}
                 {result.model && (<>
-                  <span className="text-white/20">·</span>
+                  <span className="text-black/20">·</span>
                   {/* Temporary debug chip: which model generated this pack */}
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-full border border-mint-500/20 bg-mint-500/[0.06] px-2 py-0.5 text-mint-300/90"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] bg-black/[0.04] px-2 py-0.5 text-black/60"
                     title={result.fallbackUsed ? `fallback used: ${result.fallbackUsed}` : 'primary model'}
                   >
                     <Cpu className="h-3 w-3" />
@@ -288,7 +282,7 @@ function ResultsInner() {
           <div className="flex flex-wrap gap-2 shrink-0">
             <button
               onClick={() => copy(result.summary)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[13px] text-white/70 hover:text-white hover:border-white/[0.14] hover:bg-white/[0.06] transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-black/[0.03] px-3.5 py-2 text-[13px] text-black/70 hover:text-black hover:border-black/[0.15] hover:bg-black/[0.06] transition-all cursor-pointer"
             >
               <Copy className="h-3.5 w-3.5" /> Copy notes
             </button>
@@ -299,7 +293,7 @@ function ResultsInner() {
             </Link>
             <button
               onClick={() => setChatOpen((o) => !o)}
-              className="hidden xl:inline-flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[13px] text-white/70 hover:text-white hover:border-white/[0.14] hover:bg-white/[0.06] transition-all cursor-pointer"
+              className="hidden xl:inline-flex items-center gap-1.5 rounded-xl border border-black/[0.08] bg-black/[0.03] px-3 py-2 text-[13px] text-black/70 hover:text-black hover:border-black/[0.15] hover:bg-black/[0.06] transition-all cursor-pointer"
               aria-label={chatOpen ? 'Hide chat' : 'Show chat'}
             >
               {chatOpen ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
@@ -320,8 +314,8 @@ function ResultsInner() {
       >
         {/* Sidebar */}
         <aside className="lg:sticky lg:top-24 lg:self-start order-2 lg:order-1">
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2">
-            <div className="px-3 py-2 mono text-[10px] text-white/40 tracking-widest">CONTENTS</div>
+          <div className="rounded-2xl border border-black/[0.08] bg-black/[0.02] p-2">
+            <div className="px-3 py-2 mono text-[10px] text-black/40 tracking-widest">CONTENTS</div>
             <nav className="space-y-0.5">
               {TABS.map((t) => {
                 const active = t.id === tab;
@@ -333,23 +327,23 @@ function ResultsInner() {
                     className={cn(
                       'group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] transition-all cursor-pointer',
                       active
-                        ? 'text-white bg-white/[0.05]'
-                        : 'text-white/55 hover:text-white hover:bg-white/[0.03]',
+                        ? 'text-black bg-black/[0.05]'
+                        : 'text-black/55 hover:text-black hover:bg-black/[0.03]',
                     )}
                   >
                     {active && (
                       <motion.span
                         layoutId="sidebar-active"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-mint-400"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-black"
                         transition={{ type: 'spring', stiffness: 500, damping: 32 }}
                       />
                     )}
-                    <t.icon className={cn('h-4 w-4 shrink-0 transition-colors', active ? 'text-mint-400' : 'text-white/40 group-hover:text-white/70')} />
+                    <t.icon className={cn('h-4 w-4 shrink-0 transition-colors', active ? 'text-black' : 'text-black/40 group-hover:text-black/70')} />
                     <span className="flex-1 text-left truncate">{t.label}</span>
                     {typeof count === 'number' && count > 0 && (
                       <span className={cn(
                         'mono text-[10px] rounded px-1.5 py-0.5 transition-colors',
-                        active ? 'bg-mint-500/15 text-mint-300' : 'bg-white/[0.04] text-white/40',
+                        active ? 'bg-black/10 text-black/70' : 'bg-black/[0.04] text-black/40',
                       )}>{count}</span>
                     )}
                   </button>
@@ -357,18 +351,18 @@ function ResultsInner() {
               })}
               <button
                 onClick={() => setChatOpen(true)}
-                className="group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] transition-all cursor-pointer text-white/55 hover:text-white hover:bg-white/[0.03] xl:hidden"
+                className="group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13.5px] transition-all cursor-pointer text-black/55 hover:text-black hover:bg-black/[0.03] xl:hidden"
               >
-                <MessageSquare className="h-4 w-4 shrink-0 text-white/40 group-hover:text-white/70 transition-colors" />
+                <MessageSquare className="h-4 w-4 shrink-0 text-black/40 group-hover:text-black/70 transition-colors" />
                 <span className="flex-1 text-left">Ask AI</span>
               </button>
             </nav>
           </div>
 
-          <div className="mt-3 rounded-2xl border border-white/[0.04] bg-gradient-to-b from-white/[0.015] to-transparent p-4">
-            <div className="mono text-[10px] text-mint-400 tracking-widest">PRO TIP</div>
-            <div className="mt-1.5 text-[12.5px] text-white/70 leading-relaxed">
-              Use <span className="text-white">Flashcards</span> + <span className="text-white">Quiz</span> for active recall — 2× more effective than re-reading.
+          <div className="mt-3 rounded-2xl border border-black/[0.06] bg-black/[0.015] p-4">
+            <div className="mono text-[10px] text-black/50 tracking-widest">PRO TIP</div>
+            <div className="mt-1.5 text-[12.5px] text-black/70 leading-relaxed">
+              Use <span className="text-black">Flashcards</span> + <span className="text-black">Quiz</span> for active recall — 2× more effective than re-reading.
             </div>
           </div>
         </aside>
@@ -384,11 +378,11 @@ function ResultsInner() {
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             >
               {tab === 'notes' && (
-                <article className="rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-10">
+                <article className="rounded-3xl border border-black/[0.08] bg-white p-6 md:p-10">
                   <div className="flex items-center justify-between mb-5">
                     <div>
-                      <div className="mono text-[11px] text-mint-400 tracking-widest">// study notes</div>
-                      <h2 className="mt-1 mono text-xl font-semibold text-white">Your structured notes.</h2>
+                      <div className="mono text-[11px] text-black/50 tracking-widest">// study notes</div>
+                      <h2 className="mt-1 mono text-xl font-semibold text-black">Your structured notes.</h2>
                     </div>
                   </div>
                   <MarkdownView content={result.summary} />
@@ -396,10 +390,10 @@ function ResultsInner() {
               )}
 
               {tab === 'key' && (
-                <div className="rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-10">
+                <div className="rounded-3xl border border-black/[0.08] bg-white p-6 md:p-10">
                   <div className="mb-6">
-                    <div className="mono text-[11px] text-mint-400 tracking-widest">// key points</div>
-                    <h2 className="mt-1 mono text-xl font-semibold text-white">What matters most.</h2>
+                    <div className="mono text-[11px] text-black/50 tracking-widest">// key points</div>
+                    <h2 className="mt-1 mono text-xl font-semibold text-black">What matters most.</h2>
                   </div>
                   <ul className="space-y-3">
                     {result.keyPoints.map((p, i) => (
@@ -408,12 +402,12 @@ function ResultsInner() {
                         initial={{ opacity: 0, x: -8 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.035, duration: 0.4 }}
-                        className="group flex gap-4 rounded-2xl px-3 py-3 hover:bg-white/[0.02] transition-colors"
+                        className="group flex gap-4 rounded-2xl px-3 py-3 hover:bg-black/[0.02] transition-colors"
                       >
-                        <span className="mono flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-mint-500/20 bg-gradient-to-b from-mint-500/[0.10] to-mint-500/[0.02] text-[11px] text-mint-300">
+                        <span className="mono flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-black/[0.1] bg-black/[0.03] text-[11px] text-black/60">
                           {String(i + 1).padStart(2, '0')}
                         </span>
-                        <span className="text-[15px] text-white/85 leading-relaxed pt-1">{p}</span>
+                        <span className="text-[15px] text-black/80 leading-relaxed pt-1">{p}</span>
                       </motion.li>
                     ))}
                   </ul>
@@ -423,8 +417,8 @@ function ResultsInner() {
               {tab === 'defs' && (
                 <div>
                   <div className="mb-6 px-1">
-                    <div className="mono text-[11px] text-mint-400 tracking-widest">// definitions</div>
-                    <h2 className="mt-1 mono text-xl font-semibold text-white">Every term, explained.</h2>
+                    <div className="mono text-[11px] text-black/50 tracking-widest">// definitions</div>
+                    <h2 className="mt-1 mono text-xl font-semibold text-black">Every term, explained.</h2>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2">
                     {result.definitions.map((d, i) => (
@@ -433,11 +427,11 @@ function ResultsInner() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.035, duration: 0.45 }}
-                        className="group relative overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.03] to-transparent p-5 hover:border-mint-500/20 hover:from-mint-500/[0.04] transition-all"
+                        className="group relative overflow-hidden rounded-2xl border border-black/[0.08] bg-white p-5 hover:border-black/20 transition-all"
                       >
-                        <div className="mono text-[10px] text-mint-400/80 tracking-widest">DEF · {String(i + 1).padStart(2, '0')}</div>
-                        <div className="mt-2 font-semibold text-white text-[15px] leading-tight">{d.term}</div>
-                        <div className="mt-2 text-[13.5px] text-white/60 leading-relaxed">{d.definition}</div>
+                        <div className="mono text-[10px] text-black/40 tracking-widest">DEF · {String(i + 1).padStart(2, '0')}</div>
+                        <div className="mt-2 font-semibold text-black text-[15px] leading-tight">{d.term}</div>
+                        <div className="mt-2 text-[13.5px] text-black/60 leading-relaxed">{d.definition}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -448,8 +442,8 @@ function ResultsInner() {
                 <div>
                   <div className="mb-6 flex items-end justify-between flex-wrap gap-3 px-1">
                     <div>
-                      <div className="mono text-[11px] text-mint-400 tracking-widest">// flashcards</div>
-                      <h2 className="mt-1 mono text-xl font-semibold text-white">Active recall in seconds.</h2>
+                      <div className="mono text-[11px] text-black/50 tracking-widest">// flashcards</div>
+                      <h2 className="mt-1 mono text-xl font-semibold text-black">Active recall in seconds.</h2>
                     </div>
                     <div className="flex gap-2">
                       <Link href={`/study/${result.id}`}>
@@ -482,8 +476,8 @@ function ResultsInner() {
                 <div>
                   <div className="mb-6 flex items-end justify-between flex-wrap gap-3 px-1">
                     <div>
-                      <div className="mono text-[11px] text-mint-400 tracking-widest">// quiz</div>
-                      <h2 className="mt-1 mono text-xl font-semibold text-white">Test what you know.</h2>
+                      <div className="mono text-[11px] text-black/50 tracking-widest">// quiz</div>
+                      <h2 className="mt-1 mono text-xl font-semibold text-black">Test what you know.</h2>
                     </div>
                     {result.examQuestions.some((q) => q.options && q.options.length >= 2) && (
                       <Link href={`/quiz/${result.id}`}>
@@ -504,12 +498,12 @@ function ResultsInner() {
               {tab === 'tips' && (
                 <div className="space-y-5">
                   <div className="px-1">
-                    <div className="mono text-[11px] text-mint-400 tracking-widest">// study tips</div>
-                    <h2 className="mt-1 mono text-xl font-semibold text-white">Learn smarter, not harder.</h2>
+                    <div className="mono text-[11px] text-black/50 tracking-widest">// study tips</div>
+                    <h2 className="mt-1 mono text-xl font-semibold text-black">Learn smarter, not harder.</h2>
                   </div>
                   {result.studyTips && result.studyTips.length > 0 && (
-                    <div className="rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-8">
-                      <div className="mono text-[11px] text-mint-400 mb-4 tracking-widest">// tactics for THIS content</div>
+                    <div className="rounded-3xl border border-black/[0.08] bg-white p-6 md:p-8">
+                      <div className="mono text-[11px] text-black/50 mb-4 tracking-widest">// tactics for THIS content</div>
                       <ul className="space-y-3">
                         {result.studyTips.map((t, i) => (
                           <motion.li
@@ -517,9 +511,9 @@ function ResultsInner() {
                             initial={{ opacity: 0, x: -4 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.04 }}
-                            className="flex gap-3 text-[14.5px] text-white/80 leading-relaxed"
+                            className="flex gap-3 text-[14.5px] text-black/75 leading-relaxed"
                           >
-                            <span className="mono text-mint-400 shrink-0">▸</span>
+                            <span className="mono text-black/40 shrink-0">▸</span>
                             <span>{t}</span>
                           </motion.li>
                         ))}
@@ -527,8 +521,8 @@ function ResultsInner() {
                     </div>
                   )}
                   {result.topicConnections && result.topicConnections.length > 0 && (
-                    <div className="rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.02] to-transparent p-6 md:p-8">
-                      <div className="mono text-[11px] text-mint-400 mb-4 tracking-widest">// how this connects</div>
+                    <div className="rounded-3xl border border-black/[0.08] bg-white p-6 md:p-8">
+                      <div className="mono text-[11px] text-black/50 mb-4 tracking-widest">// how this connects</div>
                       <ul className="space-y-3">
                         {result.topicConnections.map((t, i) => (
                           <motion.li
@@ -536,9 +530,9 @@ function ResultsInner() {
                             initial={{ opacity: 0, x: -4 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: i * 0.04 }}
-                            className="flex gap-3 text-[14.5px] text-white/80 leading-relaxed"
+                            className="flex gap-3 text-[14.5px] text-black/75 leading-relaxed"
                           >
-                            <span className="mono text-mint-400 shrink-0">◇</span>
+                            <span className="mono text-black/40 shrink-0">◇</span>
                             <span>{t}</span>
                           </motion.li>
                         ))}
@@ -547,7 +541,7 @@ function ResultsInner() {
                   )}
                   {!result.studyTips?.length && !result.topicConnections?.length && (
                     <GlassCard className="text-center !py-14">
-                      <div className="mono text-xs text-white/40">no study tips for this pack</div>
+                      <div className="mono text-xs text-black/40">no study tips for this pack</div>
                     </GlassCard>
                   )}
                 </div>
@@ -570,7 +564,7 @@ function ResultsInner() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="xl:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+                className="xl:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
                 onClick={() => setChatOpen(false)}
               />
               <motion.div
@@ -584,7 +578,7 @@ function ResultsInner() {
                 <div className="h-full relative">
                   <button
                     onClick={() => setChatOpen(false)}
-                    className="absolute -top-2 -left-2 z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.08] bg-ink-950 text-white/60 hover:text-white hover:bg-white/[0.05] transition-colors cursor-pointer"
+                    className="absolute -top-2 -left-2 z-10 flex h-9 w-9 items-center justify-center rounded-xl border border-black/[0.08] bg-white text-black/60 hover:text-black hover:bg-black/[0.05] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
                     aria-label="Close chat"
                   >
                     <PanelRightClose className="h-4 w-4" />
@@ -600,7 +594,7 @@ function ResultsInner() {
         {!chatOpen && (
           <button
             onClick={() => setChatOpen(true)}
-            className="xl:hidden fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-mint-500 hover:bg-mint-400 text-ink-950 px-4 py-3 shadow-[0_8px_30px_rgba(16,185,129,0.45)] cursor-pointer transition-colors"
+            className="xl:hidden fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-full bg-black hover:opacity-85 text-white px-4 py-3 shadow-[0_8px_30px_rgba(0,0,0,0.25)] cursor-pointer transition-opacity"
             aria-label="Open AI chat"
           >
             <MessageSquare className="h-4 w-4" />

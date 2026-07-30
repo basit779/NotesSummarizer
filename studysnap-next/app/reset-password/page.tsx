@@ -50,27 +50,27 @@ function ResetInner() {
         className="w-full max-w-md"
       >
         <div className="mb-6 text-center">
-          <div className="mono text-xs text-mint-400">// reset password</div>
-          <h1 className="mt-2 mono text-3xl font-semibold tracking-tightest text-white">Set a new password</h1>
-          <p className="mt-2 text-sm text-white/50">Paste your reset token and pick a new password.</p>
+          <div className="mono text-xs text-black/50">// reset password</div>
+          <h1 className="mt-2 mono text-3xl font-semibold tracking-tightest text-black">Set a new password</h1>
+          <p className="mt-2 text-sm text-black/50">Paste your reset token and pick a new password.</p>
         </div>
         <GlassCard className="!p-8">
           <form onSubmit={onSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="token" className="mono text-xs text-white/60">TOKEN</Label>
+              <Label htmlFor="token" className="mono text-xs text-black/60">TOKEN</Label>
               <Input id="token" value={token} onChange={(e) => setToken(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="newPassword" className="mono text-xs text-white/60">NEW PASSWORD</Label>
+              <Label htmlFor="newPassword" className="mono text-xs text-black/60">NEW PASSWORD</Label>
               <Input id="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={8} />
             </div>
             <MotionButton type="submit" className="w-full" loading={loading}>
               {loading ? 'Updating…' : <>Update password <ArrowRight className="h-4 w-4" /></>}
             </MotionButton>
           </form>
-          <p className="mt-6 text-center text-sm text-white/50">
+          <p className="mt-6 text-center text-sm text-black/50">
             Remembered it?{' '}
-            <Link href="/login" className="text-mint-400 hover:text-mint-300 transition-colors cursor-pointer">Back to sign in</Link>
+            <Link href="/login" className="text-black hover:text-black/70 transition-colors cursor-pointer">Back to sign in</Link>
           </p>
         </GlassCard>
       </motion.div>

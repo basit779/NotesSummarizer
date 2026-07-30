@@ -23,7 +23,7 @@ export function RouteProgress() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           style={{ transformOrigin: '0% 50%' }}
-          className="fixed top-0 left-0 right-0 z-[60] h-[2px] bg-gradient-to-r from-mint-500 to-mint-400"
+          className="fixed top-0 left-0 right-0 z-[60] h-[2px] bg-black"
         />
       )}
     </AnimatePresence>

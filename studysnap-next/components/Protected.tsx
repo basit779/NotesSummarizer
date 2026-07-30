@@ -12,7 +12,7 @@ export function Protected({ children }: { children: React.ReactNode }) {
     if (!loading && !user) router.replace('/login');
   }, [loading, user, router]);
 
-  if (loading) return <div className="mx-auto max-w-6xl px-6 py-20 text-center text-white/40 mono text-sm">loading…</div>;
+  if (loading) return <div className="mx-auto max-w-6xl px-6 py-20 text-center text-black/40 mono text-sm">loading…</div>;
   if (!user) return null;
   return <>{children}</>;
 }

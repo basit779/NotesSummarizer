@@ -1,20 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Inter } from 'next/font/google';
 import { motion } from 'framer-motion';
 import { Plus, LayoutDashboard, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/client/auth';
 import { StudySnapLogo } from '@/components/brand/StudySnapLogo';
 import styles from './page.module.css';
-
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
-  display: 'swap',
-});
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -96,15 +89,8 @@ function MenuDropdown() {
 }
 
 export default function LandingPage() {
-  useEffect(() => {
-    document.body.setAttribute('data-landing', 'true');
-    return () => {
-      document.body.removeAttribute('data-landing');
-    };
-  }, []);
-
   return (
-    <div className={`${styles.page} ${inter.className}`}>
+    <div className={styles.page}>
       <motion.nav
         className={styles.navbar}
         initial={{ y: -16, opacity: 0 }}

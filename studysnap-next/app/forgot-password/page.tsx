@@ -54,15 +54,15 @@ export default function ForgotPasswordPage() {
         className="w-full max-w-md"
       >
         <div className="mb-6 text-center">
-          <div className="mono text-xs text-mint-400">// forgot password</div>
-          <h1 className="mt-2 mono text-3xl font-semibold tracking-tightest text-white">Reset your password</h1>
-          <p className="mt-2 text-sm text-white/50">Enter your email to get a reset link.</p>
+          <div className="mono text-xs text-black/50">// forgot password</div>
+          <h1 className="mt-2 mono text-3xl font-semibold tracking-tightest text-black">Reset your password</h1>
+          <p className="mt-2 text-sm text-black/50">Enter your email to get a reset link.</p>
         </div>
         <GlassCard className="!p-8">
           {!result ? (
             <form onSubmit={onSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email" className="mono text-xs text-white/60">EMAIL</Label>
+                <Label htmlFor="email" className="mono text-xs text-black/60">EMAIL</Label>
                 <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <MotionButton type="submit" className="w-full" loading={loading}>
@@ -71,15 +71,15 @@ export default function ForgotPasswordPage() {
             </form>
           ) : result.kind === 'sent' ? (
             <div className="space-y-4 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-mint-500/15 border border-mint-500/30">
-                <CheckCircle2 className="h-6 w-6 text-mint-400" />
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-black">
+                <CheckCircle2 className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h2 className="mono text-lg font-semibold text-white">Check your inbox</h2>
-                <p className="mt-2 text-sm text-white/60">
-                  If an account exists for <span className="text-white/90">{result.email}</span>, we just sent a reset link.
+                <h2 className="mono text-lg font-semibold text-black">Check your inbox</h2>
+                <p className="mt-2 text-sm text-black/60">
+                  If an account exists for <span className="text-black/90">{result.email}</span>, we just sent a reset link.
                 </p>
-                <p className="mt-2 text-xs text-white/40">The link expires in 15 minutes. Check spam if you don't see it.</p>
+                <p className="mt-2 text-xs text-black/40">The link expires in 15 minutes. Check spam if you don't see it.</p>
               </div>
               <MotionButton variant="outline" size="sm" className="w-full" onClick={() => setResult(null)}>
                 <Mail className="h-3.5 w-3.5" /> Use a different email
@@ -87,11 +87,11 @@ export default function ForgotPasswordPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/[0.08] p-3 text-[12px] text-yellow-300/90 leading-relaxed">
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-[12px] text-amber-900 leading-relaxed">
                 <strong className="mono">DEV MODE:</strong> email delivery isn't configured (<code className="font-mono">RESEND_API_KEY</code> not set). Use the link below to continue. In production this would be emailed.
               </div>
-              <div className="mono text-xs text-mint-400">// reset link (valid 15 min)</div>
-              <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-3 font-mono text-[11px] text-white/80 break-all">
+              <div className="mono text-xs text-black/50">// reset link (valid 15 min)</div>
+              <div className="rounded-lg border border-black/[0.1] bg-black/[0.02] p-3 font-mono text-[11px] text-black/80 break-all">
                 {result.resetUrl}
               </div>
               <div className="flex gap-2">
@@ -104,8 +104,8 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
           )}
-          <p className="mt-6 text-center text-sm text-white/50">
-            <Link href="/login" className="text-mint-400 hover:text-mint-300 transition-colors cursor-pointer">Back to sign in</Link>
+          <p className="mt-6 text-center text-sm text-black/50">
+            <Link href="/login" className="text-black hover:text-black/70 transition-colors cursor-pointer">Back to sign in</Link>
           </p>
         </GlassCard>
       </motion.div>

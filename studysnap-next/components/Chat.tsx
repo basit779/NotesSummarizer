@@ -101,21 +101,20 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-220px)] min-h-[520px] rounded-3xl border border-white/[0.06] bg-gradient-to-b from-white/[0.025] to-white/[0.01] backdrop-blur-xl overflow-hidden shadow-[0_24px_80px_-24px_rgba(0,0,0,0.7)]">
+    <div className="flex flex-col h-[calc(100vh-220px)] min-h-[520px] rounded-3xl border border-black/[0.08] bg-white overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-white/[0.05]">
+      <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-black/[0.06]">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-mint-500/10 border border-mint-500/25">
-            <Sparkles className="h-4 w-4 text-mint-400" />
-            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-mint-400 shadow-[0_0_8px_2px_rgba(16,185,129,0.8)]" />
+          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-black">
+            <Sparkles className="h-4 w-4 text-white" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-medium text-white leading-tight truncate">Ask about this pack</div>
-            <div className="mono text-[10.5px] text-white/40 truncate">{title ?? 'grounded in your notes'}</div>
+            <div className="text-sm font-medium text-black leading-tight truncate">Ask about this pack</div>
+            <div className="mono text-[10.5px] text-black/40 truncate">{title ?? 'grounded in your notes'}</div>
           </div>
         </div>
-        <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 mono text-[10px] text-white/50">
-          <span className="h-1.5 w-1.5 rounded-full bg-mint-400" />
+        <div className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-black/[0.1] bg-black/[0.03] px-2.5 py-1 mono text-[10px] text-black/50">
+          <span className="h-1.5 w-1.5 rounded-full bg-black" />
           multi-model · auto fallback
         </div>
       </div>
@@ -123,19 +122,16 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-5 scroll-smooth">
         {initialLoading ? (
-          <div className="flex justify-center items-center h-full text-white/30 mono text-xs">loading…</div>
+          <div className="flex justify-center items-center h-full text-black/30 mono text-xs">loading…</div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center gap-8">
-            <div className="relative">
-              <div className="absolute inset-0 bg-mint-500/[0.2] blur-2xl rounded-full" />
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-mint-500/25 bg-gradient-to-b from-mint-500/[0.12] to-mint-500/[0.04]">
-                <Sparkles className="h-6 w-6 text-mint-400" />
-              </div>
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-black">
+              <Sparkles className="h-6 w-6 text-white" />
             </div>
             <div>
-              <div className="mono text-xs text-mint-400">// ask anything</div>
-              <h3 className="mt-2 mono text-xl font-semibold text-white">Your private study tutor.</h3>
-              <p className="mt-1.5 text-sm text-white/50 max-w-sm mx-auto">Grounded in the PDF you uploaded — no hallucinations, no fluff.</p>
+              <div className="mono text-xs text-black/50">// ask anything</div>
+              <h3 className="mt-2 mono text-xl font-semibold text-black">Your private study tutor.</h3>
+              <p className="mt-1.5 text-sm text-black/50 max-w-sm mx-auto">Grounded in the PDF you uploaded — no hallucinations, no fluff.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-xl w-full">
               {SUGGESTIONS.map((s, i) => (
@@ -145,15 +141,15 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.08 * i }}
                   onClick={() => send(s.prompt)}
-                  className="group text-left rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-mint-500/25 transition-all px-4 py-3 cursor-pointer"
+                  className="group text-left rounded-2xl border border-black/[0.08] bg-white hover:bg-black/[0.03] hover:border-black/20 transition-all px-4 py-3 cursor-pointer"
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint-500/[0.08] border border-mint-500/15 group-hover:bg-mint-500/[0.14] transition-colors">
-                      <s.icon className="h-3.5 w-3.5 text-mint-400" />
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/[0.06] border border-black/[0.08] group-hover:bg-black/[0.1] transition-colors">
+                      <s.icon className="h-3.5 w-3.5 text-black/70" />
                     </div>
                     <div>
-                      <div className="text-[13px] font-medium text-white/90 leading-tight">{s.label}</div>
-                      <div className="mt-0.5 text-[11.5px] text-white/40">{s.prompt}</div>
+                      <div className="text-[13px] font-medium text-black/90 leading-tight">{s.label}</div>
+                      <div className="mt-0.5 text-[11.5px] text-black/40">{s.prompt}</div>
                     </div>
                   </div>
                 </motion.button>
@@ -174,7 +170,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
       <div className="px-4 md:px-6 pb-5 pt-2">
         <form
           onSubmit={(e) => { e.preventDefault(); send(input); }}
-          className="group relative flex items-end gap-2 rounded-[22px] border border-white/[0.08] bg-white/[0.04] px-3 py-2.5 focus-within:border-mint-500/40 focus-within:bg-white/[0.06] transition-colors shadow-[0_8px_32px_-8px_rgba(0,0,0,0.5)]"
+          className="group relative flex items-end gap-2 rounded-[22px] border border-black/[0.1] bg-black/[0.02] px-3 py-2.5 focus-within:border-black/30 focus-within:bg-white transition-colors"
         >
           <textarea
             ref={inputRef}
@@ -183,7 +179,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
             onKeyDown={onKeyDown}
             placeholder="Ask about this pack…"
             rows={1}
-            className="flex-1 resize-none bg-transparent px-2 pt-1.5 pb-1 text-[14.5px] leading-relaxed text-white placeholder:text-white/30 focus:outline-none max-h-40"
+            className="flex-1 resize-none bg-transparent px-2 pt-1.5 pb-1 text-[14.5px] leading-relaxed text-black placeholder:text-black/35 focus:outline-none max-h-40"
             disabled={loading}
           />
           <motion.button
@@ -191,11 +187,11 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
             disabled={!input.trim() || loading || cooldown.active}
             whileTap={{ scale: 0.95 }}
             className={cn(
-              'flex h-9 shrink-0 items-center justify-center rounded-xl transition-all cursor-pointer px-2',
-              cooldown.active ? 'w-auto min-w-[3rem] bg-white/[0.05] text-white/60' :
+              'flex h-9 shrink-0 items-center justify-center rounded-full transition-all cursor-pointer px-2',
+              cooldown.active ? 'w-auto min-w-[3rem] bg-black/[0.06] text-black/60' :
               input.trim() && !loading
-                ? 'w-9 bg-mint-500 text-ink-950 shadow-[0_0_20px_rgba(16,185,129,0.45)] hover:bg-mint-400'
-                : 'w-9 bg-white/[0.05] text-white/30 cursor-not-allowed',
+                ? 'w-9 bg-black text-white hover:opacity-85'
+                : 'w-9 bg-black/[0.06] text-black/30 cursor-not-allowed',
             )}
             aria-label={cooldown.active ? `Wait ${cooldown.secondsLeft} seconds` : 'Send'}
           >
@@ -209,7 +205,7 @@ export function Chat({ resultId, title }: { resultId: string; title?: string }) 
             )}
           </motion.button>
         </form>
-        <div className="mt-2 text-center mono text-[10px] text-white/25">
+        <div className="mt-2 text-center mono text-[10px] text-black/30">
           enter to send · shift+enter for new line
         </div>
       </div>
@@ -230,8 +226,8 @@ function MessageBubble({ message }: { message: Message }) {
         className={cn(
           'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] mono',
           isUser
-            ? 'bg-white/[0.06] border border-white/[0.08] text-white/70'
-            : 'bg-mint-500/[0.12] border border-mint-500/25 text-mint-400',
+            ? 'bg-black/[0.06] border border-black/[0.08] text-black/70'
+            : 'bg-black text-white',
         )}
       >
         {isUser ? <User className="h-3.5 w-3.5" /> : <Sparkles className="h-3.5 w-3.5" />}
@@ -241,10 +237,10 @@ function MessageBubble({ message }: { message: Message }) {
           className={cn(
             'rounded-2xl px-4 py-3 text-[14.5px] leading-relaxed',
             isUser
-              ? 'bg-mint-500/[0.10] border border-mint-500/20 text-white rounded-tr-md'
+              ? 'bg-black text-white rounded-tr-md'
               : message.degraded
-                ? 'bg-amber-500/[0.05] border border-amber-500/20 text-amber-100/90 rounded-tl-md'
-                : 'bg-white/[0.035] border border-white/[0.05] text-white/85 rounded-tl-md',
+                ? 'bg-amber-50 border border-amber-200 text-amber-900 rounded-tl-md'
+                : 'bg-black/[0.03] border border-black/[0.06] text-black/85 rounded-tl-md',
           )}
         >
           {isUser || message.degraded ? (
@@ -252,14 +248,14 @@ function MessageBubble({ message }: { message: Message }) {
           ) : (
             <MarkdownView
               content={message.content}
-              className="[&_p]:!text-[14px] [&_p]:!leading-[1.65] [&_p]:!mb-2 [&_p:last-child]:!mb-0 [&_ul]:!my-2 [&_ol]:!my-2 [&_li]:!text-[14px] [&_strong]:!text-white [&_strong]:!font-semibold"
+              className="[&_p]:!text-[14px] [&_p]:!leading-[1.65] [&_p]:!mb-2 [&_p:last-child]:!mb-0 [&_ul]:!my-2 [&_ol]:!my-2 [&_li]:!text-[14px] [&_strong]:!text-black [&_strong]:!font-semibold"
             />
           )}
         </div>
         {(message.cached || message.degraded) && !isUser && (
-          <div className="mt-1 ml-1 mono text-[10px] text-white/35 flex items-center gap-1.5">
-            {message.cached && <span className="inline-flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-mint-400" /> cached · 0 API calls</span>}
-            {message.degraded && <span className="inline-flex items-center gap-1 text-amber-300/60"><span className="h-1 w-1 rounded-full bg-amber-400" /> fallback response</span>}
+          <div className="mt-1 ml-1 mono text-[10px] text-black/35 flex items-center gap-1.5">
+            {message.cached && <span className="inline-flex items-center gap-1"><span className="h-1 w-1 rounded-full bg-black/40" /> cached · 0 API calls</span>}
+            {message.degraded && <span className="inline-flex items-center gap-1 text-amber-700"><span className="h-1 w-1 rounded-full bg-amber-500" /> fallback response</span>}
           </div>
         )}
       </div>
@@ -270,14 +266,14 @@ function MessageBubble({ message }: { message: Message }) {
 function TypingDots() {
   return (
     <div className="flex gap-3">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-mint-500/[0.12] border border-mint-500/25">
-        <Loader2 className="h-3.5 w-3.5 text-mint-400 animate-spin" />
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black">
+        <Loader2 className="h-3.5 w-3.5 text-white animate-spin" />
       </div>
-      <div className="rounded-2xl rounded-tl-md bg-white/[0.035] border border-white/[0.05] px-4 py-3 flex items-center gap-1.5">
+      <div className="rounded-2xl rounded-tl-md bg-black/[0.03] border border-black/[0.06] px-4 py-3 flex items-center gap-1.5">
         {[0, 1, 2].map((i) => (
           <motion.span
             key={i}
-            className="block h-1.5 w-1.5 rounded-full bg-white/40"
+            className="block h-1.5 w-1.5 rounded-full bg-black/40"
             animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
             transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
           />

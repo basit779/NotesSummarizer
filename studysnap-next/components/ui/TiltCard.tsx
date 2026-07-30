@@ -11,7 +11,7 @@ interface TiltCardProps {
   glowOpacity?: number;
 }
 
-export function TiltCard({ children, className, glowClassName, glowOpacity = 0.15 }: TiltCardProps) {
+export function TiltCard({ children, className, glowClassName, glowOpacity = 0.06 }: TiltCardProps) {
   const x = useMotionValue(0.5);
   const y = useMotionValue(0.5);
 
@@ -22,7 +22,6 @@ export function TiltCard({ children, className, glowClassName, glowOpacity = 0.1
   const rotateX = useTransform(mouseYSpring, [0, 1], [3, -3]);
   const rotateY = useTransform(mouseXSpring, [0, 1], [-3, 3]);
 
-  // Glow position logic
   const backgroundX = useTransform(mouseXSpring, [0, 1], ['0%', '100%']);
   const backgroundY = useTransform(mouseYSpring, [0, 1], ['0%', '100%']);
 
@@ -60,11 +59,11 @@ export function TiltCard({ children, className, glowClassName, glowOpacity = 0.1
         style={{
           background: useTransform(
             () =>
-              `radial-gradient(500px circle at ${backgroundX.get()} ${backgroundY.get()}, rgba(16, 185, 129, ${glowOpacity}), transparent 40%)`
+              `radial-gradient(500px circle at ${backgroundX.get()} ${backgroundY.get()}, rgba(0, 0, 0, ${glowOpacity}), transparent 40%)`
           ),
         }}
       />
-      <div className="relative h-full w-full rounded-xl bg-ink-950/80 backdrop-blur-xl border border-white/[0.05] border-t-white/[0.15] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] overflow-hidden z-10 p-6 flex flex-col">
+      <div className="relative h-full w-full rounded-xl bg-white border border-black/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.04)] overflow-hidden z-10 p-6 flex flex-col">
         {children}
       </div>
     </motion.div>

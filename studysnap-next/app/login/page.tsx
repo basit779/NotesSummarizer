@@ -9,6 +9,7 @@ import { ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Label } from '@/components/ui/Label';
 import { MotionButton } from '@/components/ui/MotionButton';
+import { StudySnapLogo } from '@/components/brand/StudySnapLogo';
 import { useAuth } from '@/lib/client/auth';
 
 export default function LoginPage() {
@@ -44,22 +45,17 @@ export default function LoginPage() {
         <Link
           href="/"
           aria-label="StudySnap home"
-          className="mx-auto mb-8 flex h-10 w-10 items-center justify-center rounded-md border border-white/[0.06] bg-white/[0.02] transition-colors duration-150 hover:bg-white/[0.04]"
+          className="mx-auto mb-8 flex h-10 w-10 items-center justify-center rounded-full border border-black/[0.08] bg-black/[0.02] transition-colors duration-150 hover:bg-black/[0.05]"
         >
-          <svg viewBox="0 0 20 20" className="h-5 w-5" aria-hidden>
-            <rect x="3" y="2" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="1.2" className="text-white/30" fill="none" />
-            <line x1="6" y1="7"  x2="14" y2="7"  stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-white/35" />
-            <line x1="6" y1="11" x2="14" y2="11" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-mint-400" />
-            <line x1="6" y1="15" x2="11" y2="15" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" className="text-white/25" />
-          </svg>
+          <StudySnapLogo size={20} color="#000" cutoutColor="#fff" />
         </Link>
 
         {/* Header */}
         <div className="mb-8 text-center">
-          <h1 className="text-[30px] font-semibold tracking-[-0.025em] leading-[1.1] text-white">
+          <h1 className="text-[30px] font-semibold tracking-[-0.025em] leading-[1.1] text-black">
             Welcome back
           </h1>
-          <p className="mt-2 text-[13.5px] leading-relaxed text-white/55">
+          <p className="mt-2 text-[13.5px] leading-relaxed text-black/55">
             Sign in to your StudySnap account.
           </p>
         </div>
@@ -67,10 +63,10 @@ export default function LoginPage() {
         {/* Form */}
         <form
           onSubmit={onSubmit}
-          className="space-y-4 rounded-xl border border-white/[0.06] bg-white/[0.015] p-6"
+          className="space-y-4 rounded-2xl border border-black/[0.08] bg-white p-6 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
         >
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-[12px] font-medium text-white/65">
+            <Label htmlFor="email" className="text-[12px] font-medium text-black/65">
               Email
             </Label>
             <Input
@@ -81,18 +77,17 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="you@school.edu"
-              className="!rounded-[6px]"
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-[12px] font-medium text-white/65">
+              <Label htmlFor="password" className="text-[12px] font-medium text-black/65">
                 Password
               </Label>
               <Link
                 href="/forgot-password"
-                className="text-[12px] text-white/45 transition-colors duration-150 hover:text-mint-400"
+                className="text-[12px] text-black/45 transition-colors duration-150 hover:text-black"
               >
                 Forgot?
               </Link>
@@ -105,13 +100,12 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder="••••••••"
-              className="!rounded-[6px]"
             />
           </div>
 
           <MotionButton
             type="submit"
-            className="w-full !rounded-[6px]"
+            className="w-full"
             loading={loading}
           >
             {loading ? 'Signing in…' : (
@@ -124,17 +118,17 @@ export default function LoginPage() {
         </form>
 
         {/* Footer */}
-        <p className="mt-6 text-center text-[13px] text-white/55">
+        <p className="mt-6 text-center text-[13px] text-black/55">
           No account?{' '}
           <Link
             href="/signup"
-            className="font-medium text-white transition-colors duration-150 hover:text-mint-400"
+            className="font-medium text-black transition-colors duration-150 hover:text-black/70"
           >
             Create one
           </Link>
         </p>
 
-        <p className="mt-4 text-center mono text-[10.5px] uppercase tracking-[0.15em] text-white/25">
+        <p className="mt-4 text-center mono text-[10.5px] uppercase tracking-[0.15em] text-black/30">
           10 free PDFs daily · No card required
         </p>
       </motion.div>

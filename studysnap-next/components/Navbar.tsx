@@ -25,9 +25,9 @@ function Logo() {
     <Link
       href="/"
       aria-label="StudySnap home"
-      className="group flex items-center rounded-md px-2 py-1 -ml-1 text-mint-400 transition-colors duration-150 hover:bg-white/[0.04]"
+      className="group flex items-center rounded-md px-2 py-1 -ml-1 text-black transition-colors duration-150 hover:bg-black/[0.04]"
     >
-      <StudySnapLogo size={26} showWordmark wordmarkSize={15} gap={9} />
+      <StudySnapLogo size={26} showWordmark wordmarkSize={15} gap={9} wordmarkColor="#000" cutoutColor="#fff" />
     </Link>
   );
 }
@@ -50,11 +50,11 @@ function NavLink({
       href={href}
       className="group relative flex h-8 items-center px-3 text-sm"
     >
-      {/* Active indicator — mint underline, animated via layoutId across route changes */}
+      {/* Active indicator — black underline, animated via layoutId across route changes */}
       {active && (
         <motion.span
           layoutId="nav-underline"
-          className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-mint-400"
+          className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-black"
           transition={{ type: 'spring', stiffness: 500, damping: 35 }}
           aria-hidden
         />
@@ -67,10 +67,10 @@ function NavLink({
             !active && 'group-hover:-translate-y-1/2',
           )}
         >
-          <span className={cn('leading-5', active ? 'text-white' : 'text-white/55')}>
+          <span className={cn('leading-5', active ? 'text-black' : 'text-black/50')}>
             {children}
           </span>
-          <span className="leading-5 text-white">{children}</span>
+          <span className="leading-5 text-black">{children}</span>
         </span>
       </span>
     </Link>
@@ -94,18 +94,12 @@ export function Navbar() {
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="mx-auto max-w-6xl px-4"
       >
-        <div className="relative flex h-12 items-center justify-between rounded-xl border border-white/[0.06] bg-ink-900/70 pl-2 pr-2 backdrop-blur-xl">
-          {/* Top hairline mint→transparent — echo of landing hero */}
-          <div
-            className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-mint-400/25 to-transparent"
-            aria-hidden
-          />
-
+        <div className="relative flex h-12 items-center justify-between rounded-full border border-black/[0.08] bg-white/85 pl-2 pr-2 backdrop-blur-xl shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <Logo />
 
           {loading && !user ? (
             <nav className="flex items-center gap-1" aria-hidden>
-              <div className="h-8 w-24 rounded-md bg-white/[0.03]" />
+              <div className="h-8 w-24 rounded-md bg-black/[0.04]" />
             </nav>
           ) : user ? (
             <nav className="flex items-center gap-1">
@@ -123,7 +117,6 @@ export function Navbar() {
                 <MotionButton
                   size="sm"
                   variant={user.plan === 'PRO' ? 'secondary' : 'primary'}
-                  className="!rounded-[6px]"
                 >
                   {user.plan === 'PRO' ? (
                     <><Sparkles className="h-3.5 w-3.5" /> Pro</>
@@ -135,7 +128,7 @@ export function Navbar() {
               <button
                 onClick={() => { logout(); router.push('/'); }}
                 aria-label="Log out"
-                className="ml-1 flex h-8 w-8 items-center justify-center rounded-md text-white/50 hover:text-white hover:bg-white/[0.05] transition-colors duration-150 cursor-pointer"
+                className="ml-1 flex h-8 w-8 items-center justify-center rounded-full text-black/50 hover:text-black hover:bg-black/[0.05] transition-colors duration-150 cursor-pointer"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -149,12 +142,12 @@ export function Navbar() {
                 </div>
               )}
               <Link href="/login">
-                <MotionButton size="sm" variant="ghost" className="!rounded-[6px]">
+                <MotionButton size="sm" variant="ghost">
                   Log in
                 </MotionButton>
               </Link>
               <Link href="/signup">
-                <MotionButton size="sm" variant="primary" className="!rounded-[6px]">
+                <MotionButton size="sm" variant="primary">
                   Get started
                 </MotionButton>
               </Link>

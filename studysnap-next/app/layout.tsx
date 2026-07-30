@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import { Toaster } from 'sonner';
 import './globals.css';
 import { ChromeGate } from '@/components/ChromeGate';
@@ -7,6 +8,12 @@ import { KeepAlive } from '@/components/KeepAlive';
 import { RouteProgress } from '@/components/RouteProgress';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600'],
+  display: 'swap',
+});
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 const OG_TITLE = 'StudySnap — AI study packs from any PDF';
@@ -32,28 +39,28 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#09090b',
+  themeColor: '#ffffff',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={inter.className}>
       <body>
         <AuthInit />
         <KeepAlive />
         <RouteProgress />
-        <div className="relative min-h-screen flex flex-col text-white">
+        <div className="relative min-h-screen flex flex-col text-black">
           <ChromeGate>
             <main className="flex-1">{children}</main>
           </ChromeGate>
           <Toaster
-            theme="dark"
+            theme="light"
             position="bottom-right"
             toastOptions={{
               style: {
-                background: 'rgba(18,18,24,0.9)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.9)',
+                background: 'rgba(255,255,255,0.95)',
+                border: '1px solid rgba(0,0,0,0.1)',
+                color: 'rgba(0,0,0,0.9)',
                 backdropFilter: 'blur(12px)',
               },
             }}
