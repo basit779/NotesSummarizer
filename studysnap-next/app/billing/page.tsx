@@ -181,7 +181,7 @@ function BillingInner() {
             footer={isPro ? 'Your current plan' : undefined}
           >
             {!isPro && (
-              <MotionButton className="mt-6 w-full !bg-white !text-black hover:!opacity-85" onClick={upgrade} loading={loading}>
+              <MotionButton className="mt-6 w-full !bg-none !bg-white !text-black hover:!opacity-85" onClick={upgrade} loading={loading}>
                 {loading ? 'Starting checkout…' : <>Upgrade to Pro <ArrowRight className="h-4 w-4" /></>}
               </MotionButton>
             )}

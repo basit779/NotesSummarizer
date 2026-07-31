@@ -1,11 +1,16 @@
 .page {
   position: relative;
+  width: 100%;
+  background: #ffffff;
+}
+
+.heroSection {
+  position: relative;
   min-height: 100vh;
   width: 100%;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  background: #ffffff;
   overflow: hidden;
   isolation: isolate;
 }
